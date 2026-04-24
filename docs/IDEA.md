@@ -7,8 +7,34 @@ The objective of this project is to develop a robust, open-source, community-dri
 Users must be able to leverage this methodology using their own API keys, local LLMs, or existing agentic environments without being forced into a specific subscription or proprietary web interface. The system must live where the developers and researchers already work.
 
 **Primary Deliverables:**
-1. **The Ecosystem Integrations:** A portable suite of Plugins, Extensions, Skills, Subagents, and Hooks that users can install directly into their preferred Terminal Code Agents or IDEs (Claude Code, Cursor, Gemini CLI, Antigravity, etc.).
-2. **The Standalone Web Application:** A pre-built, easy-to-use web application powered by **DeepAgents JS** (backend) and a customized **Deep Agents UI** (frontend). This version will feature an intuitive, step-by-step progress UI, deployable via a simple configuration file.
+1. **The Ecosystem Integrations (Now):** A portable, install-script-based set of tool-native folders and files (Skills, Commands/Workflows, Subagents, MCP config, and rules/instructions) copied into the user project root (ReviewerOS style), without relying on plugin marketplaces.
+2. **The Standalone Web Application (Later):** A pre-built web app powered by **DeepAgents JS** (backend) and a customized **Deep Agents UI** (frontend), with BYOK support and phase progress UX.
+
+---
+
+## 1.1 Current Scope Decisions (Locked)
+
+### A. Monorepo top-level structure
+At the root of this project, we standardize on:
+- `docs/`
+- `src/`
+  - `src/frontend/` (later phase)
+  - `src/backend/` (later phase)
+- `extensions/` (current priority)
+
+### B. Supported tools in current phase
+For now, we support exactly:
+1. Cursor (`.cursor`)
+2. Claude Code (`.claude`)
+3. Antigravity (`.agent` target, with compatibility for `.agents`)
+4. GitHub Copilot / VS Code (`.github` + `AGENTS.md` as needed)
+5. Gemini CLI (`.gemini`)
+
+### C. Delivery model to avoid ecosystem lock-in
+- Do **not** depend on marketplace plugins as the primary packaging model.
+- Keep all tool-specific assets as plain files in this repository under `extensions/`.
+- Use shell installers to copy the relevant folder into the user project root.
+- This intentionally mirrors the operational style of ReviewerOS.
 
 ---
 
@@ -55,6 +81,14 @@ Model Context Protocol (MCP) servers must be strictly reserved for executing **a
     * **Semantic Scholar MCP Server:** Exposes basic graph searches (users can optionally provide their own API keys).
     * **Microsoft MarkItDown MCP Server:** Used exclusively as a dumb parser to convert local PDF files into clean Markdown for the agent to read.
 
+  ### 3.4. Drift Mitigation Strategy (Adapters)
+  Even with per-tool folders, drift risk remains. We handle it with a strict source hierarchy:
+  1. Canonical protocol content lives once (phase logic, templates, artifact schema).
+  2. Tool adapters in `extensions/` are generated/synced from canonical content.
+  3. Installers only copy already-synced tool folders into user projects.
+
+  This keeps the "plain files" approach while still controlling cross-tool divergence.
+
 ---
 
 ## 4. Guardrails via Templates & State Files
@@ -63,7 +97,7 @@ To prevent prompt brittleness across different LLMs (Gemini, Claude, GPT-4o), we
 
 ---
 
-## 4. The Component Matrix: How the Magic Happens
+## 5. The Component Matrix: How the Magic Happens
 
 To deploy this across various IDEs and CLIs, we break the system down into universal components. Drawing inspiration from the `reviewer-os` repository structure, our implementation will consist of:
 
@@ -80,9 +114,15 @@ We define the ScholarPeer methodology as a deterministic sequence of steps. By u
 * Step 4: Technical Verification (`4-technical-verify.md`)
 * Step 6: Synthesize Review (`6-synthesize.md`)
 
+### C. MCP Configuration (Tool-Native)
+Unlike ReviewerOS, this project includes MCP configuration artifacts so each installed tool can immediately expose required external resources/tools.
+
+### D. Installers (Project Scaffolding)
+Installer scripts copy selected tool assets from `extensions/` into target root directories (e.g., `.cursor`, `.claude`, `.gemini`, `.agent`/`.agents`, `.github`) and initialize `.brain/`.
+
 ---
 
-## 5. The `.brain` State Management System
+## 6. The `.brain` State Management System
 To manage the complex, multi-step flow of a peer review and ensure high agent observability, the framework relies on a `.brain` directory located at the **root of the repository/workspace**.
 
 * **Initialization:** When the user installs the framework (via the install scripts), the `.brain` folder is scaffolded at the root.
@@ -93,23 +133,56 @@ To manage the complex, multi-step flow of a peer review and ensure high agent ob
 
 ---
 
-## 6. Target Ecosystems & Native Integrations
-The repository will be structured as a Monorepo, providing localized configurations for all major terminal agents and IDEs. We will use install scripts (e.g., `install_claude.sh`, `install_cursor.sh`, `install_gemini.sh`) to seamlessly inject our methodology into the user's environment.
+## 7. Target Ecosystems & Native Integrations (Current Phase)
+The repository uses an `extensions/` folder as the source of installable tool configurations.
 
-### 6.1. Claude & Claude Code
-* **Mechanism:** Utilizing `.claude/` structure for Plugins, Commands, Skills, and Hooks.
-* **Delegation:** Utilizing Claude Code's Subagent delegation for isolated context execution.
+### 7.1 Repository layout for adapters
+Planned structure:
 
-### 6.2. Cursor IDE
-* **Mechanism:** Utilizing `.cursor/` structure for Plugins, Slash Commands (`.cursor/commands/`), and Rules (`.cursor/rules/reviewer-os.mdc`).
+```
+extensions/
+├── .cursor/
+├── .claude/
+├── .gemini/
+├── .agent/
+├── .github/
+└── _shared/
+```
 
-### 6.3. Gemini CLI & Antigravity
-* **Mechanism:** Utilizing `.gemini/` Extensions (`.gemini/commands/` TOML files), Subagents, Rules, Workflows, Skills (`.gemini/skills/`), and Hooks.
+### 7.2 Tool-by-tool targets
+
+#### Cursor
+- Target install path: `.cursor/`
+- Includes: commands/workflows, skills, rules, and MCP config (if supported in-project by Cursor format)
+
+#### Claude Code
+- Target install path: `.claude/`
+- Includes: skills, commands, rules, hooks, and MCP-related config artifacts where applicable
+
+#### Antigravity
+- Target install path: `.agent/` (primary in this project decision)
+- Compatibility: duplicate/sync to `.agents/` because current Antigravity docs and ecosystem usage still reference `.agents` with backward support for `.agent`
+- Includes: rules, workflows, skills, and MCP bridge instructions
+
+#### GitHub Copilot (VS Code)
+- Target install path: `.github/` (+ `AGENTS.md` when needed)
+- Includes: always-on instructions, prompts, optional agent/skill files, and MCP guidance files
+
+#### Gemini CLI
+- Target install path: `.gemini/`
+- Includes: commands (TOML), skills, agents/subagents, settings/hooks, and MCP server configuration
+
+### 7.3 Install behavior
+Installers should:
+1. Copy selected adapter folder to target project root.
+2. Initialize `.brain/` and session state.
+3. Add `.brain/` to `.gitignore` if missing.
+4. Avoid overwriting user-local secrets unless explicitly confirmed.
 
 
 ---
 
-## 7. The Standalone Web Application (DeepAgents)
+## 8. The Standalone Web Application (DeepAgents)
 For users who prefer a graphical interface over the terminal, we provide a complete web solution built on LangChain technologies.
 
 ### 7.1. Backend Engine: DeepAgentsJS
@@ -122,9 +195,59 @@ For users who prefer a graphical interface over the terminal, we provide a compl
 * **The "Stepper" UX Enhancement:** To make the complex multi-agent workflow intuitive, we will add a progress-bar/stepper component to the UI.
 * **User Visibility:** As the DeepAgentsJS backend transitions between subagents (e.g., from Historian to Scout), the frontend stepper updates dynamically. The user always knows exactly where they are in the methodology workflow and what the system is currently analyzing.
 
+> Implementation path note: backend and frontend code will live in `src/backend` and `src/frontend` in later phases. Current phase remains focused on `extensions/` and installers.
+
 ---
 
-## 8. Comprehensive Reference & Documentation Links
+## 9. MCP Support Strategy by Tool (Researched)
+
+This section reflects current research and practical constraints.
+
+### 9.1 Claude Code
+- Supports MCP in native configuration and plugin packaging.
+- Plugin structure explicitly supports `.mcp.json` at plugin root.
+- Hooks can call MCP tools directly (`type: mcp_tool`).
+
+### 9.2 Gemini CLI
+- Supports MCP servers via extension manifest (`gemini-extension.json` with `mcpServers`).
+- Supports per-agent MCP isolation via `mcpServers` in subagent frontmatter.
+- Hooks and settings can coordinate with MCP-enabled workflows.
+
+### 9.3 Antigravity
+- MCP is supported via Antigravity MCP integrations.
+- Custom MCP server config is managed in `~/.gemini/antigravity/mcp_config.json` (global editor config), not a project-local `.mcp.json` equivalent.
+- Project installer must therefore write guidance and optional helper scripts rather than assume in-repo MCP authority.
+
+### 9.4 GitHub Copilot / VS Code
+- Current VS Code Copilot customization surface supports instructions, prompts, skills, custom agents, hooks, and MCP server integration via customization features.
+- File-based project conventions are centered around `.github/*`, `AGENTS.md`, and instruction files; MCP server setup is managed through VS Code Copilot customization flows.
+
+### 9.5 Cursor
+- Cursor supports repository-level command/rule/skill patterns in practical usage (as seen in ReviewerOS integration style).
+- MCP configuration file-path conventions require a dedicated verification pass before freezing final schema in this repo.
+- Until verified, keep Cursor MCP integration behind a clearly marked experimental adapter.
+
+---
+
+## 10. Capability Report (What is supported by what)
+
+### 10.1 Confirmed from research
+- **Claude Code:** Skills, commands, hooks, subagents, plugin and standalone modes, MCP-aware workflows.
+- **Gemini CLI:** Extensions, commands, skills, hooks, subagents, MCP servers, agent-local MCP isolation.
+- **Antigravity:** Rules/workflows, skills, MCP integrations, custom MCP config via global `mcp_config.json`; `.agents` is default, `.agent` backward supported.
+- **VS Code Copilot:** Always-on instructions, file-scoped instructions, prompt files, custom agents, agent skills, hooks, MCP server customization.
+
+### 10.2 Confirmed from ReviewerOS repository patterns
+- Multi-tool file-distribution via installers works well.
+- Per-tool folders with copied commands/skills/rules are practical and maintainable.
+- `.brain` session persistence pattern is robust and should be reused.
+
+### 10.3 Open verification item
+- Cursor MCP config exact format/path must be validated before hard-coding implementation.
+
+---
+
+## 11. Comprehensive Reference & Documentation Links
 
 The following official documentation links serve as the architectural blueprint and constraints for our implementation. All development must align with the standards outlined in these resources:
 
@@ -149,6 +272,12 @@ The following official documentation links serve as the architectural blueprint 
 * Gemini CLI Subagents Docs: [https://github.com/google-gemini/gemini-cli/blob/main/docs/core/subagents.md](https://github.com/google-gemini/gemini-cli/blob/main/docs/core/subagents.md)
 * Antigravity Rules & Workflows: [https://antigravity.google/docs/rules-workflows](https://antigravity.google/docs/rules-workflows)
 * Antigravity Skills: [https://antigravity.google/docs/skills](https://antigravity.google/docs/skills)
+* Antigravity MCP: [https://antigravity.google/docs/mcp](https://antigravity.google/docs/mcp)
+
+**GitHub Copilot / VS Code Customization:**
+* VS Code Copilot Customization Overview: [https://code.visualstudio.com/docs/copilot/copilot-customization](https://code.visualstudio.com/docs/copilot/copilot-customization)
+* VS Code Custom Instructions: [https://code.visualstudio.com/docs/copilot/customization/custom-instructions](https://code.visualstudio.com/docs/copilot/customization/custom-instructions)
+* VS Code Manage Context: [https://code.visualstudio.com/docs/copilot/chat/copilot-chat-context](https://code.visualstudio.com/docs/copilot/chat/copilot-chat-context)
 
 **LangChain DeepAgents Ecosystem (Standalone Web App):**
 * Deep Agents UI Repository: [https://github.com/langchain-ai/deep-agents-ui](https://github.com/langchain-ai/deep-agents-ui)
