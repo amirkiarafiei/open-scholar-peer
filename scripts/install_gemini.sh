@@ -14,10 +14,11 @@ else
   echo -e "  ${YELLOW}⚠️  Gemini CLI not found. Install with: npm install -g @google/gemini-cli${NC}"
 fi
 
-# 1. Copy adapter
+# 1. Copy adapter (wipe stale OSP-managed files first; user content preserved)
 SRC="$ROOT_DIR/extensions/.gemini"
 DEST="./.gemini"
 mkdir -p "$DEST"
+bash "$SCRIPTS_DIR/clean_adapter.sh" "$DEST" "gemini"
 cp -r "$SRC/." "$DEST/"
 echo -e "  ${GREEN}✅ Adapter copied → ./.gemini/${NC}"
 

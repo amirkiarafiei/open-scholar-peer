@@ -8,10 +8,11 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
 echo -e "\n${CYAN}Open ScholarPeer → Claude Code${NC}\n"
 
-# 1. Copy adapter into .claude/
+# 1. Copy adapter into .claude/ (wipe stale OSP-managed files first; user content preserved)
 SRC="$ROOT_DIR/extensions/.claude"
 DEST="./.claude"
 mkdir -p "$DEST"
+bash "$SCRIPTS_DIR/clean_adapter.sh" "$DEST" "claude"
 cp -r "$SRC/." "$DEST/"
 echo -e "  ${GREEN}✅ Adapter copied → ./.claude/${NC}"
 

@@ -22,6 +22,12 @@ if [[ ! -d "$SOURCE_DIR" ]]; then
   return 1 2>/dev/null || exit 1
 fi
 
+# Wipe stale managed files before re-copy, but preserve `.venv/` so we don't
+# pay the venv-rebuild + pip-install cost on every re-install.
+if [[ -d "$TARGET_DIR" ]]; then
+  find "$TARGET_DIR" -mindepth 1 -maxdepth 1 -not -name '.venv' -exec rm -rf {} +
+fi
+
 # Copy server files (overwrite — server source is authoritative)
 mkdir -p "$TARGET_DIR"
 cp -r "$SOURCE_DIR/." "$TARGET_DIR/"

@@ -14,10 +14,12 @@ else
   echo -e "  ${YELLOW}⚠️  Copilot CLI not found. Install per https://docs.github.com/en/copilot/how-tos/copilot-cli/${NC}"
 fi
 
-# 1. Copy adapter to .github/ + AGENTS.md at project root
+# 1. Copy adapter to .github/ + AGENTS.md at project root.
+#    Wipe stale OSP-managed files in .github/ first; user content preserved.
 SRC="$ROOT_DIR/extensions/.github"
 DEST="./.github"
 mkdir -p "$DEST"
+bash "$SCRIPTS_DIR/clean_adapter.sh" "$DEST" "copilot"
 cp -r "$SRC/." "$DEST/"
 echo -e "  ${GREEN}✅ Adapter copied → ./.github/${NC}"
 
