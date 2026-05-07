@@ -1,0 +1,38 @@
+---
+description: "OSP Phase 2: External retrieval — 3 distinct rounds (sub-domain, method, temporal)"
+reads: [".brain/session.json", ".brain/raw/01_structured_summary.md"]
+writes: [".brain/raw/02a_literature_round1.md", ".brain/raw/02b_literature_round2.md", ".brain/raw/02c_literature_round3.md", ".brain/raw/02_retrieved_literature.md", ".brain/session.json"]
+---
+
+# /2-osp-literature — Literature Review & Expansion (3 rounds)
+
+Retrieves and tabulates external literature using three structurally distinct rounds. The 3-file requirement is enforced — produces no consolidation until all three round files exist.
+
+## Activation
+
+Invoke the `osp-literature-review-agent` skill.
+
+## Prerequisites
+
+- `phases.summary.status == "completed"` and `01_structured_summary.md` exists.
+
+## Steps
+
+1. Read `.brain/session.json` and `.brain/raw/01_structured_summary.md`.
+2. Activate the `osp-literature-review-agent` skill.
+3. The skill executes three rounds, producing one file per round:
+   - **Round 1** (`02a_literature_round1.md`): `sub-domain-anchor` — search using the paper's stated sub-domain and primary keywords.
+   - **Round 2** (`02b_literature_round2.md`): `method-anchor` — search using the proposed method's name and key technical terms.
+   - **Round 3** (`02c_literature_round3.md`): `temporal-expansion` — filter to last 12 months; explicitly include arXiv pre-prints, workshop papers, concurrent submissions.
+4. Each round must use **all available retrieval tools** (`osp-mcp.search_arxiv`, `search_semantic_scholar`, `search_google_scholar`, native Web Search) with **different query formulations** per round.
+5. Each round file uses the template at `defaults/round_strategy_template.md`.
+6. After all three rounds, the skill writes the consolidated `02_retrieved_literature.md` (deduplicated table of all retained papers).
+7. Update `session.json`:
+   - `phases.literature.status = "completed"`
+   - `phases.literature.notes = "3 rounds; <N> unique papers retained"`
+   - `resume_from = "historian"`
+8. Tell the user: "Literature retrieval complete. Next: `/3-osp-historian`."
+
+## Re-run behavior
+
+Re-running overwrites all four files. Warn before doing so.
