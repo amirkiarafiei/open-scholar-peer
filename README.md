@@ -1,2 +1,141 @@
-# open-scholar-peer
-A Community Implementation of ScholarPeer: A Context-Aware Multi-Agent Framework for Automated Peer Review 
+# Open ScholarPeer (OSP)
+
+A community implementation of [**ScholarPeer**: A Context-Aware Multi-Agent Framework for Automated Peer Review](docs/paper/scholar_peer_arxiv.pdf) — runnable inside the AI coding tools you already use.
+
+OSP turns the paper's 7-agent pipeline into a portable set of skills, slash commands, and MCP tools that install into your project directory. No marketplace, no SaaS, no vendor lock-in. Bring your own API key, your own AI tool of choice, your own paper.
+
+---
+
+## What it does
+
+Given an academic paper, OSP runs a 7-step protocol to produce a venue-formatted peer review:
+
+| Step | Persona | What it produces |
+| --- | --- | --- |
+| 0 | Onboarding | Detects venue, scrapes review guidelines, scaffolds the working directory |
+| 1 | Summary Agent | Structured summary (claims, method, evidence) |
+| 2 | Literature Review Agent | 3-round live retrieval (sub-domain anchor, method anchor, temporal expansion) |
+| 3 | Historian Agent | Chronological domain narrative |
+| 4 | Baseline Scout | Adversarial audit of missing baselines and datasets |
+| 5 | Q&A Engine | 10 probing Q&A pairs per criterion (subagent-isolated where possible) |
+| 6 | Reviewer Agent | Final consolidated review formatted to the venue's guidelines |
+
+Every artifact is saved as auditable markdown in `.brain/raw/` and `.brain/review/`. No black box.
+
+---
+
+## Supported AI tools
+
+| Tool | Subagent isolation | MCP auto-config |
+| --- | --- | --- |
+| [Claude Code](https://claude.com/claude-code) | ✓ | ✓ |
+| [Cursor](https://cursor.com) | ✓ | ✓ |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ | ✓ |
+| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ | ✓ (with merge) |
+| [Google Antigravity IDE](https://antigravity.google/) | ✗ (self-reflection fallback) | manual snippet |
+
+See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for the Antigravity caveat.
+
+---
+
+## Quickstart
+
+From your project directory (the directory containing the paper you want to review):
+
+```bash
+# One-liner installer
+
+curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main/install.sh | bash
+```
+
+Or clone and run locally:
+
+```bash
+git clone https://github.com/amirkiarafiei/open-scholar-peer
+cd open-scholar-peer
+bash install.sh   # interactive — pick your AI tool
+```
+
+The installer:
+1. Copies the right adapter files into your project (`.claude/`, `.cursor/`, etc.).
+2. Initializes `.brain/` (gitignored — your working state).
+3. Sets up a self-contained Python venv at `.scholar-peer/mcp/` (gitignored — the MCP server).
+4. Wires the MCP server into your AI tool's config.
+
+Then in your AI tool:
+
+```text
+/0-osp-onboarding         ← venue + paper detection
+/1-osp-summary
+/2-osp-literature
+/3-osp-historian
+/4-osp-baseline-scout
+/5-osp-qa
+/6-osp-review
+```
+
+Or just run `/open-scholar-peer` at any time — it reads your session state and tells you which command comes next.
+
+---
+
+## Recommended: Semantic Scholar API key
+
+Anonymous Semantic Scholar limits are tight. Get a free key at https://www.semanticscholar.org/product/api#api-key and add to your shell profile:
+
+```bash
+export SEMANTIC_SCHOLAR_API_KEY=sk-...
+```
+
+The MCP server reads it automatically.
+
+---
+
+## Architecture at a glance
+
+```
+extensions/
+├── _shared/           ← Single source of truth (humans edit here)
+│   ├── commands/      ← 8 slash commands
+│   ├── skills/        ← 8 personas (orchestrator + 7 paper agents)
+│   ├── rules/         ← always-on instructions
+│   └── defaults/      ← templates that enforce structure (k=3 rounds, N=10 Q&A)
+└── .{claude,cursor,gemini,agent,github}/   ← Auto-generated per-tool adapters
+
+mcp-server/
+├── osp_mcp.py         ← Consolidated FastMCP server
+└── providers/         ← arxiv, semantic_scholar, google_scholar (extensible)
+
+scripts/
+├── sync_adapters.py   ← Regenerates per-tool adapters from _shared/
+├── install_*.sh       ← Per-tool installers
+├── init_mcp.sh        ← Sets up .scholar-peer/mcp/ with venv
+└── test_*.{py,sh}     ← Parity + install smoke tests
+
+.brain/                ← Per-project state (gitignored)
+└── raw/, review/, input/, session.json
+
+.scholar-peer/mcp/     ← Per-project MCP runtime (gitignored)
+```
+
+---
+
+## Documentation
+
+- **[`docs/PHASES.md`](docs/PHASES.md)** — Build plan and execution checklist.
+- **[`docs/IDEA.md`](docs/IDEA.md)** — Design philosophy.
+- **[`docs/BRAIN_LAYOUT.md`](docs/BRAIN_LAYOUT.md)** — `.brain/` filesystem contract.
+- **[`docs/ARTIFACT_CONTRACTS.md`](docs/ARTIFACT_CONTRACTS.md)** — Per-step I/O contract.
+- **[`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md)** — What to expect, what won't work, workarounds.
+- **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)** — Common issues, by symptom.
+- **[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)** — How to extend OSP (commands, skills, MCP providers).
+- **[`docs/paper/SUMMARY.md`](docs/paper/SUMMARY.md)** — Paper essence (architecture and protocol).
+
+---
+
+## License
+
+MIT.
+
+## Citing the original paper
+
+If you use OSP in research, please cite the upstream ScholarPeer paper. The implementation here is community-built and is not affiliated with the paper's authors or Google.
