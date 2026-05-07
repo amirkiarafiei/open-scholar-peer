@@ -4,7 +4,7 @@
 set -e
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPTS_DIR/.." && pwd)"
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; RED='\033[0;31m'; NC='\033[0m'
 
 echo -e "\n${CYAN}Open ScholarPeer → GitHub Copilot CLI${NC}\n"
 
@@ -12,6 +12,15 @@ if command -v copilot &>/dev/null; then
   echo -e "  ${GREEN}✅ Copilot CLI detected${NC}"
 else
   echo -e "  ${YELLOW}⚠️  Copilot CLI not found. Install per https://docs.github.com/en/copilot/how-tos/copilot-cli/${NC}"
+fi
+
+# Hard prereq: this installer uses python3 for the AGENTS.md merge AND init_mcp
+# uses it for the venv. Fail early with a friendly message if absent.
+if ! command -v python3 &>/dev/null; then
+  echo -e "  ${RED}✗ python3 not found in PATH.${NC}"
+  echo "     The Copilot installer needs python3 for AGENTS.md merging and the MCP venv."
+  echo "     Install Python 3.10+ and re-run."
+  exit 1
 fi
 
 # 1. Copy adapter to .github/ + AGENTS.md at project root.
