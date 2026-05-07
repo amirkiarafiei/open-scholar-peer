@@ -226,19 +226,13 @@ def iter_shared_defaults() -> Iterable[Path]:
     return sorted(d.glob("*.md")) if d.exists() else []
 
 
-def sync_tool(tool: ToolCaps, *, dry_run: bool = False) -> list[str]:
+def sync_tool(tool: ToolCaps) -> list[str]:
     """Regenerate one tool's adapter directory from `_shared/`. Returns a list of
-    relative paths that were (or would be) written, for reporting and drift checks."""
+    relative paths that were written (relative to the tool's root)."""
     written: list[str] = []
-    if dry_run:
-        # Drift check is implemented by the caller comparing in-memory writes vs disk.
-        # For simplicity we still execute writes to a temp tree; not implemented here.
-        # Just enumerate intended targets.
-        pass
 
-    if not dry_run:
-        wipe(tool.root)
-        tool.root.mkdir(parents=True, exist_ok=True)
+    wipe(tool.root)
+    tool.root.mkdir(parents=True, exist_ok=True)
 
     # Commands
     for cmd_path in iter_shared_commands():
@@ -247,20 +241,18 @@ def sync_tool(tool: ToolCaps, *, dry_run: bool = False) -> list[str]:
             body = adapt_qa_body_for_tool(body, tool.qa_mode)
         target_name = f"{cmd_path.stem}.{tool.command_ext}"
         target_path = tool.root / tool.command_dir / target_name
-        if not dry_run:
-            if tool.command_ext == "toml":
-                write_command_toml(target_path, fields, body)
-            else:
-                write_command_md(target_path, fields, body)
-        written.append(str(target_path.relative_to(REPO_ROOT)))
+        if tool.command_ext == "toml":
+            write_command_toml(target_path, fields, body)
+        else:
+            write_command_md(target_path, fields, body)
+        written.append(str(target_path.relative_to(tool.root)))
 
     # Skills
     for skill_path in iter_shared_skills():
         skill_name = skill_path.parent.name
         target_dir = tool.root / tool.skill_dir
-        if not dry_run:
-            write_skill(target_dir, skill_name, skill_path.read_text(encoding="utf-8"))
-        written.append(str((target_dir / skill_name / "SKILL.md").relative_to(REPO_ROOT)))
+        write_skill(target_dir, skill_name, skill_path.read_text(encoding="utf-8"))
+        written.append(str((target_dir / skill_name / "SKILL.md").relative_to(tool.root)))
 
     # Rules
     rules_src = SHARED / "rules" / "osp-rules.md"
@@ -269,42 +261,95 @@ def sync_tool(tool: ToolCaps, *, dry_run: bool = False) -> list[str]:
         if tool.rule_dir is not None:
             ext = "mdc" if tool.name == "cursor" else "md"
             target = tool.root / tool.rule_dir / f"osp-rules.{ext}"
-            if not dry_run:
-                write_rule(target, rules_content, mdc=(tool.name == "cursor"))
-            written.append(str(target.relative_to(REPO_ROOT)))
+            write_rule(target, rules_content, mdc=(tool.name == "cursor"))
+            written.append(str(target.relative_to(tool.root)))
 
         # Tools that bundle rules elsewhere (Gemini -> GEMINI.md, Copilot -> AGENTS.md)
         for relpath, source_id in tool.extra_files:
             if source_id == "rules":
                 target = tool.root / relpath
-                if not dry_run:
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    # Strip our frontmatter for top-level always-on files
-                    _, body = split_frontmatter(rules_content)
-                    target.write_text(body, encoding="utf-8")
-                written.append(str(target.relative_to(REPO_ROOT)))
+                target.parent.mkdir(parents=True, exist_ok=True)
+                # Strip our frontmatter for top-level always-on files
+                _, body = split_frontmatter(rules_content)
+                target.write_text(body, encoding="utf-8")
+                written.append(str(target.relative_to(tool.root)))
 
     # Defaults — copy verbatim into a `defaults/` folder under each tool root
     defaults_target = tool.root / "defaults"
-    if not dry_run:
-        defaults_target.mkdir(parents=True, exist_ok=True)
+    defaults_target.mkdir(parents=True, exist_ok=True)
     for d in iter_shared_defaults():
         target = defaults_target / d.name
-        if not dry_run:
-            target.write_text(d.read_text(encoding="utf-8"), encoding="utf-8")
-        written.append(str(target.relative_to(REPO_ROOT)))
+        target.write_text(d.read_text(encoding="utf-8"), encoding="utf-8")
+        written.append(str(target.relative_to(tool.root)))
 
     return written
 
 
-def mirror_antigravity() -> list[str]:
-    """Antigravity is referenced as both `.agent/` (newer) and `.agents/` (legacy).
-    After syncing `.agent/`, mirror to `.agents/` so installers can pick either."""
-    if not TOOLS["antigravity"].root.exists():
-        return []
-    wipe(ANTIGRAVITY_MIRROR)
-    shutil.copytree(TOOLS["antigravity"].root, ANTIGRAVITY_MIRROR)
-    return [str(ANTIGRAVITY_MIRROR.relative_to(REPO_ROOT)) + "/ (mirrored)"]
+def mirror_antigravity_to(src_root: Path, mirror_dest: Path) -> None:
+    """Antigravity is discovered via both `.agent/` (newer) and `.agents/` (legacy).
+    After syncing the newer dir, copy it verbatim to the legacy mirror path."""
+    if not src_root.exists():
+        return
+    wipe(mirror_dest)
+    shutil.copytree(src_root, mirror_dest)
+
+
+# ---------- Drift check ----------------------------------------------------
+
+def trees_equal(a: Path, b: Path) -> bool:
+    """Recursively compare two directory trees for identical structure and bytes."""
+    if a.is_file() and b.is_file():
+        return a.read_bytes() == b.read_bytes()
+    if a.is_dir() and b.is_dir():
+        a_kids = {p.name for p in a.iterdir()}
+        b_kids = {p.name for p in b.iterdir()}
+        if a_kids != b_kids:
+            return False
+        return all(trees_equal(a / k, b / k) for k in a_kids)
+    return False
+
+
+def run_drift_check(selected: list[ToolCaps]) -> int:
+    """Sync each selected tool to a temp tree and compare against the live adapter
+    dir. Exit 0 = in sync; exit 1 = drift detected."""
+    import dataclasses
+    import tempfile
+
+    drift: list[str] = []
+    with tempfile.TemporaryDirectory(prefix="osp-check-") as tmpdir:
+        tmp_root = Path(tmpdir)
+
+        # Sync each selected tool to a tmp subdir
+        for tool in selected:
+            tmp_tool = dataclasses.replace(tool, root=tmp_root / tool.name)
+            sync_tool(tmp_tool)
+
+        # Antigravity mirror inside tmp
+        if any(t.name == "antigravity" for t in selected):
+            mirror_antigravity_to(tmp_root / "antigravity", tmp_root / "antigravity-mirror")
+
+        # Compare
+        for tool in selected:
+            tmp_path = tmp_root / tool.name
+            mark = "✓" if trees_equal(tool.root, tmp_path) else "✗"
+            print(f"  {mark} {tool.name} ({tool.root.relative_to(REPO_ROOT)})")
+            if mark == "✗":
+                drift.append(tool.name)
+
+        if any(t.name == "antigravity" for t in selected):
+            tmp_mirror = tmp_root / "antigravity-mirror"
+            actual_mirror = ANTIGRAVITY_MIRROR
+            mark = "✓" if trees_equal(actual_mirror, tmp_mirror) else "✗"
+            print(f"  {mark} antigravity-mirror ({actual_mirror.relative_to(REPO_ROOT)})")
+            if mark == "✗":
+                drift.append("antigravity-mirror")
+
+    if drift:
+        print(f"\n  ❌ Drift detected in: {', '.join(drift)}")
+        print("  → Run `python3 scripts/sync_adapters.py` to regenerate.")
+        return 1
+    print(f"\n  ✅ All adapters in sync with _shared/")
+    return 0
 
 
 # ---------- Entrypoint -----------------------------------------------------
@@ -312,7 +357,8 @@ def mirror_antigravity() -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Sync OSP _shared/ → per-tool adapters.")
     parser.add_argument("--tool", choices=list(TOOLS.keys()) + ["all"], default="all")
-    parser.add_argument("--check", action="store_true", help="Dry run; exit 1 if drift detected.")
+    parser.add_argument("--check", action="store_true",
+                        help="Compare existing adapters to what would be generated; exit 1 on drift.")
     args = parser.parse_args()
 
     if not SHARED.exists():
@@ -321,16 +367,19 @@ def main() -> int:
 
     selected = list(TOOLS.values()) if args.tool == "all" else [TOOLS[args.tool]]
 
+    if args.check:
+        return run_drift_check(selected)
+
     total_written: list[str] = []
     for tool in selected:
         print(f"  ▸ syncing {tool.name} → {tool.root.relative_to(REPO_ROOT)}")
-        total_written.extend(sync_tool(tool, dry_run=args.check))
+        total_written.extend(sync_tool(tool))
 
-    if "antigravity" in [t.name for t in selected] and not args.check:
+    if any(t.name == "antigravity" for t in selected):
         print("  ▸ mirroring .agent/ → .agents/ (legacy compat)")
-        total_written.extend(mirror_antigravity())
+        mirror_antigravity_to(TOOLS["antigravity"].root, ANTIGRAVITY_MIRROR)
 
-    print(f"\n  ✅ {len(total_written)} files {'would be ' if args.check else ''}written.")
+    print(f"\n  ✅ {len(total_written)} files written.")
     return 0
 
 
