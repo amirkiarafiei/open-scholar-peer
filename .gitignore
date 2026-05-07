@@ -1,0 +1,21 @@
+# External references — kept locally for inspiration but not part of OSP
+reviewer-os/
+
+# Leftover unrelated tooling at repo root.
+# (NOT to be confused with the OSP Antigravity adapter at extensions/.agents/, which IS tracked.)
+/.agents/
+
+# Per-project runtime artifacts (created by installers in *user* projects, never in this dev repo)
+.brain/
+.scholar-peer/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
