@@ -1,0 +1,33 @@
+{
+  "protocol": "OpenScholarPeer",
+  "version": "2.0",
+  "created_at": "",
+  "updated_at": "",
+  "venue": {
+    "name": "",
+    "year": "",
+    "source_url": "",
+    "criteria_source": "pending"
+  },
+  "paper": {
+    "title": "",
+    "path": "",
+    "parsed_path": "",
+    "type": ""
+  },
+  "qa_criteria": [],
+  "phases": {
+    "onboarding":     { "status": "pending", "started_at": "", "completed_at": "", "notes": "" },
+    "summary":        { "status": "pending", "started_at": "", "completed_at": "", "notes": "" },
+    "literature":     { "status": "pending", "started_at": "", "completed_at": "", "notes": "" },
+    "historian":      { "status": "pending", "started_at": "", "completed_at": "", "notes": "" },
+    "baseline_scout": { "status": "pending", "started_at": "", "completed_at": "", "notes": "" },
+    "qa":             { "status": "pending", "started_at": "", "completed_at": "", "notes": "", "criteria_progress": {} },
+    "review":         { "status": "pending", "started_at": "", "completed_at": "", "notes": "" }
+  },
+  "mcp": {
+    "semantic_scholar_api_key_present": false
+  },
+  "resume_from": "onboarding",
+  "notes": ""
+}
