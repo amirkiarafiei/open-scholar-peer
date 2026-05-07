@@ -41,18 +41,41 @@ For now, we support exactly:
 ## 2. The Scientific Foundation: The ScholarPeer Methodology
 Before defining the code architecture, we must explicitly define the scientific pipeline we are replicating. ScholarPeer solves the "parametric vacuum" problem of LLM peer reviews by actively fetching external context from the live web. It relies on a three-phase, dual-stream architecture:
 
-### Phase 1: Knowledge Acquisition & Contextualization
-* **Summary Agent (Internal Compression):** Extracts core claims, the proposed method, and reported evidence from the paper to avoid cognitive overload.
-* **Literature Review & Expansion Agent:** Conducts iterative web searches to find foundational papers, SOTA benchmarks, and concurrent work up to a strict `cutoff_date`.
-* **Historian Agent:** Synthesizes the retrieved literature into a chronological "Domain Narrative", allowing the system to understand the arc of progress.
-* **Baseline Scout Agent:** Acts as an adversarial auditor, hunting for SOTA methods and datasets the authors explicitly *failed* to compare against.
+### **Phase 1: Knowledge Acquisition & Contextualization**
+The process begins when an **Input Paper** is fed into the system. The system immediately splits the processing into two distinct, parallel tracks to understand both the paper's specific contents and its place in the broader academic landscape.
 
-### Phase 2: Active Verification (Q&A Engine)
-* **Q&A Skeptic:** Generates probing questions regarding technical soundness and novelty based on the inputs from Phase 1.
-* **Interrogation Log:** Self-answers and verifies claims against the external domain narrative, logging discrepancies as hard evidence.
+**Track A: Internal Compression (Understanding the Paper)**
+This track focuses entirely on the contents of the submitted paper.
+* **The Summary Agent:** An AI agent acts as a dedicated reader, extracting key structural elements from the text. 
+* **Extraction:** It isolates three main components: the paper's core **Claims**, its proposed **Method**, and the **Evidence** provided to support those claims.
+* **Synthesis:** These three elements are then compiled and condensed into a single, cohesive **Structured Summary**.
 
-### Phase 3: Synthesis
-* **Review Generator:** Uses the verified interrogation log and specific venue guidelines (e.g., ICLR, NeurIPS) to draft the final review.
+**Track B: External Context Compression (Understanding the Field)**
+Simultaneously, the system looks outward to evaluate the paper against existing literature.
+* **Literature Review & Expansion Agent:** This agent begins a continuous cycle of research, utilizing a **Web Search** tool to pull in relevant external information. This results in a body of **Retrieved Literature**.
+* **Baseline Scout Agent:** Working alongside the web search, this specialized agent evaluates the paper's experiments to identify any **Missing Baselines & Datasets** that the authors should have compared their work against.
+* **Historian Agent:** This agent takes the Retrieved Literature and constructs a **Domain Narrative**. It visually maps out key milestones on a timeline to understand the historical context and trajectory of the specific research field.
+
+### **Phase 2: Multi-Aspect Q&A Engine**
+Once the system has a solid internal summary and external context, the workflow moves to the analytical phase. Here, specialized agents engage in iterative, back-and-forth dialogues to evaluate specific aspects of the paper.
+
+**Aspect Evaluation 1: Novelty & Significance**
+* A **Query Agent** formulates specific questions regarding the paper's originality (e.g., "Q: Novelty").
+* An **Answer Generator Agent** responds with a detailed assessment (e.g., "A: Analysis"). To ensure accuracy, this agent has direct access to a **Web Search** module to cross-reference claims against current online knowledge. 
+* This is a cyclical process; the Query Agent and Answer Generator Agent continuously loop back and forth to refine the analysis.
+
+**Aspect Evaluation 2: Technical Soundness**
+* Operating in the same looping format, a **Query Agent** asks probing questions about the paper's methodology and results (e.g., "Q: Validity").
+* The **Answer Generator Agent** responds by providing concrete proof from the text or external data (e.g., "A: Evidence"). 
+
+*(Note: The diagram implies this engine can scale to evaluate various other aspects using this same dual-agent Q&A loop).*
+
+### **Phase 3: Final Review Generation**
+The final phase synthesizes all the fragmented analyses into a single, formal document.
+
+* **The Reviewer Agent:** This final agent receives all the structured insights, domain narratives, and Q&A evaluations from the previous phases. 
+* **Application of Guidelines:** Before writing, the Reviewer Agent consults a set of predefined **Review Guidelines**. These guidelines dictate the required structure of the final output (e.g., ensuring sections for *Format: Summary, Strengths, Weaknesses, etc.*).
+* **Final Output:** Guided by the required format and fueled by the extensive contextual and analytical data, the Reviewer Agent generates the final, comprehensive **Paper Review**.
 
 ---
 
@@ -108,11 +131,9 @@ Skills are modular markdown files injected into the LLM's context to change its 
 
 ### B. Commands & Workflows (User Prompts & Orchestration)
 We define the ScholarPeer methodology as a deterministic sequence of steps. By using Slash Commands or Workflow files, we guide the Manager Agent through the pipeline.
-* Step 0: Venue Setup (`0-venue-setup.md`)
-* Step 1: Paper Intake (`1-paper-intake.md`)
-* Step 3: Literature Search & Expansion (`3-literature-search.md`)
-* Step 4: Technical Verification (`4-technical-verify.md`)
-* Step 6: Synthesize Review (`6-synthesize.md`)
+* Phase 1: Knowledge Acquisition (`1-knowledge-acquisition.md`)
+* Phase 2: Q&A Engine (`2-qa-engine.md`)
+* Phase 3: Review Generation (`3-review-generation.md`)
 
 ### C. MCP Configuration (Tool-Native)
 Unlike ReviewerOS, this project includes MCP configuration artifacts so each installed tool can immediately expose required external resources/tools.
@@ -157,7 +178,7 @@ extensions/
 
 #### Claude Code
 - Target install path: `.claude/`
-- Includes: skills, commands, rules, hooks, and MCP-related config artifacts where applicable
+- Includes: skills, commands, rules, and MCP-related config artifacts where applicable
 
 #### Antigravity
 - Target install path: `.agent/` (primary in this project decision)
@@ -206,12 +227,11 @@ This section reflects current research and practical constraints.
 ### 9.1 Claude Code
 - Supports MCP in native configuration and plugin packaging.
 - Plugin structure explicitly supports `.mcp.json` at plugin root.
-- Hooks can call MCP tools directly (`type: mcp_tool`).
+
 
 ### 9.2 Gemini CLI
 - Supports MCP servers via extension manifest (`gemini-extension.json` with `mcpServers`).
 - Supports per-agent MCP isolation via `mcpServers` in subagent frontmatter.
-- Hooks and settings can coordinate with MCP-enabled workflows.
 
 ### 9.3 Antigravity
 - MCP is supported via Antigravity MCP integrations.
@@ -219,7 +239,7 @@ This section reflects current research and practical constraints.
 - Project installer must therefore write guidance and optional helper scripts rather than assume in-repo MCP authority.
 
 ### 9.4 GitHub Copilot / VS Code
-- Current VS Code Copilot customization surface supports instructions, prompts, skills, custom agents, hooks, and MCP server integration via customization features.
+- Current VS Code Copilot customization surface supports instructions, prompts, skills, custom agents, and MCP server integration via customization features.
 - File-based project conventions are centered around `.github/*`, `AGENTS.md`, and instruction files; MCP server setup is managed through VS Code Copilot customization flows.
 
 ### 9.5 Cursor
@@ -232,10 +252,10 @@ This section reflects current research and practical constraints.
 ## 10. Capability Report (What is supported by what)
 
 ### 10.1 Confirmed from research
-- **Claude Code:** Skills, commands, hooks, subagents, plugin and standalone modes, MCP-aware workflows.
-- **Gemini CLI:** Extensions, commands, skills, hooks, subagents, MCP servers, agent-local MCP isolation.
+- **Claude Code:** Skills, commands, subagents, plugin and standalone modes, MCP-aware workflows.
+- **Gemini CLI:** Extensions, commands, skills, subagents, MCP servers, agent-local MCP isolation.
 - **Antigravity:** Rules/workflows, skills, MCP integrations, custom MCP config via global `mcp_config.json`; `.agents` is default, `.agent` backward supported.
-- **VS Code Copilot:** Always-on instructions, file-scoped instructions, prompt files, custom agents, agent skills, hooks, MCP server customization.
+- **VS Code Copilot:** Always-on instructions, file-scoped instructions, prompt files, custom agents, agent skills, MCP server customization.
 
 ### 10.2 Confirmed from ReviewerOS repository patterns
 - Multi-tool file-distribution via installers works well.
@@ -255,19 +275,15 @@ The following official documentation links serve as the architectural blueprint 
 * Claude Plugins: [https://code.claude.com/docs/en/plugins](https://code.claude.com/docs/en/plugins)
 * Claude Commands: [https://code.claude.com/docs/en/commands](https://code.claude.com/docs/en/commands)
 * Claude Skills: [https://code.claude.com/docs/en/skills](https://code.claude.com/docs/en/skills)
-* Claude Hooks Guide: [https://code.claude.com/docs/en/hooks-guide](https://code.claude.com/docs/en/hooks-guide)
-* Claude Hooks Reference: [https://code.claude.com/docs/en/hooks](https://code.claude.com/docs/en/hooks)
 
 **Cursor Ecosystem:**
 * Cursor Plugins: [https://cursor.com/docs/plugins](https://cursor.com/docs/plugins)
 * Cursor Slash Commands: [https://cursor.com/docs/cli/reference/slash-commands](https://cursor.com/docs/cli/reference/slash-commands)
-* Cursor Hooks: [https://cursor.com/docs/hooks](https://cursor.com/docs/hooks)
 
 **Gemini & Google Ecosystem:**
 * Gemini CLI Extensions: [https://geminicli.com/docs/extensions/](https://geminicli.com/docs/extensions/)
 * Gemini CLI Writing Extensions: [https://geminicli.com/docs/extensions/writing-extensions/](https://geminicli.com/docs/extensions/writing-extensions/)
 * Gemini CLI Best Practices: [https://geminicli.com/docs/extensions/best-practices/](https://geminicli.com/docs/extensions/best-practices/)
-* Gemini CLI Hooks: [https://geminicli.com/docs/hooks/](https://geminicli.com/docs/hooks/)
 * Gemini Subagents Announcement: [https://developers.googleblog.com/subagents-have-arrived-in-gemini-cli/](https://developers.googleblog.com/subagents-have-arrived-in-gemini-cli/)
 * Gemini CLI Subagents Docs: [https://github.com/google-gemini/gemini-cli/blob/main/docs/core/subagents.md](https://github.com/google-gemini/gemini-cli/blob/main/docs/core/subagents.md)
 * Antigravity Rules & Workflows: [https://antigravity.google/docs/rules-workflows](https://antigravity.google/docs/rules-workflows)
@@ -284,3 +300,4 @@ The following official documentation links serve as the architectural blueprint 
 * DeepAgents JS Repository: [https://github.com/langchain-ai/deepagentsjs](https://github.com/langchain-ai/deepagentsjs)
 * DeepAgents Python/General Overview: [https://docs.langchain.com/oss/python/deepagents/overview](https://docs.langchain.com/oss/python/deepagents/overview)
 * DeepAgents Deployment Guide: [https://docs.langchain.com/oss/python/deepagents/deploy](https://docs.langchain.com/oss/python/deepagents/deploy)
+docs.langchain.com/oss/python/deepagents/deploy)

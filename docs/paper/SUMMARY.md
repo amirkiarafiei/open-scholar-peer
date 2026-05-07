@@ -22,7 +22,7 @@ This phase acts as the system's "skeptic." Instead of passively generating a rev
 * **Query & Answer Generation:** Fed by the structured summary, the domain narrative, and the missing baselines, this engine generates a set of probing questions targeting weaknesses in technical soundness and novelty. 
 * **The Interrogation Log:** For each question, it self-answers, verifies claims against the retrieved external domain narrative, and explicitly logs any discrepancies between what the paper claims and what the external verification found.
 
-#### Phase 3: Review Generator Agent (Synthesis)
+#### Phase 2: Review Generator Agent (Synthesis)
 * **Guidelines-Driven Output:** This final agent takes the structured paper summary and the verified facts from the interrogation log to synthesize the final report. Crucially, it is decoupled from the investigation phase and is conditioned on specific conference guidelines (e.g., ICLR, NeurIPS), formatting the raw findings into the expected tone and structure.
 
 ---
