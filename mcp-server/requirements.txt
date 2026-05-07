@@ -1,0 +1,6 @@
+mcp>=1.2.0
+fastmcp>=0.2.0
+semanticscholar>=0.7.0
+scholarly>=1.7.11
+requests>=2.31.0
+beautifulsoup4>=4.12.0
