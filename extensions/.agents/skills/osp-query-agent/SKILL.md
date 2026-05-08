@@ -16,7 +16,7 @@ You operate **in the main thread**. The Answer Generator Agent runs as a **subag
 
 ## Inputs
 
-- `.brain/session.json` — especially `qa_criteria[]`
+- `.brain/session.json` — especially `qa_criteria[]` and `qa_pairs_per_criterion`
 - `.brain/raw/00_review_guidelines.md`
 - `.brain/raw/01_structured_summary.md`
 - `.brain/raw/03_domain_narrative.md`
@@ -24,16 +24,18 @@ You operate **in the main thread**. The Answer Generator Agent runs as a **subag
 
 ## Loop structure
 
+Read `N = session.json.qa_pairs_per_criterion` (default 2).
+
 For each criterion in `session.json.qa_criteria[]`:
 
 1. Open or initialize `.brain/raw/05_qa_<criterion_slug>.md` from the template at `defaults/qa_pair_template.md`.
-2. Generate **exactly 10 Q&A pairs** for this criterion. The file template enforces this — if the file has fewer than 10 numbered pairs, the criterion is not complete.
+2. Generate **exactly N Q&A pairs** for this criterion.
 3. For each question:
    a. **Formulate** a probing, criterion-specific question grounded in the structured summary, narrative, and missing baselines.
    b. **Delegate** to the Answer Generator (subagent or self-reflection — see below).
    c. **Receive** `(answer, citations, discrepancy_flag)`.
    d. **Append** the Q&A pair to the file.
-4. After 10 pairs are written, fill in the `## Provenance` section.
+4. After N pairs are written, fill in the `## Provenance` section.
 5. Update `session.json.phases.qa.criteria_progress[<slug>] = "completed"`.
 
 After all criteria are done:
@@ -43,7 +45,7 @@ After all criteria are done:
 
 ## Question generation principles
 
-Per criterion, the 10 questions must collectively probe:
+Per criterion, the N questions must collectively probe:
 - **Claims** — does each claim hold under scrutiny?
 - **Comparisons** — are the right baselines present, are they fair, are improvements significant?
 - **Generalization** — would the result hold on a different dataset or scale?
@@ -63,7 +65,7 @@ The Answer Generator returns `(answer, citations, discrepancy_flag)`. Append it 
 
 ## Self-reflection fallback (Antigravity only)
 
-If you are running in a tool without subagent support (Antigravity), use the following strict turn-marker protocol. Both the question and the answer must appear in your context window so attention covers them, and the role boundary must be explicit:
+If you are running in a tool without subagent support (Antigravity), use the following strict turn-marker protocol:
 
 ```
 === Query Agent (probing) ===
@@ -77,19 +79,19 @@ A<N>: <the answer with citations and [DISCREPANCY] flags>
 === END Answer Generator ===
 ```
 
-This is a **known weaker substitute** for true subagent isolation — see `KNOWN_LIMITATIONS.md`. Reviews on the Q&A axis from Antigravity will have measurably less depth than from the four subagent-capable tools.
+This is a **known weaker substitute** for true subagent isolation — see `KNOWN_LIMITATIONS.md`.
 
 ## Output format
 
 `.brain/raw/05_qa_<slug>.md` follows `defaults/qa_pair_template.md` exactly:
 - `# Q&A — <criterion label>`
-- `## Method` (mode used, context bundle, tools)
-- `## Output` containing `### Q1` … `### A10` (10 numbered pairs)
+- `## Method` (mode used, pair count, context bundle, tools)
+- `## Output` containing `### Q1` … `### A<N>` (exactly N numbered pairs)
 - `## Provenance` (papers cited, tool calls, discrepancy count)
 
 ## Pitfalls
 
-- Do **not** generate fewer than 10 pairs per criterion. The structural enforcement is in the file template.
+- Do **not** generate fewer pairs than `qa_pairs_per_criterion`.
 - Do **not** answer your own questions in the main thread — always delegate (subagent) or use turn markers (self-reflection).
-- Do **not** rephrase the same question 10 ways. Each question should target a distinct weakness or angle.
-- Do **not** silently skip a criterion. If you can't answer due to missing prior artifacts, raise an error and tell the user which earlier command to re-run.
+- Do **not** rephrase the same question N ways. Each question must target a distinct weakness or angle.
+- Do **not** silently skip a criterion. If you can't proceed due to missing prior artifacts, raise an error.

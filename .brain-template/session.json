@@ -16,6 +16,7 @@
     "type": ""
   },
   "qa_criteria": [],
+  "qa_pairs_per_criterion": 2,
   "phases": {
     "onboarding":     { "status": "pending", "started_at": "", "completed_at": "", "notes": "" },
     "summary":        { "status": "pending", "started_at": "", "completed_at": "", "notes": "" },
