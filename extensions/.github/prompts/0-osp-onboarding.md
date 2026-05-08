@@ -70,9 +70,9 @@ If the venue uses 7 criteria, you produce 7 entries. If 3, you produce 3. The nu
 
 For each criterion in `qa_criteria[]`, create `.brain/raw/05_qa_<slug>.md` from the template at `defaults/qa_pair_template.md` (or the synced equivalent). Pre-fill:
 - The criterion label and definition in the header
-- Empty `### Q1` … `### Q10` placeholders
+- Empty `### Q1` … `### Q<N>` placeholders where N = `qa_pairs_per_criterion` (from session.json, default 2)
 
-This is a **structural nudge**: when the Query Agent runs in Phase 5, the empty file is already on disk, signaling that 10 pairs are required.
+This is a **structural nudge**: when the Query Agent runs in Phase 5, the empty file is already on disk, signaling the required pair count.
 
 ### 8. Update `session.json`
 
@@ -81,6 +81,16 @@ This is a **structural nudge**: when the Query Agent runs in Phase 5, the empty 
 - `phases.onboarding.notes = "Venue: <name>; criteria: <N>; paper: <path>; guidelines source: <web|user|generic>"`
 - `resume_from = "summary"`
 
-### 9. Tell the user the next step
+### 9. User-facing report
 
-"Onboarding complete. Run `/1-osp-summary` to begin Internal Compression."
+Print:
+```
+── Onboarding complete ───────────────────────────────────
+Venue: <name>  |  Criteria: <N>  |  Guidelines: <web|user|generic>
+Paper located and text-version confirmed.
+↳ .brain/raw/00_review_guidelines.md
+↳ .brain/raw/05_qa_<slug>.md  (pre-scaffolded for each criterion)
+↳ .brain/session.json  (qa_pairs_per_criterion: <N>)
+Next: /1-osp-summary
+─────────────────────────────────────────────────────────
+```

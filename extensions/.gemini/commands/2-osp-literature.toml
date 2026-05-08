@@ -16,6 +16,10 @@ Invoke the `osp-literature-review-agent` skill.
 - `phases.summary.status == "completed"` and `01_structured_summary.md` exists.
 - Rounds must be run in order (1 → 2 → 3).
 
+## Resource notice
+
+⚠️ Each invocation makes ~8-12 API calls across 3 databases (arXiv, Semantic Scholar, Google Scholar). Expect 1-3 minutes per round.
+
 ## Round definitions
 
 | # | Anchor | Goal |
@@ -48,14 +52,15 @@ Invoke the `osp-literature-review-agent` skill.
 
 5. Print a progress banner and brief findings summary:
    ```
-   ── Literature Review ─────────────────────────────
+   ── Literature Review ────────────────────────────────────
    Round N/3 complete  (anchor: <anchor-name>)
    Papers retained this round: <n>
    Top finds: <2-3 bullet highlights>
-   ──────────────────────────────────────────────────
+   ↳ .brain/raw/02N_literature_round<N>.md
+   ─────────────────────────────────────────────────────────
    ```
-   - If `rounds_completed < 3`: ask the user "Continue to round N+1? Run `/2-osp-literature` again."
-   - If `rounds_completed == 3`: tell the user "Literature retrieval complete. Next: `/3-osp-historian`."
+   - If `rounds_completed < 3`: "Run `/2-osp-literature` again to continue to round N+1."
+   - If `rounds_completed == 3`: "Next: /3-osp-historian"
 
 ## Re-run behavior
 

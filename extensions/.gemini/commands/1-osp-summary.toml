@@ -37,12 +37,22 @@ Do NOT silently proceed with a PDF path on the assumption that the host tool wil
 2. Read `.brain/session.json` and `.brain/input/paper.md` (the validated markdown produced or verified by the guard).
 3. Activate the `osp-summary-agent` skill — it owns the extraction protocol (claims, method, evidence) and the output format.
 4. The skill writes `.brain/raw/01_structured_summary.md`.
-5. The skill updates `session.json`:
+5. The skill writes `.brain/raw/01_structured_summary.md`.
+6. The skill updates `session.json`:
    - `phases.summary.status = "completed"`
    - `phases.summary.completed_at = <now>`
-   - `phases.summary.notes = <count summary>`
+   - `phases.summary.notes = "<N> claims, <M> evidence items, method identified"`
    - `resume_from = "literature"`
-6. Tell the user: "Structured summary written to `.brain/raw/01_structured_summary.md`. Next: `/2-osp-literature`."
+
+## User-facing report (print after completion)
+
+```
+── Internal Compression complete ────────────────────────
+Extracted <N> claims, <M> pieces of evidence, and the proposed method.
+↳ .brain/raw/01_structured_summary.md
+Next: /2-osp-literature
+─────────────────────────────────────────────────────────
+```
 
 ## Re-run behavior
 

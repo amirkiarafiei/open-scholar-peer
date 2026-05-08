@@ -24,11 +24,21 @@ Invoke the `osp-reviewer-agent` skill.
 3. The skill follows the structure dictated by `00_review_guidelines.md`. If using the generic fallback, the structure is: Summary / Strengths / Weaknesses / Detailed comments per criterion / Questions for authors / Decision recommendation / Confidence.
 4. The skill performs **no new retrieval** — it is decoupled from investigation, synthesis only.
 5. Write `.brain/review/final_review.md`.
-6. Update `session.json`:
+6. Write `.brain/review/final_review.md`.
+7. Update `session.json`:
    - `phases.review.status = "completed"`
    - `phases.review.notes = "Final review written; decision: <recommendation>"`
    - `resume_from = "completed"`
-7. Tell the user: "Review written to `.brain/review/final_review.md`. Decision: `<recommendation>`. To revise any phase, re-invoke its slash command."
+
+## User-facing report (print after completion)
+
+```
+── Review complete ───────────────────────────────────────
+Decision: <Reject | Major revision | Minor revision | Accept>
+↳ .brain/review/final_review.md
+To revise any phase, re-invoke its slash command.
+──────────────────────────────────────────────────────────
+```
 
 ## Re-run behavior
 
