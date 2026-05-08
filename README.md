@@ -2,13 +2,15 @@
 
 A community implementation of [**ScholarPeer**: A Context-Aware Multi-Agent Framework for Automated Peer Review](docs/paper/scholar_peer_arxiv.pdf) — runnable inside the AI coding tools you already use.
 
-
+<figure>
+  <img src="assets/support.png" alt="Open ScholarPeer" width="360" />
+</figure>
 
 OSP turns the paper's 7-agent pipeline into a portable set of skills, slash commands, and MCP tools that install into your project directory. No marketplace, no SaaS, no vendor lock-in. Bring your own API key, your own AI tool of choice, your own paper.
 
 ---
 
-## 🚀Quickstart
+## 🚀 Quickstart
 
 One-liner installation:
 
@@ -22,9 +24,11 @@ curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main
 Given an academic paper, OSP runs a 7-step protocol to produce a venue-formatted peer review:
 
 <figure>
-  <img src="docs/paper/agents.png" alt="ScholarPeer architecture diagram" width="480" />
+  <img src="docs/paper/agents.png" alt="ScholarPeer architecture diagram" width="720" />
   <figcaption>ScholarPeer architecture diagram. Source: Google paper, <a href="https://arxiv.org/abs/2601.22638">https://arxiv.org/abs/2601.22638</a>.</figcaption>
 </figure>
+
+---
 
 | Step | Persona | What it produces |
 | --- | --- | --- |
