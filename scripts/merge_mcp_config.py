@@ -9,7 +9,7 @@ entries, and writes it back — preserving any unrelated user keys *and* any
 hand-customized osp/markitdown entries the user may have added themselves.
 
 Managed-entry tracking: which entries we wrote is recorded in
-`.scholar-peer/osp-managed-entries.json` alongside the project, NOT inside the
+`.open-scholar-peer/osp-managed-entries.json` alongside the project, NOT inside the
 tool's own JSON (which would break strict validators like Gemini CLI).
 
 Usage:
@@ -23,8 +23,8 @@ import sys
 from pathlib import Path
 
 # Sidecar file that tracks which server entries in each config file were written
-# by OSP.  Lives in .scholar-peer/ in the user's project (CWD at install time).
-SIDECAR = Path(".scholar-peer/osp-managed-entries.json")
+# by OSP.  Lives in .open-scholar-peer/ in the user's project (CWD at install time).
+SIDECAR = Path(".open-scholar-peer/osp-managed-entries.json")
 
 
 def load_json(path: Path) -> dict:
@@ -114,8 +114,8 @@ def merge_entry(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("config_path")
-    parser.add_argument("python_path", help="absolute path to .scholar-peer/mcp/.venv/bin/python")
-    parser.add_argument("server_path", help="absolute path to .scholar-peer/mcp/osp_mcp.py")
+    parser.add_argument("python_path", help="absolute path to .open-scholar-peer/mcp/.venv/bin/python")
+    parser.add_argument("server_path", help="absolute path to .open-scholar-peer/mcp/osp_mcp.py")
     parser.add_argument("--key", default="mcpServers", help="root key under which servers live")
     args = parser.parse_args()
 

@@ -22,9 +22,9 @@ echo -e "A context-aware multi-agent framework for automated peer review.\n"
 echo "Choose your primary AI tool environment:"
 echo "  1) Claude Code"
 echo "  2) Cursor"
-echo "  3) Google Antigravity IDE"
+echo "  3) Antigravity"
 echo "  4) Gemini CLI"
-echo "  5) GitHub Copilot CLI"
+echo "  5) Copilot CLI"
 read -rp "Choice [1-5] (default: 3): " choice; choice="${choice:-3}"
 
 cleanup() {

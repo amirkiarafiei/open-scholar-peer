@@ -10,9 +10,9 @@ These are limitations users should know about going in. None block normal operat
 
 **Limitation:** Antigravity does not support subagents. On Antigravity, the Q&A engine falls back to **self-reflection mode** — both Query and Answer Generator personas run in the same context window, separated by strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`).
 
-**Impact:** Reviews on the Q&A axis from Antigravity are likely lower in independent-verification depth than reviews from Claude Code, Cursor, Gemini CLI, or GitHub Copilot CLI. The other downstream phases (literature, historian, baseline scout, reviewer) are unaffected.
+**Impact:** Reviews on the Q&A axis from Antigravity are likely lower in independent-verification depth than reviews from Claude Code, Cursor, Gemini CLI, or Copilot CLI. The other downstream phases (literature, historian, baseline scout, reviewer) are unaffected.
 
-**Workaround:** If you need full subagent isolation for a paper, use Claude Code, Cursor, Gemini CLI, or GitHub Copilot CLI instead.
+**Workaround:** If you need full subagent isolation for a paper, use Claude Code, Cursor, Gemini CLI, or Copilot CLI instead.
 
 ---
 
@@ -56,13 +56,13 @@ markitdown paper.pdf > .brain/input/paper.md
 
 **What:** Most tools store MCP config in a project-local file the installer can write directly. Two exceptions:
 - **Antigravity** uses a global config at `~/.gemini/antigravity/mcp_config.json`.
-- **GitHub Copilot CLI** uses `~/.copilot/mcp-config.json`.
+- **Copilot CLI** uses `~/.copilot/mcp-config.json`.
 
 **Limitation:** Programmatically modifying user-global config files would be intrusive. The installers print a paste-ready snippet (or attempt a careful merge in Copilot's case) but the user must verify the file.
 
 **Impact:** Slightly higher first-run friction on Antigravity. Copilot CLI is auto-merged by `merge_mcp_config.py` but the user should still verify the file looks right.
 
-**Workaround:** Check the snippet at `.scholar-peer/antigravity_mcp_snippet.json` (Antigravity) or `~/.copilot/mcp-config.json` (Copilot CLI) after install.
+**Workaround:** Check the snippet at `.open-scholar-peer/antigravity_mcp_snippet.json` (Antigravity) or `~/.copilot/mcp-config.json` (Copilot CLI) after install.
 
 ---
 

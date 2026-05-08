@@ -41,5 +41,5 @@ The `.brain/` directory at the project root is the persistent state store for an
 ## What is *not* in `.brain/`
 
 - Tool-specific configs (`.mcp.json`, `.claude/`, `.cursor/`, etc.) — those live at project root.
-- The MCP server itself — that lives in `.scholar-peer/mcp/` (also gitignored).
+- The MCP server itself — that lives in `.open-scholar-peer/mcp/` (also gitignored).
 - Any human-edited templates — those live in `extensions/_shared/defaults/` (committed to repo).

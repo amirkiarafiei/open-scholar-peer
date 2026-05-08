@@ -12,7 +12,7 @@ Use this file as an execution checklist. Mark items `[ ]` → `[x]` in order. Ph
 - **Slash commands:** `/N-osp-{step}` for numbered workflow steps (e.g. `/0-osp-onboarding`, `/1-osp-summary`). Plus one stateless dispatcher: `/open-scholar-peer` (reads `session.json`, tells user which numbered command to run next).
 - **Skills:** `osp-{persona}` — no number prefix since order is irrelevant for skills (e.g. `osp-summary-agent`, `osp-query-agent`, `osp-orchestrator`).
 - **Brain root:** `.brain/` at project root.
-- **MCP install root:** `.scholar-peer/mcp/` at project root (self-contained venv + server).
+- **MCP install root:** `.open-scholar-peer/mcp/` at project root (self-contained venv + server).
 
 ---
 
@@ -23,7 +23,7 @@ Use this file as an execution checklist. Mark items `[ ]` → `[x]` in order. Ph
 - [x] Phase 2 — Canonical `_shared/` content (skills + commands + defaults)
 - [x] Phase 3 — Sync script (`_shared/` → per-tool adapters)
 - [x] Phase 4 — Consolidated MCP server (arxiv + semantic_scholar + google_scholar)
-- [x] Phase 5 — Installer scripts (`.scholar-peer/mcp/` setup + per-tool MCP wiring)
+- [x] Phase 5 — Installer scripts (`.open-scholar-peer/mcp/` setup + per-tool MCP wiring)
 - [x] Phase 6 — Cross-tool validation, docs, release readiness *(E2E live-tool test deferred to manual run)*
 
 ---
@@ -223,19 +223,19 @@ Build one MCP server (`osp_mcp`) exposing arxiv + semantic_scholar + google_scho
 
 ### Goal (Phase 5)
 
-Each install script is a one-liner UX: `bash install.sh` → pick tool → everything wired up. Self-contained `.scholar-peer/mcp/` per project.
+Each install script is a one-liner UX: `bash install.sh` → pick tool → everything wired up. Self-contained `.open-scholar-peer/mcp/` per project.
 
 ### Deliverables (Phase 5)
 
 - [ ] **`scripts/init_mcp.sh`** — shared helper invoked by all installers:
-  1. Create `<project>/.scholar-peer/mcp/`
+  1. Create `<project>/.open-scholar-peer/mcp/`
   2. Copy `mcp-server/osp_mcp.py` + `requirements.txt` into it
-  3. `python3 -m venv .scholar-peer/mcp/.venv`
-  4. `.scholar-peer/mcp/.venv/bin/pip install -r requirements.txt`
-  5. Add `.scholar-peer/` to `.gitignore`
+  3. `python3 -m venv .open-scholar-peer/mcp/.venv`
+  4. `.open-scholar-peer/mcp/.venv/bin/pip install -r requirements.txt`
+  5. Add `.open-scholar-peer/` to `.gitignore`
 - [ ] **`scripts/init_brain.sh`** — updated for v2 schema (already exists; needs schema bump)
 - [ ] **Per-tool MCP config writers** (one logical block per installer):
-  - `install_claude.sh` → write/merge `<project>/.mcp.json` with two entries: `osp` (points to `.scholar-peer/mcp/.venv/bin/python` + `osp_mcp.py`) and `markitdown` (uvx or pipx command).
+  - `install_claude.sh` → write/merge `<project>/.mcp.json` with two entries: `osp` (points to `.open-scholar-peer/mcp/.venv/bin/python` + `osp_mcp.py`) and `markitdown` (uvx or pipx command).
   - `install_cursor.sh` → write `<project>/.cursor/mcp.json` with same two entries.
   - `install_gemini.sh` → write `<project>/.gemini/mcp.json` (or extension manifest) with same two entries.
   - `install_antigravity.sh` → emit instructions for the user to add entries to `~/.gemini/antigravity/mcp_config.json` (global config — can't be done programmatically for this tool); copy a ready-to-paste snippet to clipboard or file.
@@ -246,16 +246,16 @@ Each install script is a one-liner UX: `bash install.sh` → pick tool → every
 
 ### Tests (Phase 5)
 
-- [ ] Fresh install on empty directory → `.brain/`, `.scholar-peer/`, tool config, adapter files all created
+- [ ] Fresh install on empty directory → `.brain/`, `.open-scholar-peer/`, tool config, adapter files all created
 - [ ] Re-running installer is idempotent (no breakage, no duplicate config entries)
-- [ ] `.scholar-peer/mcp/.venv/bin/python osp_mcp.py` runs successfully
+- [ ] `.open-scholar-peer/mcp/.venv/bin/python osp_mcp.py` runs successfully
 - [ ] Existing user config files (e.g., pre-existing `.mcp.json`) are merged, not overwritten
 - [ ] Linux + macOS shells both succeed
 
 ### Exit Criteria (Phase 5)
 
 - [ ] One-liner install works for every supported tool
-- [ ] Self-contained `.scholar-peer/mcp/` survives repo deletion
+- [ ] Self-contained `.open-scholar-peer/mcp/` survives repo deletion
 - [ ] User can verify install by invoking `/open-scholar-peer` and seeing the dispatcher respond
 
 ---

@@ -5,7 +5,7 @@
 
 ## What this project is
 
-Open ScholarPeer (OSP) implements the paper *"ScholarPeer: A Context-Aware Multi-Agent Framework for Automated Peer Review"* as a portable set of skills, slash commands, and an MCP server that install into a user's project across five AI tools (Claude Code, Cursor, Gemini CLI, GitHub Copilot CLI, Antigravity).
+Open ScholarPeer (OSP) implements the paper *"ScholarPeer: A Context-Aware Multi-Agent Framework for Automated Peer Review"* as a portable set of skills, slash commands, and an MCP server that install into a user's project across five AI tools (Claude Code, Cursor, Gemini CLI, Copilot CLI, Antigravity).
 
 **There is no runtime code.** OSP is configuration-as-code. The library is the prompts and the sync infrastructure that keeps them consistent across tools.
 
@@ -33,7 +33,7 @@ cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -r requirements.
 
 ## Architecture (one paragraph)
 
-`extensions/_shared/` is the canonical source: 8 commands + 8 skills + rules + defaults + a manifest. `scripts/sync_adapters.py` regenerates 5 per-tool adapter directories under `extensions/.{claude,cursor,gemini,agent,github}/` (plus a legacy `.agents/` mirror for Antigravity). Per-tool installers (`scripts/install_*.sh`) copy the adapter into the user's project, run `init_brain.sh` to scaffold `.brain/`, run `init_mcp.sh` to set up a self-contained Python venv at `.scholar-peer/mcp/`, and run `merge_mcp_config.py` to wire the MCP server into the tool's config. State during a review lives at `<user-project>/.brain/` (gitignored).
+`extensions/_shared/` is the canonical source: 8 commands + 8 skills + rules + defaults + a manifest. `scripts/sync_adapters.py` regenerates 5 per-tool adapter directories under `extensions/.{claude,cursor,gemini,agent,github}/` (plus a legacy `.agents/` mirror for Antigravity). Per-tool installers (`scripts/install_*.sh`) copy the adapter into the user's project, run `init_brain.sh` to scaffold `.brain/`, run `init_mcp.sh` to set up a self-contained Python venv at `.open-scholar-peer/mcp/`, and run `merge_mcp_config.py` to wire the MCP server into the tool's config. State during a review lives at `<user-project>/.brain/` (gitignored).
 
 ## The Golden Rule
 
@@ -56,7 +56,7 @@ cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -r requirements.
 - Q&A behavior differs per tool: Antigravity uses self-reflection (no subagents), the other four use subagent isolation. Logic lives in `sync_adapters.py::adapt_qa_body_for_tool()`.
 - Paper hyperparameters (k=3 literature rounds, N_QA=10 Q&A pairs) are enforced via **file structure** (per-round files, 10-slot Q&A template), not numeric configuration. Host tools don't expose temperature/k to slash commands; do not try to add such flags.
 - The MCP server runs as a subprocess of the host tool over stdio. To debug, run `python3 mcp-server/osp_mcp.py` standalone — it'll wait for MCP protocol messages and surface any startup errors.
-- `init_mcp.sh` copies `mcp-server/` into `<user-project>/.scholar-peer/mcp/` and builds a venv there. The dev repo's `mcp-server/` is the source; the per-project copy is the runtime.
+- `init_mcp.sh` copies `mcp-server/` into `<user-project>/.open-scholar-peer/mcp/` and builds a venv there. The dev repo's `mcp-server/` is the source; the per-project copy is the runtime.
 
 ## Where things live
 
@@ -79,7 +79,7 @@ scripts/
   ├── sync_adapters.py           _shared/ → per-tool adapters
   ├── merge_mcp_config.py        Safe JSON merge into tool MCP config
   ├── init_brain.sh              .brain/ scaffolding (called by installers)
-  ├── init_mcp.sh                .scholar-peer/mcp/ setup (called by installers)
+  ├── init_mcp.sh                .open-scholar-peer/mcp/ setup (called by installers)
   ├── install_*.sh               One per tool
   └── test_*.{py,sh}             Parity validator + installer smoke
 

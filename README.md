@@ -31,8 +31,8 @@ Every artifact is saved as auditable markdown in `.brain/raw/` and `.brain/revie
 | [Claude Code](https://claude.com/claude-code) | ✓ | ✓ |
 | [Cursor](https://cursor.com) | ✓ | ✓ |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ | ✓ |
-| [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ | ✓ (with merge) |
-| [Google Antigravity IDE](https://antigravity.google/) | ✗ (self-reflection fallback) | manual snippet |
+| [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ | ✓ (with merge) |
+| [Antigravity](https://antigravity.google/) | ✗ (self-reflection fallback) | manual snippet |
 
 See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for the Antigravity caveat.
 
@@ -59,7 +59,7 @@ bash install.sh   # interactive — pick your AI tool
 The installer:
 1. Copies the right adapter files into your project (`.claude/`, `.cursor/`, etc.).
 2. Initializes `.brain/` (gitignored — your working state).
-3. Sets up a self-contained Python venv at `.scholar-peer/mcp/` (gitignored — the MCP server).
+3. Sets up a self-contained Python venv at `.open-scholar-peer/mcp/` (gitignored — the MCP server).
 4. Wires the MCP server into your AI tool's config.
 
 Then in your AI tool:
@@ -109,13 +109,13 @@ mcp-server/
 scripts/
 ├── sync_adapters.py   ← Regenerates per-tool adapters from _shared/
 ├── install_*.sh       ← Per-tool installers
-├── init_mcp.sh        ← Sets up .scholar-peer/mcp/ with venv
+├── init_mcp.sh        ← Sets up .open-scholar-peer/mcp/ with venv
 └── test_*.{py,sh}     ← Parity + install smoke tests
 
 .brain/                ← Per-project state (gitignored)
 └── raw/, review/, input/, session.json
 
-.scholar-peer/mcp/     ← Per-project MCP runtime (gitignored)
+.open-scholar-peer/mcp/     ← Per-project MCP runtime (gitignored)
 ```
 
 ---

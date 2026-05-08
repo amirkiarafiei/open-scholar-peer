@@ -17,11 +17,11 @@ sudo apt install python3 python3-venv
 brew install python@3.12
 ```
 
-### `pip install` fails inside `.scholar-peer/mcp/`
+### `pip install` fails inside `.open-scholar-peer/mcp/`
 
 Inspect the log:
 ```bash
-.scholar-peer/mcp/.venv/bin/pip install -r .scholar-peer/mcp/requirements.txt
+.open-scholar-peer/mcp/.venv/bin/pip install -r .open-scholar-peer/mcp/requirements.txt
 ```
 Common causes: outdated pip (`pip install --upgrade pip` in the venv), missing system libs for `lxml` or `cryptography` (on Ubuntu: `sudo apt install build-essential libxml2-dev libxslt1-dev libssl-dev`).
 
@@ -31,7 +31,7 @@ Reload the tool:
 - **Claude Code:** restart or run `/help` to confirm commands appear.
 - **Cursor:** reload window (Cmd+R / Ctrl+R).
 - **Gemini CLI:** run `/commands reload`.
-- **GitHub Copilot CLI:** restart the CLI session.
+- **Copilot CLI:** restart the CLI session.
 - **Antigravity:** type `/` in Agent chat to refresh.
 
 If commands still don't appear, verify the adapter directory is in the right location:
@@ -59,7 +59,7 @@ bash install.sh   # or scripts/install_<tool>.sh
 
 Try running it manually to surface errors:
 ```bash
-.scholar-peer/mcp/.venv/bin/python .scholar-peer/mcp/osp_mcp.py
+.open-scholar-peer/mcp/.venv/bin/python .open-scholar-peer/mcp/osp_mcp.py
 ```
 The server runs on stdio and stays open waiting for MCP protocol messages. If it exits immediately with a Python traceback, that's the bug.
 
@@ -97,11 +97,7 @@ Each tool has consistent error envelopes. Look for entries like `[{"error": "...
 
 ### `/0-osp-onboarding` says it can't find the paper
 
-Drop the paper into `.brain/input/`. Any extension is OK:
-```bash
-cp ~/Downloads/paper.pdf .brain/input/
-```
-Re-run `/0-osp-onboarding`.
+Run `/open-scholar-peer` — the orchestrator will detect you're at the onboarding step and ask you for the paper's path. You can provide any path; it will copy the file into `.brain/input/` for you.
 
 ### `/1-osp-summary` refuses with "binary format and markitdown unavailable"
 

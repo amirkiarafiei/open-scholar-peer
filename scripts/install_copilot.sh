@@ -6,7 +6,7 @@ SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPTS_DIR/.." && pwd)"
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; RED='\033[0;31m'; NC='\033[0m'
 
-echo -e "\n${CYAN}Open ScholarPeer → GitHub Copilot CLI${NC}\n"
+echo -e "\n${CYAN}Open ScholarPeer → Copilot CLI${NC}\n"
 
 if command -v copilot &>/dev/null; then
   echo -e "  ${GREEN}✅ Copilot CLI detected${NC}"

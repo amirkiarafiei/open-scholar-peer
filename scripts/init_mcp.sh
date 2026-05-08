@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# init_mcp.sh — Set up self-contained .scholar-peer/mcp/ in the current project.
+# init_mcp.sh — Set up self-contained .open-scholar-peer/mcp/ in the current project.
 # Copies the OSP MCP server, builds a Python venv, installs requirements.
 # Idempotent — re-running with an existing .venv preserves it (only re-installs).
 #
@@ -31,7 +31,7 @@ _spin() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-TARGET_DIR="$(pwd)/.scholar-peer/mcp"
+TARGET_DIR="$(pwd)/.open-scholar-peer/mcp"
 SOURCE_DIR="$ROOT_DIR/mcp-server"
 
 if [[ ! -d "$SOURCE_DIR" ]]; then
@@ -48,7 +48,7 @@ fi
 # Copy server files (overwrite — server source is authoritative)
 mkdir -p "$TARGET_DIR"
 cp -r "$SOURCE_DIR/." "$TARGET_DIR/"
-echo -e "  ${GREEN}✅ MCP server copied → .scholar-peer/mcp/${NC}"
+echo -e "  ${GREEN}✅ MCP server copied → .open-scholar-peer/mcp/${NC}"
 
 # Set up venv
 VENV_DIR="$TARGET_DIR/.venv"
@@ -60,9 +60,9 @@ if [[ ! -d "$VENV_DIR" ]]; then
   python3 -m venv "$VENV_DIR" &>/dev/null &
   _spin $! "Creating Python virtualenv…"
   wait $! || { echo -e "  ${RED}✗ Failed to create virtualenv${NC}"; exit 1; }
-  echo -e "  ${GREEN}✅ Virtualenv created → .scholar-peer/mcp/.venv${NC}"
+  echo -e "  ${GREEN}✅ Virtualenv created → .open-scholar-peer/mcp/.venv${NC}"
 else
-  echo -e "  ${YELLOW}ℹ️  Reusing existing venv at .scholar-peer/mcp/.venv${NC}"
+  echo -e "  ${YELLOW}ℹ️  Reusing existing venv at .open-scholar-peer/mcp/.venv${NC}"
 fi
 
 # Upgrade pip silently
@@ -84,16 +84,16 @@ else
   exit 1
 fi
 
-# Add .scholar-peer/ to .gitignore
+# Add .open-scholar-peer/ to .gitignore
 GITIGNORE="./.gitignore"
 if [[ -f "$GITIGNORE" ]]; then
-  if ! grep -qF ".scholar-peer/" "$GITIGNORE" 2>/dev/null; then
-    printf "\n# Open ScholarPeer MCP runtime (venv + server, gitignored)\n.scholar-peer/\n" >> "$GITIGNORE"
-    echo -e "  ${GREEN}✅ Added .scholar-peer/ to .gitignore${NC}"
+  if ! grep -qF ".open-scholar-peer/" "$GITIGNORE" 2>/dev/null; then
+    printf "\n# Open ScholarPeer MCP runtime (venv + server, gitignored)\n.open-scholar-peer/\n" >> "$GITIGNORE"
+    echo -e "  ${GREEN}✅ Added .open-scholar-peer/ to .gitignore${NC}"
   fi
 else
-  printf "# Open ScholarPeer MCP runtime\n.scholar-peer/\n" > "$GITIGNORE"
-  echo -e "  ${GREEN}✅ Created .gitignore with .scholar-peer/ entry${NC}"
+  printf "# Open ScholarPeer MCP runtime\n.open-scholar-peer/\n" > "$GITIGNORE"
+  echo -e "  ${GREEN}✅ Created .gitignore with .open-scholar-peer/ entry${NC}"
 fi
 
 # Optional: prompt for Semantic Scholar API key

@@ -19,7 +19,7 @@ stub_init_mcp() {
   cat > "$target" << 'STUB'
 #!/usr/bin/env bash
 # Smoke-test stub: skip venv creation, just create the directory tree and export paths.
-TARGET_DIR="$(pwd)/.scholar-peer/mcp"
+TARGET_DIR="$(pwd)/.open-scholar-peer/mcp"
 mkdir -p "$TARGET_DIR/.venv/bin"
 touch "$TARGET_DIR/osp_mcp.py" "$TARGET_DIR/.venv/bin/python"
 export OSP_MCP_PYTHON="$TARGET_DIR/.venv/bin/python"
@@ -81,7 +81,7 @@ COMMON=(
   ".brain/raw"
   ".brain/review"
   ".brain/input"
-  ".scholar-peer/mcp/osp_mcp.py"
+  ".open-scholar-peer/mcp/osp_mcp.py"
   ".gitignore"
 )
 
@@ -112,7 +112,7 @@ run_install_smoke "antigravity" "install_antigravity.sh" \
   ".agents/workflows/0-osp-onboarding.md" \
   ".agent/workflows/0-osp-onboarding.md" \
   ".agent/skills/osp-historian-agent/SKILL.md" \
-  ".scholar-peer/antigravity_mcp_snippet.json"
+  ".open-scholar-peer/antigravity_mcp_snippet.json"
 
 run_install_smoke "copilot" "install_copilot.sh" \
   "${COMMON[@]}" \
