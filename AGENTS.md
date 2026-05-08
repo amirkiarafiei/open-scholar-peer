@@ -5,7 +5,7 @@
 
 ## What this project is
 
-Open ScholarPeer (OSP) implements the paper *"ScholarPeer: A Context-Aware Multi-Agent Framework for Automated Peer Review"* as a portable set of skills, slash commands, and an MCP server that install into a user's project across five AI tools (Claude Code, Cursor, Gemini CLI, Copilot CLI, Antigravity).
+Open ScholarPeer (OSP) implements the paper *"ScholarPeer: A Context-Aware Multi-Agent Framework for Automated Peer Review"* as a portable set of skills, slash commands, and an MCP server that install into a user's project across 13 AI tools (Claude Code, Cursor, Gemini CLI, Copilot CLI, Antigravity, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, Kimi Code, Mistral Vibe, OpenHands).
 
 **There is no runtime code.** OSP is configuration-as-code. The library is the prompts and the sync infrastructure that keeps them consistent across tools.
 

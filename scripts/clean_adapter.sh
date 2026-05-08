@@ -26,14 +26,24 @@ TOOL="${2:?usage: clean_adapter.sh <dest_dir> <tool_name>}"
 [[ -d "$DEST" ]] || exit 0
 
 case "$TOOL" in
-  claude|cursor)
-    cmd_subdir="commands"; cmd_ext="md" ;;
+  claude|cursor|kimi|vibe|openhands)
+    cmd_subdir="commands"; cmd_ext="md"; skill_subdir="skills" ;;
   gemini)
-    cmd_subdir="commands"; cmd_ext="toml" ;;
+    cmd_subdir="commands"; cmd_ext="toml"; skill_subdir="skills" ;;
   antigravity)
-    cmd_subdir="workflows"; cmd_ext="md" ;;
+    cmd_subdir="workflows"; cmd_ext="md"; skill_subdir="skills" ;;
   copilot)
-    cmd_subdir="prompts"; cmd_ext="md" ;;
+    cmd_subdir="prompts"; cmd_ext="md"; skill_subdir="skills" ;;
+  junie)
+    cmd_subdir="commands"; cmd_ext="md"; skill_subdir="skills" ;;
+  kiro)
+    cmd_subdir="hooks"; cmd_ext="md"; skill_subdir="skills" ;;
+  codex)
+    cmd_subdir="prompts"; cmd_ext="md"; skill_subdir="skills" ;;
+  qwen)
+    cmd_subdir="commands"; cmd_ext="md"; skill_subdir="agents" ;;
+  opencode)
+    cmd_subdir="commands"; cmd_ext="md"; skill_subdir="agents" ;;
   *)
     echo "clean_adapter.sh: unknown tool '$TOOL'" >&2
     exit 1 ;;
@@ -46,9 +56,9 @@ if [[ -d "$DEST/$cmd_subdir" ]]; then
     -delete 2>/dev/null || true
 fi
 
-# Skills (always osp-*/)
-if [[ -d "$DEST/skills" ]]; then
-  find "$DEST/skills" -maxdepth 1 -type d -name 'osp-*' \
+# Skills / agents (always osp-*/)
+if [[ -d "$DEST/$skill_subdir" ]]; then
+  find "$DEST/$skill_subdir" -maxdepth 1 -type d -name 'osp-*' \
     -exec rm -rf {} + 2>/dev/null || true
 fi
 
@@ -60,6 +70,14 @@ case "$TOOL" in
     rm -f "$DEST/GEMINI.md" ;;
   copilot)
     rm -f "$DEST/instructions/osp-rules.md" ;;
+  junie)
+    rm -f "$DEST/guidelines.md" ;;
+  kiro)
+    rm -f "$DEST/steering/osp-rules.md" ;;
+  qwen)
+    rm -f "$DEST/QWEN.md" ;;
+  codex|kimi|vibe|opencode|openhands)
+    rm -f "$DEST/AGENTS.md" ;;
   *)
     rm -f "$DEST/rules/osp-rules.md" ;;
 esac

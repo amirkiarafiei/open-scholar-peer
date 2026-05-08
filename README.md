@@ -52,9 +52,17 @@ Every artifact is saved as auditable markdown in `.brain/raw/` and `.brain/revie
 | [Cursor](https://cursor.com) | ✓ | ✓ |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ | ✓ |
 | [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ | ✓ (with merge) |
+| [Codex CLI](https://github.com/openai/codex) | ✓ | manual snippet |
+| [Qwen Code](https://github.com/QwenLM/qwen-code) | ✓ | ✓ (`.qwen/settings.json`) |
+| [OpenCode](https://opencode.ai) | ✓ | manual snippet |
+| [Junie](https://www.jetbrains.com/junie/) | ✓ | n/a |
+| [Kiro](https://kiro.dev) | ✓ | via Kiro MCP UI |
+| [Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✗ (self-reflection fallback) | manual snippet (global) |
+| [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✓ | manual snippet (global) |
+| [OpenHands](https://docs.openhands.dev) | ✗ (self-reflection fallback) | via OpenHands UI |
 | [Antigravity](https://antigravity.google/) | ✗ (self-reflection fallback) | manual snippet |
 
-See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for the Antigravity caveat.
+See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for self-reflection caveats and per-tool MCP wiring details.
 
 ---
 

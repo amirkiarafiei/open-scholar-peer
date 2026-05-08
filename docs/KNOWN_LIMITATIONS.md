@@ -4,15 +4,15 @@ These are limitations users should know about going in. None block normal operat
 
 ---
 
-## 1. Antigravity Q&A engine is measurably weaker than other tools
+## 1. Some tools fall back to self-reflection for the Q&A engine
 
 **What:** The Multi-Aspect Q&A Engine (`/5-osp-qa`) is designed around true subagent isolation: the Query Agent (main thread) delegates each question to a fresh Answer Generator subagent so the verification cannot be biased by the question's reasoning trace.
 
-**Limitation:** Antigravity does not support subagents. On Antigravity, the Q&A engine falls back to **self-reflection mode** — both Query and Answer Generator personas run in the same context window, separated by strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`).
+**Limitation:** Three of the supported tools — **Antigravity**, **Kimi Code**, and **OpenHands** — either do not support subagents or have only partial support. On these, the Q&A engine falls back to **self-reflection mode**: both Query and Answer Generator personas run in the same context window, separated by strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`).
 
-**Impact:** Reviews on the Q&A axis from Antigravity are likely lower in independent-verification depth than reviews from Claude Code, Cursor, Gemini CLI, or Copilot CLI. The other downstream phases (literature, historian, baseline scout, reviewer) are unaffected.
+**Impact:** Reviews on the Q&A axis from these tools are likely lower in independent-verification depth than reviews from Claude Code, Cursor, Gemini CLI, Copilot CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, or Mistral Vibe. The other downstream phases (literature, historian, baseline scout, reviewer) are unaffected.
 
-**Workaround:** If you need full subagent isolation for a paper, use Claude Code, Cursor, Gemini CLI, or Copilot CLI instead.
+**Workaround:** If you need full subagent isolation for a paper, use one of the subagent-capable tools listed above.
 
 ---
 

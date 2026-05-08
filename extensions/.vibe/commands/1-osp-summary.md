@@ -1,0 +1,61 @@
+---
+description: "OSP Phase 1: Internal Compression — extract claims, method, evidence"
+reads: [".brain/session.json", ".brain/input/paper.{pdf,md}"]
+writes: [".brain/raw/01_structured_summary.md", ".brain/session.json"]
+---
+
+# /1-osp-summary — Internal Compression
+
+Extracts the paper's claims, method, and evidence into a structured summary Ŝ that downstream personas rely on.
+
+## Activation
+
+Invoke the `osp-summary-agent` skill. The agent assumes the Summary Agent persona and follows that skill's protocol exactly.
+
+## Prerequisites
+
+- `phases.onboarding.status == "completed"` in `session.json`. If not, refuse and tell the user to run `/0-osp-onboarding`.
+
+## Hard input guard (run BEFORE invoking the persona)
+
+The Summary Agent depends on having a readable text representation of the paper. PDF/DOCX/TEX in `.brain/input/` is not enough — silent downstream failures are the #1 risk if the agent receives a binary path.
+
+Before activating the skill, verify in this order:
+
+1. **`.brain/input/paper.md` exists and is readable** — ideal case, proceed.
+2. **`.brain/input/paper.md` is missing but a PDF/DOCX exists** — try to convert it now using the `markitdown` MCP tool (`markitdown.convert`). Save the result to `.brain/input/paper.md`. Update `session.json.paper.parsed_path`.
+3. **`markitdown` MCP is unavailable AND only a PDF/DOCX is present** — refuse to proceed. Print a clear error:
+   > Paper at `.brain/input/<file>` is in a binary format and `markitdown` MCP is not available. Either:
+   >   (a) install markitdown: `uvx markitdown-mcp` (verify with `uvx --version`), or
+   >   (b) convert the paper manually and place the markdown at `.brain/input/paper.md`, or
+   >   (c) confirm your host tool can read this format natively (e.g. Claude Code reads PDFs) and re-run with `--force-binary` if exposed by the workflow.
+4. **Nothing in `.brain/input/`** — refuse and route to `/0-osp-onboarding`.
+
+Do NOT silently proceed with a PDF path on the assumption that the host tool will handle it. Even if it can, the conversion result becomes part of the audit trail and must be in `.brain/input/paper.md`.
+
+## Steps
+
+1. Run the hard input guard above.
+2. Read `.brain/session.json` and `.brain/input/paper.md` (the validated markdown produced or verified by the guard).
+3. Activate the `osp-summary-agent` skill — it owns the extraction protocol (claims, method, evidence) and the output format.
+4. The skill writes `.brain/raw/01_structured_summary.md`.
+5. The skill writes `.brain/raw/01_structured_summary.md`.
+6. The skill updates `session.json`:
+   - `phases.summary.status = "completed"`
+   - `phases.summary.completed_at = <now>`
+   - `phases.summary.notes = "<N> claims, <M> evidence items, method identified"`
+   - `resume_from = "literature"`
+
+## User-facing report (print after completion)
+
+```
+── Internal Compression complete ────────────────────────
+Extracted <N> claims, <M> pieces of evidence, and the proposed method.
+↳ .brain/raw/01_structured_summary.md
+Next: /2-osp-literature
+─────────────────────────────────────────────────────────
+```
+
+## Re-run behavior
+
+If `phases.summary.status == "completed"`, warn the user once that re-running will overwrite, then proceed.

@@ -1,0 +1,49 @@
+---
+description: "OSP Phase 4: Identify missing baselines and datasets the authors failed to compare against"
+reads: [".brain/session.json", ".brain/raw/01_structured_summary.md", ".brain/raw/02_retrieved_literature.md"]
+writes: [".brain/raw/04_missing_baselines.md", ".brain/session.json"]
+---
+
+# /4-osp-baseline-scout — Adversarial Baseline Audit
+
+Acts as an adversarial auditor identifying baselines and datasets the authors should have compared against but didn't.
+
+## Activation
+
+Invoke the `osp-baseline-scout-agent` skill.
+
+## Prerequisites
+
+- `phases.literature.status == "completed"`. (`historian` is helpful but not strictly required — the Scout operates from the structured summary and the literature corpus.)
+
+## Resource notice
+
+⚠️ Makes ~6-10 API calls to search for SOTA methods and benchmarks. Expect 1-2 minutes.
+
+## Steps
+
+1. Read `.brain/session.json`, `.brain/raw/01_structured_summary.md`, `.brain/raw/02_retrieved_literature.md`.
+2. Activate the `osp-baseline-scout-agent` skill.
+3. The skill identifies the paper's task and the baselines actually used (from the structured summary's Evidence section).
+4. The skill independently searches for state-of-the-art methods on the same task and benchmarks. Tools: `osp-mcp.search_*`, native Web Search. Targeted queries include leaderboards, benchmark suites, and recent SOTA claims.
+5. The skill produces a table of missing baselines and missing datasets with severity ratings (high/medium/low).
+6. Write `.brain/raw/04_missing_baselines.md`.
+7. Write `.brain/raw/04_missing_baselines.md`.
+8. Update `session.json`:
+   - `phases.baseline_scout.status = "completed"`
+   - `phases.baseline_scout.notes = "<N> missing baselines (<X> high); <M> missing datasets"`
+   - `resume_from = "qa"`
+
+## User-facing report (print after completion)
+
+```
+── Baseline Audit complete ───────────────────────────────
+Found <N> missing baselines (<X> high severity) and <M> missing datasets.
+↳ .brain/raw/04_missing_baselines.md
+Next: /5-osp-qa
+──────────────────────────────────────────────────────────
+```
+
+## Re-run behavior
+
+Re-running overwrites `04_missing_baselines.md`. Warn before doing so.

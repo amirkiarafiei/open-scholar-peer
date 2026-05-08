@@ -121,6 +121,63 @@ run_install_smoke "copilot" "install_copilot.sh" \
   ".github/instructions/osp-rules.md" \
   "AGENTS.md"
 
+run_install_smoke "junie" "install_junie.sh" \
+  "${COMMON[@]}" \
+  ".junie/commands/0-osp-onboarding.md" \
+  ".junie/skills/osp-orchestrator/SKILL.md" \
+  ".junie/guidelines.md"
+
+run_install_smoke "kiro" "install_kiro.sh" \
+  "${COMMON[@]}" \
+  ".kiro/hooks/0-osp-onboarding.md" \
+  ".kiro/skills/osp-orchestrator/SKILL.md" \
+  ".kiro/steering/osp-rules.md"
+
+run_install_smoke "codex" "install_codex.sh" \
+  "${COMMON[@]}" \
+  ".codex/prompts/0-osp-onboarding.md" \
+  ".codex/skills/osp-orchestrator/SKILL.md" \
+  "AGENTS.md" \
+  ".open-scholar-peer/codex_mcp_snippet.toml"
+
+run_install_smoke "kimi" "install_kimi.sh" \
+  "${COMMON[@]}" \
+  ".kimi/commands/0-osp-onboarding.md" \
+  ".kimi/skills/osp-orchestrator/SKILL.md" \
+  ".agents/skills/osp-orchestrator/SKILL.md" \
+  "AGENTS.md" \
+  ".open-scholar-peer/kimi_mcp_snippet.toml"
+
+run_install_smoke "qwen" "install_qwen.sh" \
+  "${COMMON[@]}" \
+  ".qwen/commands/0-osp-onboarding.md" \
+  ".qwen/agents/osp-orchestrator/SKILL.md" \
+  "QWEN.md" \
+  ".qwen/settings.json"
+
+run_install_smoke "vibe" "install_vibe.sh" \
+  "${COMMON[@]}" \
+  ".vibe/commands/0-osp-onboarding.md" \
+  ".vibe/skills/osp-orchestrator/SKILL.md" \
+  ".agents/skills/osp-orchestrator/SKILL.md" \
+  "AGENTS.md" \
+  ".open-scholar-peer/vibe_mcp_snippet.toml"
+
+run_install_smoke "opencode" "install_opencode.sh" \
+  "${COMMON[@]}" \
+  ".opencode/commands/0-osp-onboarding.md" \
+  ".opencode/agents/osp-orchestrator/SKILL.md" \
+  "AGENTS.md" \
+  ".open-scholar-peer/opencode_mcp_snippet.json"
+
+run_install_smoke "openhands" "install_openhands.sh" \
+  "${COMMON[@]}" \
+  ".openhands/commands/0-osp-onboarding.md" \
+  ".openhands/skills/osp-orchestrator/SKILL.md" \
+  ".agents/skills/osp-orchestrator/SKILL.md" \
+  "AGENTS.md" \
+  ".open-scholar-peer/openhands_mcp_snippet.json"
+
 echo ""
 if [[ $FAIL -eq 0 ]]; then
   echo -e "${GREEN}✅ All installer smoke tests passed.${NC}"

@@ -33,34 +33,9 @@ cp -r "$SRC/." "$DEST/"
 echo -e "  ${GREEN}✅ Adapter copied → ./.github/${NC}"
 
 # AGENTS.md handling: idempotent merge using markers, preserves user content.
-OSP_BEGIN="<!-- OSP-BEGIN: managed by install_copilot.sh; do not edit between markers -->"
-OSP_END="<!-- OSP-END -->"
 if [[ -f "$DEST/AGENTS.md" ]]; then
-  if [[ -f "./AGENTS.md" ]]; then
-    # Use a Python helper to merge safely (handles existing markers, multi-line content)
-    python3 - "$OSP_BEGIN" "$OSP_END" "$DEST/AGENTS.md" "./AGENTS.md" <<'PYEOF'
-import sys, re
-begin, end, src, dst = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
-with open(src) as f: osp_content = f.read().rstrip()
-osp_block = f"{begin}\n{osp_content}\n{end}"
-with open(dst) as f: text = f.read()
-if begin in text:
-    new = re.sub(re.escape(begin) + r".*?" + re.escape(end), osp_block.replace("\\", r"\\"), text, count=1, flags=re.DOTALL)
-    print("updated")
-else:
-    new = text.rstrip() + "\n\n" + osp_block + "\n"
-    print("appended")
-with open(dst, "w") as f: f.write(new)
-PYEOF
-    echo -e "  ${GREEN}✅ AGENTS.md OSP block merged (user content preserved)${NC}"
-  else
-    {
-      echo "$OSP_BEGIN"
-      cat "$DEST/AGENTS.md"
-      echo "$OSP_END"
-    } > "./AGENTS.md"
-    echo -e "  ${GREEN}✅ AGENTS.md created at project root (with OSP markers for future updates)${NC}"
-  fi
+  bash "$SCRIPTS_DIR/merge_agents_md.sh" "$DEST/AGENTS.md" "./AGENTS.md"
+  echo -e "  ${GREEN}✅ AGENTS.md OSP block merged at project root${NC}"
 fi
 
 # 2. Brain

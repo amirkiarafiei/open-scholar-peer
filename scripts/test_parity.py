@@ -46,6 +46,22 @@ TOOLS = [
              "workflows", "md", "skills", ["rules/osp-rules.md"]),
     ToolSpec("copilot", REPO_ROOT / "extensions" / ".github",
              "prompts", "md", "skills", ["instructions/osp-rules.md", "AGENTS.md"]),
+    ToolSpec("junie", REPO_ROOT / "extensions" / ".junie",
+             "commands", "md", "skills", ["guidelines.md"]),
+    ToolSpec("kiro", REPO_ROOT / "extensions" / ".kiro",
+             "hooks", "md", "skills", ["steering/osp-rules.md"]),
+    ToolSpec("codex", REPO_ROOT / "extensions" / ".codex",
+             "prompts", "md", "skills", ["AGENTS.md"]),
+    ToolSpec("kimi", REPO_ROOT / "extensions" / ".kimi",
+             "commands", "md", "skills", ["AGENTS.md"]),
+    ToolSpec("qwen", REPO_ROOT / "extensions" / ".qwen",
+             "commands", "md", "agents", ["QWEN.md"]),
+    ToolSpec("vibe", REPO_ROOT / "extensions" / ".vibe",
+             "commands", "md", "skills", ["AGENTS.md"]),
+    ToolSpec("opencode", REPO_ROOT / "extensions" / ".opencode",
+             "commands", "md", "agents", ["AGENTS.md"]),
+    ToolSpec("openhands", REPO_ROOT / "extensions" / ".openhands",
+             "commands", "md", "skills", ["AGENTS.md"]),
 ]
 
 
