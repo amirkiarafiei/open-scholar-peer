@@ -5,17 +5,19 @@
 # files renamed or removed in extensions/_shared/ between installs don't leave
 # stale orphans in the user's project.
 #
-# OSP-managed naming patterns (preserved across all five tools):
-#   - commands/workflows/prompts:  *-osp-*.{md,toml}, open-scholar-peer.{md,toml}
-#   - skills:                      skills/osp-*/
-#   - rules:                       rules/osp-rules.{md,mdc}, GEMINI.md, instructions/osp-rules.md
-#   - defaults:                    defaults/  (entirely ours)
+# OSP-managed naming patterns (preserved across all 13 tools):
+#   - commands/workflows/prompts/hooks:  *-osp-*.{md,toml}, open-scholar-peer.{md,toml}
+#   - skills/agents:                     {skills,agents}/osp-*/
+#   - rules:                             varies (rules/osp-rules.{md,mdc}, GEMINI.md, AGENTS.md,
+#                                        QWEN.md, guidelines.md, steering/osp-rules.md, …)
+#   - defaults:                          defaults/  (entirely ours)
 #
 # User-authored files NOT matching these patterns (e.g. ./.claude/skills/my-thing/)
 # are NEVER touched.
 #
 # Usage: bash clean_adapter.sh <dest_dir> <tool_name>
-#   tool_name ∈ {claude, cursor, gemini, antigravity, copilot}
+#   tool_name ∈ {claude, cursor, gemini, antigravity, copilot,
+#                junie, kiro, codex, kimi, qwen, vibe, opencode, openhands}
 
 set -e
 

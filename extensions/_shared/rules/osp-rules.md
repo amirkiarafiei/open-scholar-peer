@@ -17,13 +17,13 @@ These rules apply automatically in any project where Open ScholarPeer is install
 ## Persona discipline
 
 - Each numbered command (`/N-osp-*`) activates exactly one persona skill (`osp-<name>-agent`). Do not blend personas.
-- The Q&A engine (`/5-osp-qa`) uses two personas at once: Query Agent (main thread) and Answer Generator (subagent, or self-reflection on Antigravity).
+- The Q&A engine (`/5-osp-qa`) uses two personas at once: Query Agent (main thread) and Answer Generator (subagent, or self-reflection on tools that lack subagents).
 - The orchestrator (`osp-orchestrator`) never performs review work — it only routes.
 
 ## Subagent vs self-reflection
 
-- **Prefer subagents** for the Q&A engine on tools that support them (Claude Code, Cursor, Gemini CLI, GitHub Copilot CLI).
-- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) only on tools without subagents (Antigravity).
+- **Prefer subagents** for the Q&A engine on tools that support them (Claude Code, Cursor, Gemini CLI, Copilot CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, Mistral Vibe).
+- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) on tools without (or with only partial) subagent support: Antigravity, Kimi Code, OpenHands.
 - Self-reflection is a documented weaker substitute. See `KNOWN_LIMITATIONS.md`.
 
 ## User orientation (required on every phase invocation)
@@ -50,10 +50,9 @@ After the phase completes, the closing report block must say **what was done** (
 ## File references in user-facing output
 
 - When mentioning a `.brain/` artifact in a report or reply, use the vendor-provided native file reference format for your tool:
-  - Claude Code / Cursor: `@.brain/raw/01_summary.md`
-  - Gemini CLI: `@.brain/raw/01_summary.md`
-  - GitHub Copilot CLI: `#file:.brain/raw/01_summary.md`
-  - Antigravity: plain path (no native shorthand)
+  - Claude Code / Cursor / Gemini CLI / Codex CLI / Qwen Code / OpenCode / Junie / Kiro: `@.brain/raw/01_summary.md`
+  - Copilot CLI: `#file:.brain/raw/01_summary.md`
+  - Kimi Code / Mistral Vibe / OpenHands / Antigravity: plain path (no native shorthand)
 - Always pair the native reference with the `↳ .brain/…` path in the terminal report block so users can locate files regardless of tool.
 
 ## File ownership

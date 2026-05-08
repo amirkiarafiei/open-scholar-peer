@@ -19,7 +19,7 @@ The `.brain/` directory at the project root is the persistent state store for an
 │   ├── 02_retrieved_literature.md     Consolidated corpus from rounds a/b/c
 │   ├── 03_domain_narrative.md         Historian Agent output (chronological narrative)
 │   ├── 04_missing_baselines.md        Baseline Scout Agent output (adversarial findings)
-│   ├── 05_qa_<criterion_slug>.md      One file per active criterion (10 Q&A pairs each)
+│   ├── 05_qa_<criterion_slug>.md      One file per active criterion (N Q&A pairs, N = session.json.qa_pairs_per_criterion)
 │   └── transcripts/                   Optional per-step audit logs
 └── review/
     └── final_review.md                Consolidated Reviewer Agent output

@@ -118,7 +118,7 @@ Author all skills and commands once, in `_shared/`, as the single source of trut
 - [ ] `osp-literature-review-agent` — External Context. Knows the 3-round strategy (sub-domain anchor → method anchor → temporal/expansion). Uses ALL tools per round (osp-mcp + native web search). Forces one file per round.
 - [ ] `osp-historian-agent` — Compresses retrieved literature into chronological domain narrative.
 - [ ] `osp-baseline-scout-agent` — Adversarial auditor. Identifies missing baselines & datasets.
-- [ ] `osp-query-agent` — Probing question generator. Loops through criteria; demands 10 Q&A pairs per criterion (enforced via file template).
+- [ ] `osp-query-agent` — Probing question generator. Loops through criteria; demands N Q&A pairs per criterion where N = `session.json.qa_pairs_per_criterion` (user-configurable at `/5-osp-qa` start, default 2; enforced via file template).
 - [ ] `osp-answer-generator-agent` — Verifier/responder. Subagent-only by default; falls back to self-reflection mode if platform lacks subagents (Antigravity). Self-reflection mode uses strict turn-marker format: `=== Query Agent === ... === END === === Answer Generator === ...`.
 - [ ] `osp-reviewer-agent` — Synthesizes final consolidated review using venue guidelines + structured summary + Q&A pairs.
 
@@ -130,7 +130,7 @@ Author all skills and commands once, in `_shared/`, as the single source of trut
 - [ ] `2-osp-literature` — Invokes `osp-literature-review-agent`. Runs 3 strategy-distinct rounds. Writes `02a/02b/02c_literature_round*.md` then consolidates to `02_retrieved_literature.md`.
 - [ ] `3-osp-historian` — Invokes `osp-historian-agent`. Reads `02_retrieved_literature.md`. Writes `03_domain_narrative.md`.
 - [ ] `4-osp-baseline-scout` — Invokes `osp-baseline-scout-agent`. Reads summary + literature. Writes `04_missing_baselines.md`.
-- [ ] `5-osp-qa` — Invokes `osp-query-agent` (main thread). Loops over `qa_criteria[]`. For each: spawns `osp-answer-generator-agent` as subagent (or self-reflects on Antigravity). Forces 10 Q&A pairs via `### Q1...### Q10` template. Writes `05_qa_<slug>.md` per criterion.
+- [ ] `5-osp-qa` — Invokes `osp-query-agent` (main thread). Loops over `qa_criteria[]`. For each: spawns `osp-answer-generator-agent` as subagent (or self-reflects on Antigravity / Kimi / OpenHands). Forces N Q&A pairs via `### Q1...### QN` template, where N = `session.json.qa_pairs_per_criterion`. Writes `05_qa_<slug>.md` per criterion.
 - [ ] `6-osp-review` — Invokes `osp-reviewer-agent`. Reads everything. Writes consolidated `review/final_review.md`.
 
 #### Rules (always-on)
@@ -140,7 +140,7 @@ Author all skills and commands once, in `_shared/`, as the single source of trut
 #### Defaults
 
 - [ ] `extensions/_shared/defaults/generic_review_guidelines.md`
-- [ ] `extensions/_shared/defaults/qa_pair_template.md` (the 10-pair `### Q1/A1 ... ### Q10/A10` skeleton)
+- [ ] `extensions/_shared/defaults/qa_pair_template.md` (dynamic `### Q1/A1 ... ### QN/AN` skeleton, where N is rendered from `session.json.qa_pairs_per_criterion`)
 - [ ] `extensions/_shared/defaults/round_strategy_template.md` (one per round)
 
 ### Tests (Phase 2)
@@ -178,14 +178,14 @@ Build the Python sync script that generates per-tool adapters from `_shared/`. M
 
 ### Tests (Phase 3)
 
-- [ ] Run script → verify all five tool directories populated
-- [ ] Parity test: for every command in `_shared/commands/`, all 5 tools have an equivalent file
+- [ ] Run script → verify all 13 tool directories populated
+- [ ] Parity test: for every command in `_shared/commands/`, all 13 tools have an equivalent file
 - [ ] Re-run script → no diff in output (idempotent)
 - [ ] Antigravity Q&A file contains self-reflection turn-marker template; other tools' Q&A files contain subagent-delegation instructions
 
 ### Exit Criteria (Phase 3)
 
-- [ ] One source edit + one sync command regenerates all 5 tool adapters correctly
+- [ ] One source edit + one sync command regenerates all 13 tool adapters correctly
 
 ---
 
@@ -280,7 +280,7 @@ Confirm parity across tools, document limitations, and ship.
 ### Tests (Phase 6)
 
 - [x] Parity script passes (no missing commands/skills per tool)
-- [x] All 5 tools structural smoke test passes via `scripts/test_install.sh`
+- [x] All 13 tools structural smoke test passes via `scripts/test_install.sh`
 - [ ] *(Manual)* README quickstart, when followed verbatim, produces a working install on a real machine
 
 ### Exit Criteria (Phase 6)

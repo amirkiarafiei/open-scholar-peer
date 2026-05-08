@@ -43,7 +43,7 @@ This file enumerates every canonical asset under `extensions/_shared/`. The sync
 | Path | Used by |
 |---|---|
 | `defaults/generic_review_guidelines.md` | `/0-osp-onboarding` when venue lookup fails and user has no guidelines |
-| `defaults/qa_pair_template.md` | `/5-osp-qa` to enforce the 10-pair structure per criterion |
+| `defaults/qa_pair_template.md` | `/5-osp-qa` to enforce the N-pair structure per criterion (N = `session.json.qa_pairs_per_criterion`, default 2) |
 | `defaults/round_strategy_template.md` | `/2-osp-literature` to enforce the 3-round structure |
 
 ## What gets generated where

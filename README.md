@@ -128,7 +128,8 @@ extensions/
 │   ├── skills/        ← 8 personas (orchestrator + 7 paper agents)
 │   ├── rules/         ← always-on instructions
 │   └── defaults/      ← templates that enforce structure (k=3 rounds, N=qa_pairs_per_criterion)
-└── .{claude,cursor,gemini,agent,github}/   ← Auto-generated per-tool adapters
+└── .{claude,cursor,gemini,agent,github,junie,kiro,
+       codex,kimi,qwen,vibe,opencode,openhands}/   ← Auto-generated per-tool adapters (13 tools)
 
 mcp-server/
 ├── osp_mcp.py         ← Consolidated FastMCP server

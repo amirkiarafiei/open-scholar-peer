@@ -53,7 +53,7 @@ After all three rounds, the agent writes `02_retrieved_literature.md` consolidat
 
 ## Q&A contract for `/5-osp-qa`
 
-For every criterion in `session.json.qa_criteria[]`, the step produces `.brain/raw/05_qa_<slug>.md` with **exactly 10 Q&A pairs**. The file template (from `defaults/qa_pair_template.md`) is:
+For every criterion in `session.json.qa_criteria[]`, the step produces `.brain/raw/05_qa_<slug>.md` with **exactly N Q&A pairs**, where N is `session.json.qa_pairs_per_criterion` (user-configurable at `/5-osp-qa` start; default 2). The file template (from `defaults/qa_pair_template.md`) is:
 
 ```markdown
 # Q&A — <criterion label>
