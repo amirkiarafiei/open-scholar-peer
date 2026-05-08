@@ -10,7 +10,24 @@
 # Called by every per-tool installer.
 
 set -e
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; RED='\033[0;31m'; NC='\033[0m'
+
+# _spin PID MESSAGE
+# Shows a braille spinner beside MESSAGE while PID is running, then erases the line.
+# Falls back to a static wait when stdout is not a terminal (CI, piped output).
+_spin() {
+  local pid=$1 msg=$2
+  local frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
+  if [[ ! -t 1 ]]; then
+    wait "$pid"; return $?
+  fi
+  while kill -0 "$pid" 2>/dev/null; do
+    printf "\r  ${CYAN}%s${NC}  %s" "${frames:$((i % ${#frames})):1}" "$msg"
+    sleep 0.1
+    ((i++)) || true
+  done
+  printf "\r\033[K"   # erase spinner line
+}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -40,16 +57,32 @@ if [[ ! -d "$VENV_DIR" ]]; then
     echo -e "  ${RED}✗ python3 not found in PATH; install Python 3.10+ and re-run${NC}"
     return 1 2>/dev/null || exit 1
   fi
-  python3 -m venv "$VENV_DIR"
+  python3 -m venv "$VENV_DIR" &>/dev/null &
+  _spin $! "Creating Python virtualenv…"
+  wait $! || { echo -e "  ${RED}✗ Failed to create virtualenv${NC}"; exit 1; }
   echo -e "  ${GREEN}✅ Virtualenv created → .scholar-peer/mcp/.venv${NC}"
 else
   echo -e "  ${YELLOW}ℹ️  Reusing existing venv at .scholar-peer/mcp/.venv${NC}"
 fi
 
-# Install requirements (always run — pip is fast on no-op)
-"$VENV_DIR/bin/pip" install --quiet --upgrade pip
-"$VENV_DIR/bin/pip" install --quiet -r "$TARGET_DIR/requirements.txt"
-echo -e "  ${GREEN}✅ Python dependencies installed${NC}"
+# Upgrade pip silently
+"$VENV_DIR/bin/pip" install --quiet --upgrade pip &>/dev/null &
+_spin $! "Upgrading pip…"
+wait $! || true  # non-fatal
+
+# Install requirements — first install can take 1-2 minutes
+_pip_log=$(mktemp)
+"$VENV_DIR/bin/pip" install --quiet -r "$TARGET_DIR/requirements.txt" >"$_pip_log" 2>&1 &
+_spin $! "Installing MCP server dependencies (first install ~1 min)…"
+if wait $!; then
+  rm -f "$_pip_log"
+  echo -e "  ${GREEN}✅ Python dependencies installed${NC}"
+else
+  echo -e "  ${RED}✗ pip install failed:${NC}"
+  cat "$_pip_log"
+  rm -f "$_pip_log"
+  exit 1
+fi
 
 # Add .scholar-peer/ to .gitignore
 GITIGNORE="./.gitignore"
