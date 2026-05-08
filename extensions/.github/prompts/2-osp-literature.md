@@ -1,12 +1,13 @@
 ---
-description: "OSP Phase 2: External retrieval — 3 distinct rounds (sub-domain, method, temporal)"
+description: "OSP Phase 2: External retrieval — one round per invocation (sub-domain, method, temporal)"
 reads: [".brain/session.json", ".brain/raw/01_structured_summary.md"]
 writes: [".brain/raw/02a_literature_round1.md", ".brain/raw/02b_literature_round2.md", ".brain/raw/02c_literature_round3.md", ".brain/raw/02_retrieved_literature.md", ".brain/session.json"]
 ---
 
-# /2-osp-literature — Literature Review & Expansion (3 rounds)
+# /2-osp-literature — Literature Review & Expansion
 
-Retrieves and tabulates external literature using three structurally distinct rounds. The 3-file requirement is enforced — produces no consolidation until all three round files exist.
+Runs ONE round of external retrieval per invocation. Invoke up to 3 times to complete all rounds.
+After each round it shows a progress banner and asks whether to continue.
 
 ## Activation
 
@@ -15,24 +16,50 @@ Invoke the `osp-literature-review-agent` skill.
 ## Prerequisites
 
 - `phases.summary.status == "completed"` and `01_structured_summary.md` exists.
+- Rounds must be run in order (1 → 2 → 3).
+
+## Round definitions
+
+| # | Anchor | Goal |
+|---|--------|------|
+| 1 | `sub-domain-anchor` | Search using the paper's stated sub-domain and primary keywords |
+| 2 | `method-anchor` | Search using the method's name and key technical terms |
+| 3 | `temporal-expansion` | Filter to last 12 months; include arXiv pre-prints, concurrent submissions |
 
 ## Steps
 
-1. Read `.brain/session.json` and `.brain/raw/01_structured_summary.md`.
-2. Activate the `osp-literature-review-agent` skill.
-3. The skill executes three rounds, producing one file per round:
-   - **Round 1** (`02a_literature_round1.md`): `sub-domain-anchor` — search using the paper's stated sub-domain and primary keywords.
-   - **Round 2** (`02b_literature_round2.md`): `method-anchor` — search using the proposed method's name and key technical terms.
-   - **Round 3** (`02c_literature_round3.md`): `temporal-expansion` — filter to last 12 months; explicitly include arXiv pre-prints, workshop papers, concurrent submissions.
-4. Each round must use **all available retrieval tools** (`osp-mcp.search_arxiv`, `search_semantic_scholar`, `search_google_scholar`, native Web Search) with **different query formulations** per round.
-5. Each round file uses the template at `defaults/round_strategy_template.md`.
-6. After all three rounds, the skill writes the consolidated `02_retrieved_literature.md` (deduplicated table of all retained papers).
-7. Update `session.json`:
-   - `phases.literature.status = "completed"`
-   - `phases.literature.notes = "3 rounds; <N> unique papers retained"`
-   - `resume_from = "historian"`
-8. Tell the user: "Literature retrieval complete. Next: `/3-osp-historian`."
+1. Read `.brain/session.json`.
+   - Determine `next_round = phases.literature.rounds_completed + 1` (default 0 → next = 1).
+   - If `next_round > 3`, print: "All 3 rounds complete. Next: `/3-osp-historian`." and stop.
+   - If any earlier round file is missing, resume from that round instead.
+
+2. Read `.brain/raw/01_structured_summary.md`.
+
+3. Run the **next pending round only**:
+   - Activate the `osp-literature-review-agent` skill for that round.
+   - The skill searches using **all available retrieval tools** (`search_arxiv`, `search_semantic_scholar`,
+     `search_google_scholar`, native Web Search) with **different query formulations**.
+   - Write the round file (`02a`, `02b`, or `02c`) using the template at `defaults/round_strategy_template.md`.
+
+4. Update `session.json`:
+   - Increment `phases.literature.rounds_completed`.
+   - If `rounds_completed == 1`: set `phases.literature.status = "in_progress"`.
+   - If `rounds_completed == 3`: set `phases.literature.status = "completed"`,
+     `phases.literature.notes = "3 rounds; <N> unique papers retained"`, `resume_from = "historian"`.
+     Write the consolidated `02_retrieved_literature.md` (deduplicated table of all retained papers).
+
+5. Print a progress banner and brief findings summary:
+   ```
+   ── Literature Review ─────────────────────────────
+   Round N/3 complete  (anchor: <anchor-name>)
+   Papers retained this round: <n>
+   Top finds: <2-3 bullet highlights>
+   ──────────────────────────────────────────────────
+   ```
+   - If `rounds_completed < 3`: ask the user "Continue to round N+1? Run `/2-osp-literature` again."
+   - If `rounds_completed == 3`: tell the user "Literature retrieval complete. Next: `/3-osp-historian`."
 
 ## Re-run behavior
 
-Re-running overwrites all four files. Warn before doing so.
+Calling `/2-osp-literature` when a round is already complete will re-run that same round.
+Warn once before overwriting its file, then proceed.
