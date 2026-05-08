@@ -1,56 +1,89 @@
-"""arXiv provider — uses the public arXiv Atom API. No API key required."""
+"""arXiv provider — uses the official `arxiv` Python package.
+
+The package handles HTTPS, rate-limiting delays, and pagination automatically,
+avoiding the 429 errors produced by raw HTTP calls to the Atom API.
+"""
 from __future__ import annotations
 
-import urllib.parse
-import urllib.request
-import xml.etree.ElementTree as ET
+from datetime import timezone
 from typing import Any
 
-ATOM_NS = {"atom": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
+import arxiv
+from dateutil import parser as _dp
 
 
-def _parse_entry(entry: ET.Element) -> dict[str, Any]:
-    def text(path: str, ns: dict[str, str] = ATOM_NS) -> str:
-        el = entry.find(path, ns)
-        return el.text.strip().replace("\n", " ") if el is not None and el.text else ""
-
-    authors = [
-        a.text.strip() for a in entry.findall("atom:author/atom:name", ATOM_NS) if a.text
-    ]
-    arxiv_id = text("atom:id").rsplit("/", 1)[-1]
-    primary_cat_el = entry.find("arxiv:primary_category", ATOM_NS)
-    primary_category = primary_cat_el.attrib.get("term", "") if primary_cat_el is not None else ""
+def _paper_to_dict(paper: arxiv.Result) -> dict[str, Any]:
     return {
-        "title": text("atom:title"),
-        "authors": authors,
-        "summary": text("atom:summary"),
-        "published": text("atom:published"),
-        "updated": text("atom:updated"),
-        "link": text("atom:id"),
-        "arxiv_id": arxiv_id,
-        "primary_category": primary_category,
-        "comment": text("arxiv:comment", ATOM_NS),
+        "arxiv_id": paper.get_short_id(),
+        "title": paper.title,
+        "authors": [a.name for a in paper.authors],
+        "summary": paper.summary,
+        "published": paper.published.isoformat() if paper.published else None,
+        "updated": paper.updated.isoformat() if paper.updated else None,
+        "link": paper.entry_id,
+        "pdf_url": paper.pdf_url,
+        "primary_category": paper.primary_category,
+        "categories": list(paper.categories),
+        "comment": paper.comment or "",
     }
 
 
-def search(query: str, max_results: int = 10) -> list[dict[str, Any]]:
+def _parse_date_utc(s: str):
+    return _dp.parse(s).replace(tzinfo=timezone.utc)
+
+
+def search(
+    query: str,
+    max_results: int = 10,
+    sort_by: str = "relevance",
+    date_from: str | None = None,
+    date_to: str | None = None,
+    categories: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Search arXiv papers. Returns list of paper dicts or [{"error": "..."}]."""
     max_results = max(1, min(int(max_results), 50))
-    url = (
-        "http://export.arxiv.org/api/query?"
-        f"search_query=all:{urllib.parse.quote(query)}&start=0&max_results={max_results}"
+
+    full_query = query
+    if categories:
+        cat_filter = " OR ".join(f"cat:{c}" for c in categories)
+        full_query = f"({query}) ({cat_filter})"
+
+    sort_criterion = (
+        arxiv.SortCriterion.Relevance
+        if sort_by == "relevance"
+        else arxiv.SortCriterion.SubmittedDate
     )
-    with urllib.request.urlopen(url, timeout=30) as resp:
-        data = resp.read()
-    root = ET.fromstring(data)
-    return [_parse_entry(e) for e in root.findall("atom:entry", ATOM_NS)]
+
+    # Fetch slightly more to absorb date-filter attrition
+    api_limit = min(max_results + 10, 50)
+    search_obj = arxiv.Search(query=full_query, max_results=api_limit, sort_by=sort_criterion)
+
+    date_from_dt = _parse_date_utc(date_from) if date_from else None
+    date_to_dt = _parse_date_utc(date_to) if date_to else None
+
+    client = arxiv.Client()
+    results: list[dict[str, Any]] = []
+    for paper in client.results(search_obj):
+        if len(results) >= max_results:
+            break
+        if paper.published:
+            pub = paper.published
+            if not pub.tzinfo:
+                pub = pub.replace(tzinfo=timezone.utc)
+            if date_from_dt and pub < date_from_dt:
+                continue
+            if date_to_dt and pub > date_to_dt:
+                continue
+        results.append(_paper_to_dict(paper))
+
+    return results
 
 
 def get_details(arxiv_id: str) -> dict[str, Any]:
-    url = f"http://export.arxiv.org/api/query?id_list={urllib.parse.quote(arxiv_id)}"
-    with urllib.request.urlopen(url, timeout=30) as resp:
-        data = resp.read()
-    root = ET.fromstring(data)
-    entries = root.findall("atom:entry", ATOM_NS)
-    if not entries:
-        return {"error": f"No paper found for arxiv_id={arxiv_id}"}
-    return _parse_entry(entries[0])
+    """Fetch metadata for a specific arXiv paper by ID."""
+    client = arxiv.Client()
+    search_obj = arxiv.Search(id_list=[arxiv_id.strip()])
+    papers = list(client.results(search_obj))
+    if not papers:
+        return {"error": f"No paper found for arxiv_id={arxiv_id!r}"}
+    return _paper_to_dict(papers[0])
