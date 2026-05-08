@@ -31,6 +31,12 @@ from providers import arxiv as arxiv_provider
 from providers import semantic_scholar as ss_provider
 from providers import google_scholar as gs_provider
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # loads .env from CWD (project root) at server startup
+except ImportError:
+    pass
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 log = logging.getLogger("osp_mcp")
 

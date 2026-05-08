@@ -71,6 +71,29 @@ if [[ -z "$SEMANTIC_SCHOLAR_API_KEY" ]]; then
   echo "     Then add to your shell profile: export SEMANTIC_SCHOLAR_API_KEY=sk-..."
 fi
 
+# Create .env at project root if it doesn't exist (for API keys)
+ENV_FILE="./.env"
+if [[ ! -f "$ENV_FILE" ]]; then
+  cat > "$ENV_FILE" << 'ENVEOF'
+# Open ScholarPeer — API keys (this file is gitignored)
+# Uncomment and fill in to enable higher rate limits.
+
+# Semantic Scholar API key — free at https://www.semanticscholar.org/product/api
+# SEMANTIC_SCHOLAR_API_KEY=sk-...
+ENVEOF
+  echo -e "  ${GREEN}✅ Created .env at project root — add your API keys there${NC}"
+else
+  echo -e "  ${YELLOW}ℹ️  .env already exists at project root${NC}"
+fi
+
+# Add .env to .gitignore if not already there
+if [[ -f "$GITIGNORE" ]]; then
+  if ! grep -qxF ".env" "$GITIGNORE" 2>/dev/null; then
+    printf "\n# API keys (never commit)\n.env\n" >> "$GITIGNORE"
+    echo -e "  ${GREEN}✅ Added .env to .gitignore${NC}"
+  fi
+fi
+
 # Export paths so the calling installer can write them into MCP config
 export OSP_MCP_PYTHON="$VENV_DIR/bin/python"
 export OSP_MCP_SERVER="$TARGET_DIR/osp_mcp.py"
