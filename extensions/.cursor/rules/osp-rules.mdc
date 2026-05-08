@@ -31,6 +31,15 @@ These rules apply automatically in any project where Open ScholarPeer is install
 - Reports describe what was done — they are not raw transcripts of tool calls.
 - Citations must trace back to retrieved literature; do not invent them.
 
+## File references in user-facing output
+
+- When mentioning a `.brain/` artifact in a report or reply, use the vendor-provided native file reference format for your tool:
+  - Claude Code / Cursor: `@.brain/raw/01_summary.md`
+  - Gemini CLI: `@.brain/raw/01_summary.md`
+  - GitHub Copilot CLI: `#file:.brain/raw/01_summary.md`
+  - Antigravity: plain path (no native shorthand)
+- Always pair the native reference with the `↳ .brain/…` path in the terminal report block so users can locate files regardless of tool.
+
 ## File ownership
 
 - `.brain/` is gitignored — never commit it.

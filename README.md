@@ -17,7 +17,7 @@ Given an academic paper, OSP runs a 7-step protocol to produce a venue-formatted
 | 2 | Literature Review Agent | 3-round live retrieval (sub-domain anchor, method anchor, temporal expansion) |
 | 3 | Historian Agent | Chronological domain narrative |
 | 4 | Baseline Scout | Adversarial audit of missing baselines and datasets |
-| 5 | Q&A Engine | 10 probing Q&A pairs per criterion (subagent-isolated where possible) |
+| 5 | Q&A Engine | Configurable Q&A pairs per criterion, default 2 (subagent-isolated where possible) |
 | 6 | Reviewer Agent | Final consolidated review formatted to the venue's guidelines |
 
 Every artifact is saved as auditable markdown in `.brain/raw/` and `.brain/review/`. No black box.
@@ -78,15 +78,16 @@ Or just run `/open-scholar-peer` at any time — it reads your session state and
 
 ---
 
-## Recommended: Semantic Scholar API key
+## API keys
 
-Anonymous Semantic Scholar limits are tight. Get a free key at https://www.semanticscholar.org/product/api#api-key and add to your shell profile:
+The installer creates a `.env` file at your project root. Add your keys there:
 
 ```bash
-export SEMANTIC_SCHOLAR_API_KEY=sk-...
+# .env  (gitignored — never committed)
+SEMANTIC_SCHOLAR_API_KEY=sk-...
 ```
 
-The MCP server reads it automatically.
+Anonymous Semantic Scholar limits are tight. Get a free key at https://www.semanticscholar.org/product/api#api-key — the MCP server loads `.env` automatically on startup.
 
 ---
 
@@ -98,7 +99,7 @@ extensions/
 │   ├── commands/      ← 8 slash commands
 │   ├── skills/        ← 8 personas (orchestrator + 7 paper agents)
 │   ├── rules/         ← always-on instructions
-│   └── defaults/      ← templates that enforce structure (k=3 rounds, N=10 Q&A)
+│   └── defaults/      ← templates that enforce structure (k=3 rounds, N=qa_pairs_per_criterion)
 └── .{claude,cursor,gemini,agent,github}/   ← Auto-generated per-tool adapters
 
 mcp-server/

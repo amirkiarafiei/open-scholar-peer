@@ -29,7 +29,10 @@ Invoke the `osp-orchestrator` skill (no domain persona needed for this step).
 
 ### 3. Identify the venue
 
-- Ask the user: "Which venue or journal are you reviewing for? (e.g. ICLR 2026, NeurIPS 2025, Nature Machine Intelligence, arXiv-only)".
+- **Always ask the user explicitly**, even if the paper's title page, header, or metadata already shows a venue. Do not auto-fill from the paper.
+- Use your tool's native ask/input mechanism if one is available (e.g. ask_user, an interactive prompt, or a confirmation dialog). If no native ask exists, print the question and wait for a reply before continuing.
+- Ask: "Which venue or journal are you reviewing for? (e.g. ICLR 2026, NeurIPS 2025, Nature Machine Intelligence, arXiv-only)"
+- If the paper appears to list a venue, show what you found and ask the user to confirm or correct it: "The paper mentions [venue]. Is that the submission venue you want to review against, or a different one?"
 - Save `venue.name` and `venue.year` to `session.json`.
 
 ### 4. Retrieve venue review guidelines (fallback chain)
