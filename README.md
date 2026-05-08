@@ -2,13 +2,29 @@
 
 A community implementation of [**ScholarPeer**: A Context-Aware Multi-Agent Framework for Automated Peer Review](docs/paper/scholar_peer_arxiv.pdf) — runnable inside the AI coding tools you already use.
 
+
+
 OSP turns the paper's 7-agent pipeline into a portable set of skills, slash commands, and MCP tools that install into your project directory. No marketplace, no SaaS, no vendor lock-in. Bring your own API key, your own AI tool of choice, your own paper.
 
 ---
 
+## 🚀Quickstart
+
+One-liner installation:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main/install.sh | bash
+```
+
 ## What it does
 
+
 Given an academic paper, OSP runs a 7-step protocol to produce a venue-formatted peer review:
+
+<figure>
+  <img src="docs/paper/agents.png" alt="ScholarPeer architecture diagram" width="480" />
+  <figcaption>ScholarPeer architecture diagram. Source: Google paper, <a href="https://arxiv.org/abs/2601.22638">https://arxiv.org/abs/2601.22638</a>.</figcaption>
+</figure>
 
 | Step | Persona | What it produces |
 | --- | --- | --- |
@@ -24,7 +40,7 @@ Every artifact is saved as auditable markdown in `.brain/raw/` and `.brain/revie
 
 ---
 
-## Supported AI tools
+## 🔌 Supported AI tools
 
 | Tool | Subagent isolation | MCP auto-config |
 | --- | --- | --- |
@@ -38,7 +54,7 @@ See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for the Antigravity
 
 ---
 
-## Quickstart
+## 🛠️ Installation
 
 From your project directory (the directory containing the paper you want to review):
 
@@ -78,7 +94,7 @@ Or just run `/open-scholar-peer` at any time — it reads your session state and
 
 ---
 
-## API keys
+## 🔑 API keys
 
 The installer creates a `.env` file at your project root. Add your keys there:
 
@@ -140,3 +156,23 @@ MIT.
 ## Citing the original paper
 
 If you use OSP in research, please cite the upstream ScholarPeer paper. The implementation here is community-built and is not affiliated with the paper's authors or Google.
+
+```bibtex
+@article{goyal2026scholarpeer,
+  title={ScholarPeer: A Context-Aware Multi-Agent Framework for Automated Peer Review},
+  author={Goyal, Palash and Parmar, Mihir and Song, Yiwen and Palangi, Hamid and Pfister, Tomas and Yoon, Jinsung},
+  journal={arXiv preprint arXiv:2601.22638},
+  year={2026},
+  doi={10.48550/arXiv.2601.22638},
+  url={https://arxiv.org/abs/2601.22638}
+}
+```
+
+---
+
+## Community
+
+- [Contributing](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [License](LICENSE)
+
