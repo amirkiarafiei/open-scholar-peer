@@ -22,6 +22,21 @@ These rules apply automatically in any project where Open ScholarPeer is install
 - **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) only on tools without subagents (Antigravity).
 - Self-reflection is a documented weaker substitute. See `KNOWN_LIMITATIONS.md`.
 
+## User orientation (required on every phase invocation)
+
+Before doing any work in a phase, print a short orientation block so the user always knows where they are:
+
+```
+── <Phase name> ──────────────────────────────────────────
+What this phase does: <one sentence — the agent's role and why this step exists>
+Reads:  <list the key input files>
+Writes: <list the key output files>
+Effort: <rough estimate — "~2 min, ~N tool calls", etc.>
+──────────────────────────────────────────────────────────
+```
+
+After the phase completes, the closing report block must say **what was done** (findings, counts, highlights), not just which command to run next. The user is learning the system as they go — orient them every time, even on repeat runs.
+
 ## Output discipline
 
 - Every `.brain/raw/*.md` file uses the universal artifact structure: `## Method`, `## Output`, `## Provenance`.
