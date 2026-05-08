@@ -8,6 +8,10 @@ This script reads the existing file (creating it if missing), merges in the OSP
 entries, and writes it back — preserving any unrelated user keys *and* any
 hand-customized osp/markitdown entries the user may have added themselves.
 
+Managed-entry tracking: which entries we wrote is recorded in
+`.scholar-peer/osp-managed-entries.json` alongside the project, NOT inside the
+tool's own JSON (which would break strict validators like Gemini CLI).
+
 Usage:
     python3 merge_mcp_config.py <config_path> <python_path> <server_path> [--key mcpServers]
 """
@@ -18,10 +22,9 @@ import json
 import sys
 from pathlib import Path
 
-# Marker baked into our managed entries so we can recognize a prior OSP-managed
-# write versus a user-customized entry sharing the same key. If a user removes
-# this marker (e.g. by hand-editing), we leave their version alone.
-MANAGED_MARKER = "_osp_managed"
+# Sidecar file that tracks which server entries in each config file were written
+# by OSP.  Lives in .scholar-peer/ in the user's project (CWD at install time).
+SIDECAR = Path(".scholar-peer/osp-managed-entries.json")
 
 
 def load_json(path: Path) -> dict:
@@ -50,20 +53,58 @@ def write_json(path: Path, data: dict) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
-def is_osp_managed(entry: object) -> bool:
-    """True if this entry was previously written by us (carries our marker)."""
-    return isinstance(entry, dict) and entry.get(MANAGED_MARKER) is True
+# ---------- Sidecar helpers -------------------------------------------------
+
+def _load_sidecar() -> dict:
+    if not SIDECAR.exists():
+        return {}
+    raw = SIDECAR.read_text(encoding="utf-8").strip()
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
 
 
-def merge_entry(servers: dict, name: str, new_entry: dict) -> str:
+def _save_sidecar(data: dict) -> None:
+    SIDECAR.parent.mkdir(parents=True, exist_ok=True)
+    SIDECAR.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def _is_osp_managed(config_path: Path, key: str, entry_name: str) -> bool:
+    """True if this entry was previously written by OSP (recorded in sidecar)."""
+    sidecar = _load_sidecar()
+    return entry_name in sidecar.get(str(config_path), {}).get(key, [])
+
+
+def _mark_osp_managed(config_path: Path, key: str, entry_name: str) -> None:
+    sidecar = _load_sidecar()
+    cfg_str = str(config_path)
+    sidecar.setdefault(cfg_str, {}).setdefault(key, [])
+    if entry_name not in sidecar[cfg_str][key]:
+        sidecar[cfg_str][key].append(entry_name)
+    _save_sidecar(sidecar)
+
+
+# ---------- Merge logic -----------------------------------------------------
+
+def merge_entry(
+    servers: dict,
+    name: str,
+    new_entry: dict,
+    config_path: Path,
+    key: str,
+) -> str:
     """Insert `new_entry` at `servers[name]`, but never clobber a user-customized
     entry sharing that key. Returns one of {"created", "updated", "preserved"}.
     """
     existing = servers.get(name)
     if existing is None:
         servers[name] = new_entry
+        _mark_osp_managed(config_path, key, name)
         return "created"
-    if is_osp_managed(existing):
+    if _is_osp_managed(config_path, key, name):
         servers[name] = new_entry
         return "updated"
     # Foreign entry under our preferred name — do NOT overwrite.
@@ -99,24 +140,20 @@ def main() -> int:
         )
         return 2
 
+    # Clean entries — no extra keys that strict JSON validators (e.g. Gemini) reject.
     osp_entry = {
-        MANAGED_MARKER: True,
         "command": args.python_path,
         "args": [args.server_path],
-        "env": {
-            # If user has SEMANTIC_SCHOLAR_API_KEY in env at runtime, the server
-            # picks it up; we don't bake it into config to avoid secret leakage.
-        },
+        "env": {},
     }
     markitdown_entry = {
-        MANAGED_MARKER: True,
         "command": "uvx",
         "args": ["markitdown-mcp"],
     }
 
     actions = {
-        "osp": merge_entry(cfg[args.key], "osp", osp_entry),
-        "markitdown": merge_entry(cfg[args.key], "markitdown", markitdown_entry),
+        "osp": merge_entry(cfg[args.key], "osp", osp_entry, cfg_path, args.key),
+        "markitdown": merge_entry(cfg[args.key], "markitdown", markitdown_entry, cfg_path, args.key),
     }
 
     write_json(cfg_path, cfg)
