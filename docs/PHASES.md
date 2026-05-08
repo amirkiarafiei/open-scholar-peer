@@ -291,6 +291,55 @@ Confirm parity across tools, document limitations, and ship.
 
 ---
 
+## Phase 6+ — Polish & Refinement (Latest)
+
+### Recent Work
+
+Ongoing refinements for UX and robustness:
+
+#### MCP Server & Tool Improvements
+
+- [x] **Timeout wrapper** — all async tool calls wrapped with `asyncio.wait_for(timeout=30)` to prevent hangs (Semantic Scholar, arXiv)
+- [x] **Expanded Semantic Scholar** — from 4 → 10 tools: `get_paper_references`, `get_paper_citations`, `get_papers_batch`, `search_authors`, `get_author_papers`, `get_paper_recommendations`, `search_snippets` (in addition to `search_semantic_scholar` and `get_paper_details`)
+- [x] **ArXiv via package** — switched from raw HTTP to `arxiv` Python package for better rate limiting and reliability
+- [x] **Dotenv loading** — MCP server loads `.env` at startup for API key injection
+- [x] **Sidecar tracking** — OSP-managed MCP entries tracked in `.scholar-peer/osp-managed-entries.json` to prevent Gemini JSON validation breakage
+
+#### Command & Skill Enhancements
+
+- [x] **User orientation rule** — every phase invocation prints opening context block: what this phase does, reads, writes, effort estimate
+- [x] **Informative output** — closing reports describe findings/counts/highlights, not just "run X next"
+- [x] **Venue confirmation forcing** — `/0-osp-onboarding` Step 3 always asks user, even if paper shows venue; uses tool's native ask mechanism
+- [x] **Native file referencing rule** — osp-rules.md documents per-tool format: `@file` for Claude/Cursor/Gemini, `#file:` for Copilot CLI, plain path for Antigravity
+- [x] **Simultaneous literature retrieval** — literature review agent fires all search tools in parallel dispatch (not sequential), with per-tool query formulations
+
+#### Installer & Docs Polish
+
+- [x] **Spinner animations** — `init_mcp.sh` uses braille spinner with `kill -0` polling for venv/pip operations; non-blocking in CI
+- [x] **Numbered "Next:" format** — all installers end with `Next: (1) ... (2) run /open-scholar-peer`
+- [x] **Removed "Drop your paper" instruction** — user relies on `/open-scholar-peer` orchestrator for paper path discovery
+- [x] **Directory rename** — `.scholar-peer/` → `.open-scholar-peer/mcp/` throughout (init_mcp.sh, merge_mcp_config.py, docs, gitignore)
+- [x] **Tool name shortening** — "Google Antigravity IDE" → "Antigravity", "GitHub Copilot CLI" → "Copilot CLI" (install.sh menu, installer headers, README table, docs)
+- [x] **`.env` for API keys** — installers create `.env` at project root with example placeholder; documented in README
+- [x] **Dynamic Q&A pairs** — default 2 pairs per criterion (user-configurable at `/5-osp-qa` start); templates use `{{qa_pairs_per_criterion}}`
+
+#### Documentation Updates
+
+- [x] **README** — updated architecture, API keys section, configurable Q&A mention, tool support matrix with short names
+- [x] **TROUBLESHOOTING** — "paper not found" now directs to `/open-scholar-peer` instead of manual copy
+- [x] **All docs** — updated directory references, tool names, Q&A pair counts
+
+### Exit Criteria (Phase 6+)
+
+- [x] MCP server is robust (timeouts, expanded tooling, env-loaded keys)
+- [x] All agents are informative (orientation blocks, findings-based reports)
+- [x] Literature review uses all tools simultaneously
+- [x] Installers are polished (spinners, numbered ending, no "drop paper" instruction)
+- [x] Docs are current and user-friendly
+- [ ] *(Manual milestone)* live E2E test on a real paper to verify all 7 phases produce high-quality review
+
+---
+
 ## Out of Scope (deferred)
 
 - [ ] **Multi-paper sessions** — `.brain/sessions/<paper_slug>/` with active-session pointer. Currently v1 = one paper per `.brain/`.
