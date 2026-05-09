@@ -8,7 +8,7 @@ A community implementation of [**ScholarPeer**: A Context-Aware Multi-Agent Fram
   </figure>
 </div>
 
-OSP turns the paper's 7-agent pipeline into a portable set of skills, slash commands, and MCP tools that install into your project directory. No marketplace, no SaaS, no vendor lock-in. Bring your own API key, your own AI tool of choice, your own paper.
+OSP turns the paper's 7-agent pipeline into a portable set of Skills, Slash Commands, and MCP tools that install into your project directory. Use your favorite AI tool to review papers.
 
 ---
 
