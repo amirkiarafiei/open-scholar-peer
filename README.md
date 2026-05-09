@@ -2,9 +2,11 @@
 
 A community implementation of [**ScholarPeer**: A Context-Aware Multi-Agent Framework for Automated Peer Review](docs/paper/scholar_peer_arxiv.pdf) — runnable inside the AI coding tools you already use.
 
-<figure>
-  <img src="assets/support.png" alt="Open ScholarPeer" width="360" />
-</figure>
+<div align="center">
+  <figure>
+    <img src="assets/support.png" alt="Open ScholarPeer" width="360" />
+  </figure>
+</div>
 
 OSP turns the paper's 7-agent pipeline into a portable set of skills, slash commands, and MCP tools that install into your project directory. No marketplace, no SaaS, no vendor lock-in. Bring your own API key, your own AI tool of choice, your own paper.
 
@@ -12,13 +14,13 @@ OSP turns the paper's 7-agent pipeline into a portable set of skills, slash comm
 
 ## 🚀 Quickstart
 
-One-liner installation:
+In CLI:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main/install.sh | bash
 ```
 
-## What it does
+## How it works
 
 
 Given an academic paper, OSP runs a 7-step protocol to produce a venue-formatted peer review:
@@ -41,28 +43,6 @@ Given an academic paper, OSP runs a 7-step protocol to produce a venue-formatted
 | 6 | Reviewer Agent | Final consolidated review formatted to the venue's guidelines |
 
 Every artifact is saved as auditable markdown in `.brain/raw/` and `.brain/review/`. No black box.
-
----
-
-## 🔌 Supported AI tools
-
-| Tool | Subagent isolation | MCP auto-config |
-| --- | --- | --- |
-| [Claude Code](https://claude.com/claude-code) | ✓ | ✓ |
-| [Cursor](https://cursor.com) | ✓ | ✓ |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ | ✓ |
-| [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ | ✓ (with merge) |
-| [Codex CLI](https://github.com/openai/codex) | ✓ | manual snippet |
-| [Qwen Code](https://github.com/QwenLM/qwen-code) | ✓ | ✓ (`.qwen/settings.json`) |
-| [OpenCode](https://opencode.ai) | ✓ | manual snippet |
-| [Junie](https://www.jetbrains.com/junie/) | ✓ | n/a |
-| [Kiro](https://kiro.dev) | ✓ | via Kiro MCP UI |
-| [Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✗ (self-reflection fallback) | manual snippet (global) |
-| [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✓ | manual snippet (global) |
-| [OpenHands](https://docs.openhands.dev) | ✗ (self-reflection fallback) | via OpenHands UI |
-| [Antigravity](https://antigravity.google/) | ✗ (self-reflection fallback) | manual snippet |
-
-See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for self-reflection caveats and per-tool MCP wiring details.
 
 ---
 
@@ -106,7 +86,28 @@ Or just run `/open-scholar-peer` at any time — it reads your session state and
 
 ---
 
-## 🔑 API keys
+## Literature Databases
+
+OSP currently connects to arXiv and Semantic Scholar for paper discovery and evidence gathering.
+
+| Database | Support | API Key |
+| --- | --- | --- |
+| arXiv | ✅ | Not Required |
+| Semantic Scholar | ✅ | Optional |
+| PubMed | 🚧 Soon | Not Required |
+| bioRxiv | 🚧 Soon | Not Required |
+| medRxiv | 🚧 Soon | Not Required |
+| DBLP | 🚧 Soon | Not Required |
+| ACM | 🚧 Soon | Required |
+| IEEE | 🚧 Soon | Required |
+| WoS | 🚧 Soon | Required |
+| Scopus | 🚧 Soon | Required |
+| Springer | 🚧 Soon | Required |
+| ScienceDirect | 🚧 Soon | Required |
+
+The literature search layers is implemented in [mcp-server/](mcp-server/), so you can extend it with additional scholarly sources when you have valid access credentials.
+
+### 🔑 API keys
 
 The installer creates a `.env` file at your project root. Add your keys there:
 
@@ -116,6 +117,28 @@ SEMANTIC_SCHOLAR_API_KEY=sk-...
 ```
 
 Anonymous Semantic Scholar limits are tight. Get a free key at https://www.semanticscholar.org/product/api#api-key — the MCP server loads `.env` automatically on startup.
+
+---
+
+## 🔌 Supported AI tools
+
+| Tool | Subagent isolation | MCP auto-config |
+| --- | --- | --- |
+| [Claude Code](https://claude.com/claude-code) | ✓ | ✓ |
+| [Cursor](https://cursor.com) | ✓ | ✓ |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ | ✓ |
+| [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ | ✓ (with merge) |
+| [Codex CLI](https://github.com/openai/codex) | ✓ | manual snippet |
+| [Qwen Code](https://github.com/QwenLM/qwen-code) | ✓ | ✓ (`.qwen/settings.json`) |
+| [OpenCode](https://opencode.ai) | ✓ | manual snippet |
+| [Junie](https://www.jetbrains.com/junie/) | ✓ | n/a |
+| [Kiro](https://kiro.dev) | ✓ | via Kiro MCP UI |
+| [Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✗ (self-reflection fallback) | manual snippet (global) |
+| [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✓ | manual snippet (global) |
+| [OpenHands](https://docs.openhands.dev) | ✗ (self-reflection fallback) | via OpenHands UI |
+| [Antigravity](https://antigravity.google/) | ✗ (self-reflection fallback) | manual snippet |
+
+See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for self-reflection caveats and per-tool MCP wiring details.
 
 ---
 
@@ -166,7 +189,7 @@ scripts/
 
 MIT.
 
-## Citing the original paper
+## Citation
 
 If you use OSP in research, please cite the upstream ScholarPeer paper. The implementation here is community-built and is not affiliated with the paper's authors or Google.
 
