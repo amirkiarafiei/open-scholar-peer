@@ -37,28 +37,13 @@ fi
 # 4. MCP server runtime
 . "$SCRIPTS_DIR/init_mcp.sh"
 
-# 5. Kimi MCP snippet for ~/.kimi/config.toml (global config, TOML)
-SNIPPET_PATH="./.open-scholar-peer/kimi_mcp_snippet.toml"
-cat > "$SNIPPET_PATH" << TOML
-[mcp_servers.osp]
-command = "$OSP_MCP_PYTHON"
-args = ["$OSP_MCP_SERVER"]
-
-[mcp_servers.markitdown]
-command = "uvx"
-args = ["markitdown-mcp"]
-TOML
-
-echo -e "\n  ${YELLOW}⚠️  Kimi uses a GLOBAL MCP config. Add the entries below to:${NC}"
-echo "         ~/.kimi/config.toml"
-echo ""
-echo "     A ready-to-paste snippet has been saved to:"
-echo "         $SNIPPET_PATH"
-
-echo -e "\n  ${YELLOW}ℹ️  Kimi support for parallel subagents is limited — /5-osp-qa${NC}"
-echo "     falls back to self-reflection mode (see docs/KNOWN_LIMITATIONS.md)."
+# 5. Kimi MCP config — ~/.kimi/mcp.json (global, JSON, mcpServers format)
+#    Per https://moonshotai.github.io/kimi-cli/en/customization/mcp.html
+KIMI_MCP_CONFIG="${HOME}/.kimi/mcp.json"
+mkdir -p "$(dirname "$KIMI_MCP_CONFIG")"
+python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$KIMI_MCP_CONFIG" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"
-echo    "  (1) Paste the MCP snippet into ~/.kimi/config.toml"
+echo    "  (1) Restart your Kimi CLI session  (picks up the new MCP servers)"
 echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."

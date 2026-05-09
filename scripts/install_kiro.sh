@@ -19,13 +19,14 @@ echo -e "  ${GREEN}✅ Adapter copied → ./.kiro/${NC}"
 # 2. Brain
 "$SCRIPTS_DIR/init_brain.sh"
 
-# 3. MCP runtime (Kiro discovers MCP servers via its IDE settings — we set up
-#    the venv so the user can register it via Kiro's MCP UI.)
+# 3. MCP server runtime
 . "$SCRIPTS_DIR/init_mcp.sh"
 
-echo -e "\n  ${YELLOW}ℹ️  Add the OSP MCP server via Kiro's MCP settings:${NC}"
-echo "     Command: $OSP_MCP_PYTHON"
-echo "     Args:    $OSP_MCP_SERVER"
+# 4. Kiro MCP config — .kiro/settings/mcp.json (project-local, JSON, mcpServers format)
+#    Per https://kiro.dev/docs/cli/mcp/
+KIRO_MCP_CONFIG="./.kiro/settings/mcp.json"
+mkdir -p "$(dirname "$KIRO_MCP_CONFIG")"
+python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$KIRO_MCP_CONFIG" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"

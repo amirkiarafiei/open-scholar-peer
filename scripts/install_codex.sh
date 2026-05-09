@@ -48,13 +48,15 @@ command = "uvx"
 args = ["markitdown-mcp"]
 TOML
 
-echo -e "\n  ${YELLOW}⚠️  Add the MCP entries below to your Codex config:${NC}"
-echo "         ~/.codex/config.toml   (or  ./.codex/config.toml)"
+echo -e "\n  ${YELLOW}⚠️  Codex uses TOML — add the OSP MCP server with one of:${NC}"
 echo ""
-echo "     A ready-to-paste snippet has been saved to:"
+echo "     (a) Codex CLI (recommended):"
+echo "         codex mcp add osp -- $OSP_MCP_PYTHON $OSP_MCP_SERVER"
+echo ""
+echo "     (b) Or paste the snippet manually into ~/.codex/config.toml:"
 echo "         $SNIPPET_PATH"
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"
-echo    "  (1) Paste the MCP snippet into your Codex config.toml"
+echo    "  (1) Wire the MCP server (codex mcp add osp ... or paste snippet)"
 echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."

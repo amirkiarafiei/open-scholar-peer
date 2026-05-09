@@ -14,12 +14,23 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; RED='\033[0;31m'; NC
 
 # _spin PID MESSAGE
 # Shows a braille spinner beside MESSAGE while PID is running, then erases the line.
-# Falls back to a static wait when stdout is not a terminal (CI, piped output).
+# Prints a one-shot log line in non-TTY mode (CI, piped output).
+#
+# IMPORTANT: _spin must NEVER call `wait` itself. The caller (`wait $! || ...`
+# or `if wait $!; then ...`) is the one that reaps the background process and
+# reads its real exit status. If _spin reaps first, the caller's `wait $!`
+# returns 127 ("not a child of this shell") and the error-handling branch
+# fires even on success — which is what was breaking init_mcp.sh in non-TTY.
 _spin() {
   local pid=$1 msg=$2
   local frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0
   if [[ ! -t 1 ]]; then
-    wait "$pid"; return $?
+    echo "  $msg"
+    # Poll without reaping so the caller's `wait $!` still returns the real status.
+    while kill -0 "$pid" 2>/dev/null; do
+      sleep 0.5
+    done
+    return 0
   fi
   while kill -0 "$pid" 2>/dev/null; do
     printf "\r  ${CYAN}%s${NC}  %s" "${frames:$((i % ${#frames})):1}" "$msg"

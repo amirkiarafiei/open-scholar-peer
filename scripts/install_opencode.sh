@@ -53,13 +53,15 @@ cat > "$SNIPPET_PATH" << JSON
 }
 JSON
 
-echo -e "\n  ${YELLOW}⚠️  Add the MCP entries below to opencode.json (project root):${NC}"
-echo "     A ready-to-paste snippet has been saved to:"
-echo "         $SNIPPET_PATH"
+echo -e "\n  ${YELLOW}⚠️  Wire the OSP MCP server with one of:${NC}"
 echo ""
-echo "     Or use:  opencode mcp add osp $OSP_MCP_PYTHON $OSP_MCP_SERVER"
+echo "     (a) OpenCode CLI (recommended):"
+echo "         opencode mcp add osp -- $OSP_MCP_PYTHON $OSP_MCP_SERVER"
+echo ""
+echo "     (b) Or paste the snippet manually into opencode.json:"
+echo "         $SNIPPET_PATH"
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"
-echo    "  (1) Add the MCP servers via opencode.json or 'opencode mcp add'"
+echo    "  (1) Wire the MCP server (opencode mcp add osp ... or paste snippet)"
 echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."

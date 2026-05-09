@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Open ScholarPeer — Google Antigravity IDE installer
+# Open ScholarPeer — Antigravity installer
 
 set -e
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,36 +30,16 @@ echo -e "  ${GREEN}✅ Adapter copied → ./.agents/ and ./.agent/${NC}"
 # 3. MCP server runtime
 . "$SCRIPTS_DIR/init_mcp.sh"
 
-# 4. Antigravity uses a GLOBAL MCP config — we cannot programmatically write to
-# ~/.gemini/antigravity/mcp_config.json without user consent. Output a snippet
-# the user can paste manually.
-SNIPPET_PATH="./.open-scholar-peer/antigravity_mcp_snippet.json"
-cat > "$SNIPPET_PATH" << JSON
-{
-  "mcpServers": {
-    "osp": {
-      "command": "$OSP_MCP_PYTHON",
-      "args": ["$OSP_MCP_SERVER"]
-    },
-    "markitdown": {
-      "command": "uvx",
-      "args": ["markitdown-mcp"]
-    }
-  }
-}
-JSON
+# 4. Antigravity MCP config — ~/.gemini/antigravity/mcp_config.json (global, JSON,
+#    mcpServers format). Per https://antigravity.google/docs/mcp.
+AG_MCP_CONFIG="${HOME}/.gemini/antigravity/mcp_config.json"
+mkdir -p "$(dirname "$AG_MCP_CONFIG")"
+python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$AG_MCP_CONFIG" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
-echo -e "\n  ${YELLOW}⚠️  Antigravity uses a GLOBAL MCP config. Add the entries below to:${NC}"
-echo "         ~/.gemini/antigravity/mcp_config.json"
-echo ""
-echo "     A ready-to-paste snippet has been saved to:"
-echo "         $SNIPPET_PATH"
-echo ""
+echo -e "\n  ${YELLOW}ℹ️  Antigravity does NOT support general subagents — /5-osp-qa falls${NC}"
+echo "     back to self-reflection mode (see docs/KNOWN_LIMITATIONS.md)."
+
 echo -e "\n${GREEN}Done!${NC}\n"
-echo -e "Note: Antigravity does NOT support subagents — /5-osp-qa falls back to"
-echo "  self-reflection mode (see docs/KNOWN_LIMITATIONS.md)."
-echo ""
 echo -e "Next:"
-echo    "  (1) Paste the MCP snippet into ~/.gemini/antigravity/mcp_config.json"
-echo    "      (saved to $SNIPPET_PATH)"
+echo    "  (1) Restart Antigravity  (picks up the new MCP servers)"
 echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."

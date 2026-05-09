@@ -133,8 +133,8 @@ TOOLS: dict[str, ToolCaps] = {
     "kimi": ToolCaps(
         name="kimi",
         root=REPO_ROOT / "extensions" / ".kimi",
-        supports_subagent=False,
-        qa_mode="self-reflection",
+        supports_subagent=True,
+        qa_mode="subagent",
         command_dir="commands",
         command_ext="md",
         skill_dir="skills",
@@ -155,8 +155,8 @@ TOOLS: dict[str, ToolCaps] = {
     "vibe": ToolCaps(
         name="vibe",
         root=REPO_ROOT / "extensions" / ".vibe",
-        supports_subagent=True,
-        qa_mode="subagent",
+        supports_subagent=False,
+        qa_mode="self-reflection",
         command_dir="commands",
         command_ext="md",
         skill_dir="skills",

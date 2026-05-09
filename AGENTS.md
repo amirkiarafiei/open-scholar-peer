@@ -53,7 +53,7 @@ cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -r requirements.
 - `/.agents/` at repo root is leftover unrelated tooling, gitignored. The OSP Antigravity adapter is at `extensions/.agents/`. Do not confuse them.
 - `reviewer-os/` at repo root is an external reference (gitignored), not part of OSP.
 - When adding or renaming a command/skill, update **both** `extensions/_shared/MANIFEST.md` and `docs/ARTIFACT_CONTRACTS.md`.
-- Q&A behavior differs per tool: Antigravity, Kimi, OpenHands fall back to self-reflection (no/partial subagents); the other 10 use subagent isolation. Logic lives in `sync_adapters.py::adapt_qa_body_for_tool()`.
+- Q&A behavior differs per tool: Antigravity, Mistral Vibe, OpenHands fall back to self-reflection (no/partial subagents); the other 10 use subagent isolation. Logic lives in `sync_adapters.py::adapt_qa_body_for_tool()`.
 - Paper hyperparameters: `k=3` literature rounds is fixed (enforced via 3 round files); `N_QA` is **user-configurable** at `/5-osp-qa` start (default 2 pairs/criterion, persisted as `session.json.qa_pairs_per_criterion`). The Q&A template renders `### Q1`…`### QN` from that field.
 - Tools that share the project-root `AGENTS.md` surface (Copilot, Codex, Kimi, Vibe, OpenCode, OpenHands) all merge through `scripts/merge_agents_md.sh` using `<!-- OSP-BEGIN/OSP-END -->` markers. Do not roll your own merge logic.
 - The MCP server runs as a subprocess of the host tool over stdio. To debug, run `python3 mcp-server/osp_mcp.py` standalone — it'll wait for MCP protocol messages and surface any startup errors.

@@ -19,13 +19,14 @@ echo -e "  ${GREEN}✅ Adapter copied → ./.junie/${NC}"
 # 2. Brain
 "$SCRIPTS_DIR/init_brain.sh"
 
-# 3. MCP runtime (Junie does not have a documented MCP config path; we still
-#    set up the venv so the user can wire it manually if they enable MCP later.)
+# 3. MCP server runtime
 . "$SCRIPTS_DIR/init_mcp.sh"
 
-echo -e "\n  ${YELLOW}ℹ️  Junie has no documented MCP config path — paper retrieval${NC}"
-echo "     tools (arxiv, semantic_scholar) will not be available unless you wire"
-echo "     them manually. Phases that don't need retrieval still work."
+# 4. Junie MCP config — .junie/mcp/mcp.json (project-local, JSON, mcpServers format)
+#    Per https://junie.jetbrains.com/docs/junie-cli-mcp-configuration.html
+JUNIE_MCP_CONFIG="./.junie/mcp/mcp.json"
+mkdir -p "$(dirname "$JUNIE_MCP_CONFIG")"
+python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$JUNIE_MCP_CONFIG" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"

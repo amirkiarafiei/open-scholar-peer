@@ -36,7 +36,9 @@ fi
 # 4. MCP server runtime
 . "$SCRIPTS_DIR/init_mcp.sh"
 
-# 5. Vibe MCP snippet for ~/.vibe/config.toml (global TOML config)
+# 5. Vibe MCP snippet — TOML, can't auto-merge user TOML safely. Vibe reads
+#    ./.vibe/config.toml (project-local) AND ~/.vibe/config.toml (global).
+#    Per https://docs.mistral.ai/mistral-vibe/terminal/configuration#mcp-server-configuration
 SNIPPET_PATH="./.open-scholar-peer/vibe_mcp_snippet.toml"
 cat > "$SNIPPET_PATH" << TOML
 [[mcp_servers]]
@@ -50,13 +52,19 @@ command = "uvx"
 args = ["markitdown-mcp"]
 TOML
 
-echo -e "\n  ${YELLOW}⚠️  Vibe uses a GLOBAL MCP config. Add the entries below to:${NC}"
-echo "         ~/.vibe/config.toml"
+echo -e "\n  ${YELLOW}⚠️  Vibe uses TOML config (we cannot safely auto-merge). Append the${NC}"
+echo "     entries below to either of:"
+echo "         ./.vibe/config.toml      (project-local)"
+echo "         ~/.vibe/config.toml      (global)"
 echo ""
 echo "     A ready-to-paste snippet has been saved to:"
 echo "         $SNIPPET_PATH"
 
+echo -e "\n  ${YELLOW}ℹ️  Vibe documents independent agent profiles but no general subagent${NC}"
+echo "     delegation — /5-osp-qa falls back to self-reflection mode (see"
+echo "     docs/KNOWN_LIMITATIONS.md)."
+
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"
-echo    "  (1) Paste the MCP snippet into ~/.vibe/config.toml"
+echo    "  (1) Paste the MCP snippet into your Vibe config.toml"
 echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."

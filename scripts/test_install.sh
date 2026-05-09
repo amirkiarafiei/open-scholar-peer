@@ -111,8 +111,7 @@ run_install_smoke "antigravity" "install_antigravity.sh" \
   "${COMMON[@]}" \
   ".agents/workflows/0-osp-onboarding.md" \
   ".agent/workflows/0-osp-onboarding.md" \
-  ".agent/skills/osp-historian-agent/SKILL.md" \
-  ".open-scholar-peer/antigravity_mcp_snippet.json"
+  ".agent/skills/osp-historian-agent/SKILL.md"
 
 run_install_smoke "copilot" "install_copilot.sh" \
   "${COMMON[@]}" \
@@ -125,13 +124,15 @@ run_install_smoke "junie" "install_junie.sh" \
   "${COMMON[@]}" \
   ".junie/commands/0-osp-onboarding.md" \
   ".junie/skills/osp-orchestrator/SKILL.md" \
-  ".junie/guidelines.md"
+  ".junie/guidelines.md" \
+  ".junie/mcp/mcp.json"
 
 run_install_smoke "kiro" "install_kiro.sh" \
   "${COMMON[@]}" \
   ".kiro/hooks/0-osp-onboarding.md" \
   ".kiro/skills/osp-orchestrator/SKILL.md" \
-  ".kiro/steering/osp-rules.md"
+  ".kiro/steering/osp-rules.md" \
+  ".kiro/settings/mcp.json"
 
 run_install_smoke "codex" "install_codex.sh" \
   "${COMMON[@]}" \
@@ -145,8 +146,7 @@ run_install_smoke "kimi" "install_kimi.sh" \
   ".kimi/commands/0-osp-onboarding.md" \
   ".kimi/skills/osp-orchestrator/SKILL.md" \
   ".agents/skills/osp-orchestrator/SKILL.md" \
-  "AGENTS.md" \
-  ".open-scholar-peer/kimi_mcp_snippet.toml"
+  "AGENTS.md"
 
 run_install_smoke "qwen" "install_qwen.sh" \
   "${COMMON[@]}" \

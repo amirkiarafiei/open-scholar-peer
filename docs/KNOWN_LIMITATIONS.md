@@ -8,9 +8,9 @@ These are limitations users should know about going in. None block normal operat
 
 **What:** The Multi-Aspect Q&A Engine (`/5-osp-qa`) is designed around true subagent isolation: the Query Agent (main thread) delegates each question to a fresh Answer Generator subagent so the verification cannot be biased by the question's reasoning trace.
 
-**Limitation:** Three of the supported tools — **Antigravity**, **Kimi Code**, and **OpenHands** — either do not support subagents or have only partial support. On these, the Q&A engine falls back to **self-reflection mode**: both Query and Answer Generator personas run in the same context window, separated by strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`).
+**Limitation:** Three of the supported tools — **Antigravity**, **Mistral Vibe**, and **OpenHands** — either do not support subagents or have only profile-style independence (no documented subagent delegation). On these, the Q&A engine falls back to **self-reflection mode**: both Query and Answer Generator personas run in the same context window, separated by strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`).
 
-**Impact:** Reviews on the Q&A axis from these tools are likely lower in independent-verification depth than reviews from Claude Code, Cursor, Gemini CLI, Copilot CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, or Mistral Vibe. The other downstream phases (literature, historian, baseline scout, reviewer) are unaffected.
+**Impact:** Reviews on the Q&A axis from these tools are likely lower in independent-verification depth than reviews from Claude Code, Cursor, Gemini CLI, Copilot CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, or Kimi Code. The other downstream phases (literature, historian, baseline scout, reviewer) are unaffected.
 
 **Workaround:** If you need full subagent isolation for a paper, use one of the subagent-capable tools listed above.
 

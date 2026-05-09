@@ -130,7 +130,7 @@ Author all skills and commands once, in `_shared/`, as the single source of trut
 - [ ] `2-osp-literature` — Invokes `osp-literature-review-agent`. Runs 3 strategy-distinct rounds. Writes `02a/02b/02c_literature_round*.md` then consolidates to `02_retrieved_literature.md`.
 - [ ] `3-osp-historian` — Invokes `osp-historian-agent`. Reads `02_retrieved_literature.md`. Writes `03_domain_narrative.md`.
 - [ ] `4-osp-baseline-scout` — Invokes `osp-baseline-scout-agent`. Reads summary + literature. Writes `04_missing_baselines.md`.
-- [ ] `5-osp-qa` — Invokes `osp-query-agent` (main thread). Loops over `qa_criteria[]`. For each: spawns `osp-answer-generator-agent` as subagent (or self-reflects on Antigravity / Kimi / OpenHands). Forces N Q&A pairs via `### Q1...### QN` template, where N = `session.json.qa_pairs_per_criterion`. Writes `05_qa_<slug>.md` per criterion.
+- [ ] `5-osp-qa` — Invokes `osp-query-agent` (main thread). Loops over `qa_criteria[]`. For each: spawns `osp-answer-generator-agent` as subagent (or self-reflects on Antigravity / Vibe / OpenHands). Forces N Q&A pairs via `### Q1...### QN` template, where N = `session.json.qa_pairs_per_criterion`. Writes `05_qa_<slug>.md` per criterion.
 - [ ] `6-osp-review` — Invokes `osp-reviewer-agent`. Reads everything. Writes consolidated `review/final_review.md`.
 
 #### Rules (always-on)

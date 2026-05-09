@@ -124,19 +124,19 @@ Anonymous Semantic Scholar limits are tight. Get a free key at https://www.seman
 
 | Tool | Subagent isolation | MCP auto-config |
 | --- | --- | --- |
-| [Claude Code](https://claude.com/claude-code) | ✓ | ✓ |
-| [Cursor](https://cursor.com) | ✓ | ✓ |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ | ✓ |
-| [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ | ✓ (with merge) |
-| [Codex CLI](https://github.com/openai/codex) | ✓ | manual snippet |
+| [Claude Code](https://claude.com/claude-code) | ✓ | ✓ (`.mcp.json`) |
+| [Cursor](https://cursor.com) | ✓ | ✓ (`.cursor/mcp.json`) |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ | ✓ (`.gemini/settings.json`) |
+| [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ | ✓ (`~/.copilot/mcp-config.json`) |
+| [Codex CLI](https://github.com/openai/codex) | ✓ | via `codex mcp add` (TOML) |
 | [Qwen Code](https://github.com/QwenLM/qwen-code) | ✓ | ✓ (`.qwen/settings.json`) |
-| [OpenCode](https://opencode.ai) | ✓ | manual snippet |
-| [Junie](https://www.jetbrains.com/junie/) | ✓ | n/a |
-| [Kiro](https://kiro.dev) | ✓ | via Kiro MCP UI |
-| [Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✗ (self-reflection fallback) | manual snippet (global) |
-| [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✓ | manual snippet (global) |
-| [OpenHands](https://docs.openhands.dev) | ✗ (self-reflection fallback) | via OpenHands UI |
-| [Antigravity](https://antigravity.google/) | ✗ (self-reflection fallback) | manual snippet |
+| [OpenCode](https://opencode.ai) | ✓ | via `opencode mcp add` (or `opencode.json`) |
+| [Junie](https://www.jetbrains.com/junie/) | ✓ | ✓ (`.junie/mcp/mcp.json`) |
+| [Kiro](https://kiro.dev) | ✓ | ✓ (`.kiro/settings/mcp.json`) |
+| [Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✓ | ✓ (`~/.kimi/mcp.json`) |
+| [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✗ (self-reflection fallback) | manual snippet (TOML) |
+| [OpenHands](https://docs.openhands.dev) | ✗ (self-reflection fallback) | via OpenHands UI / `config.toml` |
+| [Antigravity](https://antigravity.google/) | ✗ (self-reflection fallback) | ✓ (`~/.gemini/antigravity/mcp_config.json`) |
 
 See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for self-reflection caveats and per-tool MCP wiring details.
 
