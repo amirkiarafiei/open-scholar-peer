@@ -287,7 +287,7 @@ Confirm parity across tools, document limitations, and ship.
 
 - [x] v2 is structurally releasable
 - [x] All known limitations documented; no surprises for users
-- [ ] *(Manual milestone)* tag a release after at least one full end-to-end run on a real paper
+- [x] *(Manual milestone)* full end-to-end run on a real paper completed successfully — ready to tag v1
 
 ---
 
@@ -336,7 +336,7 @@ Ongoing refinements for UX and robustness:
 - [x] Literature review uses all tools simultaneously
 - [x] Installers are polished (spinners, numbered ending, no "drop paper" instruction)
 - [x] Docs are current and user-friendly
-- [ ] *(Manual milestone)* live E2E test on a real paper to verify all 7 phases produce high-quality review
+- [x] *(Manual milestone)* live E2E test on a real paper verified — all 7 phases produce a coherent review
 
 ---
 

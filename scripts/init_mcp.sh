@@ -68,6 +68,17 @@ if [[ ! -d "$VENV_DIR" ]]; then
     echo -e "  ${RED}✗ python3 not found in PATH; install Python 3.10+ and re-run${NC}"
     return 1 2>/dev/null || exit 1
   fi
+  # On Debian/Ubuntu, `python3` ships without `ensurepip`/`venv` until the
+  # `python3-venv` apt package is installed. Detect that up-front so users get
+  # an actionable error instead of a generic "Failed to create virtualenv".
+  if ! python3 -c "import ensurepip" &>/dev/null; then
+    py_minor=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "3")
+    echo -e "  ${RED}✗ python3 venv module is missing (ensurepip not available).${NC}"
+    echo "     On Debian/Ubuntu, install it with:"
+    echo "         sudo apt install python${py_minor}-venv"
+    echo "     On other systems, ensure your Python install includes the venv module."
+    return 1 2>/dev/null || exit 1
+  fi
   python3 -m venv "$VENV_DIR" &>/dev/null &
   _spin $! "Creating Python virtualenv…"
   wait $! || { echo -e "  ${RED}✗ Failed to create virtualenv${NC}"; exit 1; }
