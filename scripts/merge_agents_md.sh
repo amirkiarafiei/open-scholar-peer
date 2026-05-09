@@ -35,10 +35,10 @@ with open(dst) as f: text = f.read()
 legacy_begin = "<!-- OSP-BEGIN: managed by install_copilot.sh; do not edit between markers -->"
 if begin in text:
     pat = re.escape(begin) + r".*?" + re.escape(end)
-    new = re.sub(pat, osp_block.replace("\\", r"\\"), text, count=1, flags=re.DOTALL)
+    new = re.sub(pat, osp_block.replace("\\", r"\\"), text, flags=re.DOTALL)
 elif legacy_begin in text:
     pat = re.escape(legacy_begin) + r".*?" + re.escape(end)
-    new = re.sub(pat, osp_block.replace("\\", r"\\"), text, count=1, flags=re.DOTALL)
+    new = re.sub(pat, osp_block.replace("\\", r"\\"), text, flags=re.DOTALL)
 else:
     new = text.rstrip() + "\n\n" + osp_block + "\n"
 with open(dst, "w") as f: f.write(new)

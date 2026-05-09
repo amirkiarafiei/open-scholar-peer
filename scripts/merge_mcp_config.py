@@ -72,19 +72,54 @@ def _save_sidecar(data: dict) -> None:
     SIDECAR.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
+def _sidecar_key(config_path: Path) -> str:
+    """Resolve the config path to its absolute, symlink-resolved form so the
+    sidecar key is stable regardless of how the path was passed in (relative
+    vs absolute, with or without `~`)."""
+    try:
+        return str(config_path.expanduser().resolve())
+    except (OSError, RuntimeError):
+        # resolve() can fail on broken symlinks; fall back to absolute form.
+        return str(config_path.expanduser().absolute())
+
+
 def _is_osp_managed(config_path: Path, key: str, entry_name: str) -> bool:
     """True if this entry was previously written by OSP (recorded in sidecar)."""
     sidecar = _load_sidecar()
-    return entry_name in sidecar.get(str(config_path), {}).get(key, [])
+    return entry_name in sidecar.get(_sidecar_key(config_path), {}).get(key, [])
 
 
 def _mark_osp_managed(config_path: Path, key: str, entry_name: str) -> None:
     sidecar = _load_sidecar()
-    cfg_str = str(config_path)
+    cfg_str = _sidecar_key(config_path)
     sidecar.setdefault(cfg_str, {}).setdefault(key, [])
     if entry_name not in sidecar[cfg_str][key]:
         sidecar[cfg_str][key].append(entry_name)
     _save_sidecar(sidecar)
+
+
+def _looks_like_osp_entry(entry: dict | None) -> bool:
+    """Heuristic recognizer for entries written by an *earlier* OSP install,
+    even one in a different project whose sidecar we cannot see.
+
+    Without this, when User installs OSP in Project B after Project A, the
+    global config (~/.kimi/mcp.json, ~/.copilot/mcp-config.json, etc.) still
+    points at Project A's venv — and Project B's empty sidecar makes us
+    "preserve" that stale entry. Then Project B's tool tries to launch
+    Project A's interpreter, which may not exist anymore.
+
+    The fix: if the existing entry's command or first arg points inside any
+    `.open-scholar-peer/mcp/` directory, treat it as OSP-managed regardless
+    of sidecar state, and replace with the current project's paths.
+    """
+    if not isinstance(entry, dict):
+        return False
+    needle = ".open-scholar-peer/mcp"
+    cmd = entry.get("command", "")
+    args = entry.get("args", []) or []
+    if needle in str(cmd):
+        return True
+    return any(needle in str(a) for a in args)
 
 
 # ---------- Merge logic -----------------------------------------------------
@@ -104,8 +139,9 @@ def merge_entry(
         servers[name] = new_entry
         _mark_osp_managed(config_path, key, name)
         return "created"
-    if _is_osp_managed(config_path, key, name):
+    if _is_osp_managed(config_path, key, name) or _looks_like_osp_entry(existing):
         servers[name] = new_entry
+        _mark_osp_managed(config_path, key, name)  # refresh sidecar in case it was lost
         return "updated"
     # Foreign entry under our preferred name — do NOT overwrite.
     return "preserved"
@@ -141,10 +177,10 @@ def main() -> int:
         return 2
 
     # Clean entries — no extra keys that strict JSON validators (e.g. Gemini) reject.
+    # Both entries are kept structurally consistent (no dangling empty `env`).
     osp_entry = {
         "command": args.python_path,
         "args": [args.server_path],
-        "env": {},
     }
     markitdown_entry = {
         "command": "uvx",
