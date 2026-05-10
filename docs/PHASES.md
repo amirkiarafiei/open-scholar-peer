@@ -299,7 +299,7 @@ Ongoing refinements for UX and robustness:
 
 #### MCP Server & Tool Improvements
 
-- [x] **Timeout wrapper** — all async tool calls wrapped with `asyncio.wait_for(timeout=30)` to prevent hangs (Semantic Scholar, arXiv)
+- [x] **Timeout wrapper** — all async tool calls wrapped with `asyncio.wait_for(timeout=OSP_CALL_TIMEOUT)` to prevent hangs (Semantic Scholar, arXiv); default 90s, overridable via `.env` or env var
 - [x] **Expanded Semantic Scholar** — from 4 → 10 tools: `get_paper_references`, `get_paper_citations`, `get_papers_batch`, `search_authors`, `get_author_papers`, `get_paper_recommendations`, `search_snippets` (in addition to `search_semantic_scholar` and `get_paper_details`)
 - [x] **ArXiv via package** — switched from raw HTTP to `arxiv` Python package for better rate limiting and reliability
 - [x] **Dotenv loading** — MCP server loads `.env` at startup for API key injection
