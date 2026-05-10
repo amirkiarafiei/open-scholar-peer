@@ -16,7 +16,7 @@ Design principles:
 
 Environment variables:
   SEMANTIC_SCHOLAR_API_KEY — optional; provides higher rate limits if set.
-  OSP_CALL_TIMEOUT         — per-call timeout in seconds (default: 30).
+  OSP_CALL_TIMEOUT         — per-call timeout in seconds (default: 90).
 """
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ log = logging.getLogger("osp_mcp")
 
 mcp = FastMCP("osp_mcp")
 
-_TIMEOUT = int(os.environ.get("OSP_CALL_TIMEOUT", "30"))
+_TIMEOUT = int(os.environ.get("OSP_CALL_TIMEOUT", "90"))
 
 
 async def _run(fn, *args, **kwargs) -> Any:
