@@ -126,15 +126,27 @@ if [[ -z "$SEMANTIC_SCHOLAR_API_KEY" ]]; then
   echo "     Then add to your shell profile: export SEMANTIC_SCHOLAR_API_KEY=sk-..."
 fi
 
-# Create .env at project root if it doesn't exist (for API keys)
+# Create .env at project root if it doesn't exist (for API keys + tunables)
 ENV_FILE="./.env"
 if [[ ! -f "$ENV_FILE" ]]; then
   cat > "$ENV_FILE" << 'ENVEOF'
-# Open ScholarPeer — API keys (this file is gitignored)
-# Uncomment and fill in to enable higher rate limits.
+# Open ScholarPeer — config (this file is gitignored)
+# Uncomment and fill in to override defaults. The MCP server reads this
+# file on startup via python-dotenv, so changes take effect on next launch.
+
+# --- API keys ---------------------------------------------------------------
 
 # Semantic Scholar API key — free at https://www.semanticscholar.org/product/api
+# Without this, anonymous rate limits apply (~100 req / 5 min, bursty 429s).
 # SEMANTIC_SCHOLAR_API_KEY=sk-...
+
+# --- Tunables ---------------------------------------------------------------
+
+# Per-tool-call timeout in seconds. Applies uniformly to arXiv,
+# Semantic Scholar, and Google Scholar requests. Bump higher if you
+# routinely see TimeoutError on slow networks; lower if you'd rather
+# fail fast. Default: 90.
+# OSP_CALL_TIMEOUT=90
 ENVEOF
   echo -e "  ${GREEN}✅ Created .env at project root — add your API keys there${NC}"
 else
