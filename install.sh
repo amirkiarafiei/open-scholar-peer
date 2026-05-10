@@ -8,11 +8,21 @@ DEST_DIR=$(pwd)
 SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 IS_REMOTE=false
 
-if [[ "$DEST_DIR" != "$SOURCE_DIR" ]] && [[ ! -d "$SOURCE_DIR/scripts" ]]; then
+# Remote-mode detection: when invoked via `curl ... | bash`, BASH_SOURCE[0] is
+# empty and SOURCE_DIR collapses to the user's CWD. The reliable signal is
+# simply: "do I have a scripts/ subdir adjacent to me?" If not, clone.
+if [[ ! -d "$SOURCE_DIR/scripts" ]]; then
   IS_REMOTE=true
   echo -e "  ${CYAN}Open ScholarPeer → One-liner setup${NC}\n"
+  if ! command -v git &>/dev/null; then
+    echo "  ✗ git not found in PATH; needed to fetch the OSP repo. Install git and re-run."
+    exit 1
+  fi
   TEMP_DIR=$(mktemp -d)
-  git clone --depth 1 https://github.com/amirkiarafiei/open-scholar-peer "$TEMP_DIR" >/dev/null 2>&1
+  if ! git clone --depth 1 https://github.com/amirkiarafiei/open-scholar-peer "$TEMP_DIR" >/dev/null 2>&1; then
+    echo "  ✗ Failed to clone open-scholar-peer from GitHub. Check your network and retry."
+    exit 1
+  fi
   SOURCE_DIR="$TEMP_DIR"
 fi
 
@@ -33,7 +43,22 @@ echo "  10) Kiro"
 echo "  11) Kimi Code"
 echo "  12) Mistral Vibe"
 echo "  13) OpenHands"
-read -rp "Choice [1-13] (default: 1): " choice; choice="${choice:-1}"
+
+# When piped from `curl | bash`, stdin is the pipe (drained), so a normal `read`
+# would return EOF immediately and silently default. Read the user's choice from
+# the controlling terminal in that case so the menu actually works. If no tty
+# is attached at all (truly non-interactive — CI, nohup, etc.), fall through to
+# the default. Using `read` itself as the test avoids set -e killing us when
+# /dev/tty exists in metadata but isn't actually openable.
+choice=""
+if [[ -t 0 ]]; then
+  read -rp "Choice [1-13] (default: 1): " choice || true
+elif read -rp "Choice [1-13] (default: 1): " choice </dev/tty 2>/dev/null; then
+  : # tty input collected
+else
+  echo "  (no terminal available — defaulting to 1: Claude Code)"
+fi
+choice="${choice:-1}"
 
 cleanup() {
   if [ "$IS_REMOTE" = true ]; then
