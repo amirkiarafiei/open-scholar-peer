@@ -41,7 +41,7 @@ def _parse_results(html: str, num_results: int) -> list[dict[str, Any]]:
 def search(query: str, num_results: int = 5) -> list[dict[str, Any]]:
     num_results = max(1, min(int(num_results), 20))
     url = f"https://scholar.google.com/scholar?q={requests.utils.quote(query)}"
-    resp = requests.get(url, headers={"User-Agent": UA}, timeout=30)
+    resp = requests.get(url, headers={"User-Agent": UA}, timeout=90)
     resp.raise_for_status()
     return _parse_results(resp.text, num_results)
 
@@ -65,7 +65,7 @@ def search_advanced(
     url = "https://scholar.google.com/scholar?" + "&".join(
         f"{k}={requests.utils.quote(str(v))}" for k, v in params.items()
     )
-    resp = requests.get(url, headers={"User-Agent": UA}, timeout=30)
+    resp = requests.get(url, headers={"User-Agent": UA}, timeout=90)
     resp.raise_for_status()
     return _parse_results(resp.text, num_results)
 
