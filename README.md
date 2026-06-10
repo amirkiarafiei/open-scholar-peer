@@ -136,7 +136,7 @@ Anonymous Semantic Scholar limits are tight. Get a free key at https://www.seman
 | [Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✓ | ✓ (`~/.kimi/mcp.json`) |
 | [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✗ (self-reflection fallback) | manual snippet (TOML) |
 | [OpenHands](https://docs.openhands.dev) | ✗ (self-reflection fallback) | via OpenHands UI / `config.toml` |
-| [Antigravity](https://antigravity.google/) | ✗ (self-reflection fallback) | ✓ (`~/.gemini/antigravity/mcp_config.json`) |
+| [Antigravity CLI](https://antigravity.google/) | ✗ (self-reflection fallback) | ✓ (`~/.gemini/antigravity/mcp_config.json`) |
 
 See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for self-reflection caveats and per-tool MCP wiring details.
 
@@ -211,4 +211,3 @@ If you use OSP in research, please cite the upstream ScholarPeer paper. The impl
 - [Contributing](CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [License](LICENSE)
-

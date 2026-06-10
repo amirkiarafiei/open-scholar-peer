@@ -111,7 +111,8 @@ run_install_smoke "antigravity" "install_antigravity.sh" \
   "${COMMON[@]}" \
   ".agents/workflows/0-osp-onboarding.md" \
   ".agent/workflows/0-osp-onboarding.md" \
-  ".agent/skills/osp-historian-agent/SKILL.md"
+  ".agent/skills/osp-historian-agent/SKILL.md" \
+  ".open-scholar-peer/antigravity_mcp_snippet.json"
 
 run_install_smoke "copilot" "install_copilot.sh" \
   "${COMMON[@]}" \

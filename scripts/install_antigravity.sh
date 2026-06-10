@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Open ScholarPeer — Antigravity installer
+# Open ScholarPeer — Antigravity CLI installer
 
 set -e
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPTS_DIR/.." && pwd)"
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
-echo -e "\n${CYAN}Open ScholarPeer → Antigravity${NC}\n"
+echo -e "\n${CYAN}Open ScholarPeer → Antigravity CLI${NC}\n"
 
-# Antigravity references both `.agents/` (legacy default) and `.agent/` (newer).
+# Antigravity CLI references both `.agents/` (legacy default) and `.agent/` (newer).
 # Sync script generates both — copy whichever exists, prefer .agents/ since that's
-# what most current Antigravity versions still discover.
+# what most current Antigravity CLI versions still discover.
 
 # 1. Copy adapter to project. Wipe stale OSP-managed files in BOTH .agents/
 #    (legacy discovery) and .agent/ (newer) before re-copy; user content preserved.
@@ -30,16 +30,39 @@ echo -e "  ${GREEN}✅ Adapter copied → ./.agents/ and ./.agent/${NC}"
 # 3. MCP server runtime
 . "$SCRIPTS_DIR/init_mcp.sh"
 
-# 4. Antigravity MCP config — ~/.gemini/antigravity/mcp_config.json (global, JSON,
+# 4. Antigravity CLI MCP config — ~/.gemini/antigravity/mcp_config.json (global, JSON,
 #    mcpServers format). Per https://antigravity.google/docs/mcp.
 AG_MCP_CONFIG="${HOME}/.gemini/antigravity/mcp_config.json"
 mkdir -p "$(dirname "$AG_MCP_CONFIG")"
 python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$AG_MCP_CONFIG" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
-echo -e "\n  ${YELLOW}ℹ️  Antigravity does NOT support general subagents — /5-osp-qa falls${NC}"
+# Save a ready-to-paste snippet alongside the project for manual verification.
+python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+snippet = {
+    "mcpServers": {
+        "osp": {
+            "command": os.environ["OSP_MCP_PYTHON"],
+            "args": [os.environ["OSP_MCP_SERVER"]],
+        },
+        "markitdown": {
+            "command": "uvx",
+            "args": ["markitdown-mcp"],
+        },
+    }
+}
+path = Path("./.open-scholar-peer/antigravity_mcp_snippet.json")
+path.parent.mkdir(parents=True, exist_ok=True)
+path.write_text(json.dumps(snippet, indent=2) + "\n", encoding="utf-8")
+PY
+
+echo -e "\n  ${YELLOW}ℹ️  Antigravity CLI does NOT support general subagents — /5-osp-qa falls${NC}"
 echo "     back to self-reflection mode (see docs/KNOWN_LIMITATIONS.md)."
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"
-echo    "  (1) Restart Antigravity  (picks up the new MCP servers)"
+echo    "  (1) Restart Antigravity CLI  (picks up the new MCP servers)"
 echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."

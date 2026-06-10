@@ -8,7 +8,7 @@ These are limitations users should know about going in. None block normal operat
 
 **What:** The Multi-Aspect Q&A Engine (`/5-osp-qa`) is designed around true subagent isolation: the Query Agent (main thread) delegates each question to a fresh Answer Generator subagent so the verification cannot be biased by the question's reasoning trace.
 
-**Limitation:** Three of the supported tools — **Antigravity**, **Mistral Vibe**, and **OpenHands** — either do not support subagents or have only profile-style independence (no documented subagent delegation). On these, the Q&A engine falls back to **self-reflection mode**: both Query and Answer Generator personas run in the same context window, separated by strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`).
+**Limitation:** Three of the supported tools — **Antigravity CLI**, **Mistral Vibe**, and **OpenHands** — either do not support subagents or have only profile-style independence (no documented subagent delegation). On these, the Q&A engine falls back to **self-reflection mode**: both Query and Answer Generator personas run in the same context window, separated by strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`).
 
 **Impact:** Reviews on the Q&A axis from these tools are likely lower in independent-verification depth than reviews from Claude Code, Cursor, Gemini CLI, Copilot CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, or Kimi Code. The other downstream phases (literature, historian, baseline scout, reviewer) are unaffected.
 
@@ -55,14 +55,14 @@ markitdown paper.pdf > .brain/input/paper.md
 ## 4. Antigravity and Copilot CLI MCP configs require manual setup
 
 **What:** Most tools store MCP config in a project-local file the installer can write directly. Two exceptions:
-- **Antigravity** uses a global config at `~/.gemini/antigravity/mcp_config.json`.
+- **Antigravity CLI** uses a global config at `~/.gemini/antigravity/mcp_config.json`.
 - **Copilot CLI** uses `~/.copilot/mcp-config.json`.
 
 **Limitation:** Programmatically modifying user-global config files would be intrusive. The installers print a paste-ready snippet (or attempt a careful merge in Copilot's case) but the user must verify the file.
 
 **Impact:** Slightly higher first-run friction on Antigravity. Copilot CLI is auto-merged by `merge_mcp_config.py` but the user should still verify the file looks right.
 
-**Workaround:** Check the snippet at `.open-scholar-peer/antigravity_mcp_snippet.json` (Antigravity) or `~/.copilot/mcp-config.json` (Copilot CLI) after install.
+**Workaround:** Check the snippet at `.open-scholar-peer/antigravity_mcp_snippet.json` (Antigravity CLI) or `~/.copilot/mcp-config.json` (Copilot CLI) after install.
 
 ---
 
