@@ -67,4 +67,4 @@ The sync script encodes a capability matrix that customizes the Q&A workflow:
 | Cursor | yes | subagent | `.cursor/mcp.json` |
 | Gemini CLI | yes | subagent | `.gemini/extensions/<ext>/gemini-extension.json` |
 | GitHub Copilot CLI | yes | subagent | `.github/copilot-cli/mcp.json` (TBD — see Phase 5) |
-| Antigravity | **no** | **self-reflection** (turn markers) | `~/.gemini/antigravity/mcp_config.json` (global, manual) |
+| Antigravity | **yes** | **subagent** | `~/.gemini/antigravity/mcp_config.json` (global, manual) |

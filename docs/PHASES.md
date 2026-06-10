@@ -119,7 +119,7 @@ Author all skills and commands once, in `_shared/`, as the single source of trut
 - [ ] `osp-historian-agent` — Compresses retrieved literature into chronological domain narrative.
 - [ ] `osp-baseline-scout-agent` — Adversarial auditor. Identifies missing baselines & datasets.
 - [ ] `osp-query-agent` — Probing question generator. Loops through criteria; demands N Q&A pairs per criterion where N = `session.json.qa_pairs_per_criterion` (user-configurable at `/5-osp-qa` start, default 2; enforced via file template).
-- [ ] `osp-answer-generator-agent` — Verifier/responder. Subagent-only by default; falls back to self-reflection mode if platform lacks subagents (Antigravity). Self-reflection mode uses strict turn-marker format: `=== Query Agent === ... === END === === Answer Generator === ...`.
+- [ ] `osp-answer-generator-agent` — Verifier/responder. Subagent-only by default; falls back to self-reflection mode if platform lacks subagents (Mistral Vibe, OpenHands). Self-reflection mode uses strict turn-marker format: `=== Query Agent === ... === END === === Answer Generator === ...`.
 - [ ] `osp-reviewer-agent` — Synthesizes final consolidated review using venue guidelines + structured summary + Q&A pairs.
 
 #### Commands (8 total) — `extensions/_shared/commands/{name}.md`
@@ -130,7 +130,7 @@ Author all skills and commands once, in `_shared/`, as the single source of trut
 - [ ] `2-osp-literature` — Invokes `osp-literature-review-agent`. Runs 3 strategy-distinct rounds. Writes `02a/02b/02c_literature_round*.md` then consolidates to `02_retrieved_literature.md`.
 - [ ] `3-osp-historian` — Invokes `osp-historian-agent`. Reads `02_retrieved_literature.md`. Writes `03_domain_narrative.md`.
 - [ ] `4-osp-baseline-scout` — Invokes `osp-baseline-scout-agent`. Reads summary + literature. Writes `04_missing_baselines.md`.
-- [ ] `5-osp-qa` — Invokes `osp-query-agent` (main thread). Loops over `qa_criteria[]`. For each: spawns `osp-answer-generator-agent` as subagent (or self-reflects on Antigravity / Vibe / OpenHands). Forces N Q&A pairs via `### Q1...### QN` template, where N = `session.json.qa_pairs_per_criterion`. Writes `05_qa_<slug>.md` per criterion.
+- [ ] `5-osp-qa` — Invokes `osp-query-agent` (main thread). Loops over `qa_criteria[]`. For each: spawns `osp-answer-generator-agent` as subagent (or self-reflects on Vibe / OpenHands). Forces N Q&A pairs via `### Q1...### QN` template, where N = `session.json.qa_pairs_per_criterion`. Writes `05_qa_<slug>.md` per criterion.
 - [ ] `6-osp-review` — Invokes `osp-reviewer-agent`. Reads everything. Writes consolidated `review/final_review.md`.
 
 #### Rules (always-on)
@@ -170,18 +170,18 @@ Build the Python sync script that generates per-tool adapters from `_shared/`. M
   - **Claude Code** → `extensions/.claude/{commands,skills,rules}/` — markdown with YAML frontmatter; skills as `skills/<name>/SKILL.md`.
   - **Cursor** → `extensions/.cursor/{commands,skills,rules}/` — `.mdc` for rules, `.md` for commands/skills.
   - **Gemini CLI** → `extensions/.gemini/{commands,skills,agents}/` — `.toml` for commands (transformed from MD frontmatter), `.md` for skills, subagent files.
-  - **Antigravity** → `extensions/.agent/{workflows,skills,rules}/` — markdown; also dual-write to `extensions/.agents/` for backward compat. **Tag Q&A workflow as `mode: self-reflection`** since Antigravity lacks subagents.
+  - **Antigravity** → `extensions/.agent/{workflows,skills,rules}/` — markdown; also dual-write to `extensions/.agents/` for backward compat. **Tag Q&A workflow as `mode: subagent`** since Antigravity supports subagents.
   - **GitHub Copilot CLI** → `extensions/.github/` + `AGENTS.md` (+ Copilot CLI's prompts/skills layout per https://docs.github.com/en/copilot/how-tos/copilot-cli/cli-best-practices).
 - [ ] Sync script runs idempotently (re-running doesn't change unrelated files)
 - [ ] Sync script wipes target tool dirs before regenerating (no stale files)
-- [ ] Per-tool subagent capability matrix encoded in script (Claude/Cursor/Gemini/Copilot CLI = subagent; Antigravity = self-reflection)
+- [ ] Per-tool subagent capability matrix encoded in script (Claude/Cursor/Gemini/Copilot CLI/Antigravity = subagent; Vibe/OpenHands = self-reflection)
 
 ### Tests (Phase 3)
 
 - [ ] Run script → verify all 13 tool directories populated
 - [ ] Parity test: for every command in `_shared/commands/`, all 13 tools have an equivalent file
 - [ ] Re-run script → no diff in output (idempotent)
-- [ ] Antigravity Q&A file contains self-reflection turn-marker template; other tools' Q&A files contain subagent-delegation instructions
+- [ ] Antigravity Q&A file contains subagent-delegation instructions; Vibe/OpenHands Q&A files contain self-reflection turn-marker template
 
 ### Exit Criteria (Phase 3)
 
@@ -272,7 +272,7 @@ Confirm parity across tools, document limitations, and ship.
 - [x] **Parity test** — `scripts/test_parity.py` confirms every command and skill exists in every tool's adapter directory.
 - [x] **Install smoke test** — `scripts/test_install.sh` runs each installer in a temp dir and verifies expected file structure.
 - [x] **README.md rewrite** — quickstart, architecture diagram, command reference (`/open-scholar-peer` + 7 numbered commands), tool support matrix.
-- [x] **`docs/KNOWN_LIMITATIONS.md`** — covers Antigravity self-reflection, Semantic Scholar rate limits, PDF parsing, MCP global config friction, single-paper sessions, Google Scholar best-effort, hyperparameter rigidity, downstream invalidation.
+- [x] **`docs/KNOWN_LIMITATIONS.md`** — covers Mistral Vibe/OpenHands self-reflection, Semantic Scholar rate limits, PDF parsing, MCP global config friction, single-paper sessions, Google Scholar best-effort, hyperparameter rigidity, downstream invalidation.
 - [x] **`docs/TROUBLESHOOTING.md`** — common issues by symptom (install / MCP server / workflow / sync).
 - [x] **`docs/CONTRIBUTING.md`** — golden rule, four contribution paths (commands, skills, MCP providers, sync transformers), code style, PR checklist.
 - [x] **AGENTS.md update** — rewritten for v2 file layout, naming conventions, build cycle.

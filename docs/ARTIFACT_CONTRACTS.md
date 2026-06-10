@@ -77,7 +77,7 @@ For every criterion in `session.json.qa_criteria[]`, the step produces `.brain/r
 <sources cited per answer>
 ```
 
-**Subagent vs self-reflection.** On Claude Code / Cursor / Gemini CLI / GitHub Copilot CLI, Q&A runs as: main thread holds Query Agent persona, spawns Answer Generator Agent as subagent for each question, receives back `(answer, citations, discrepancy)`. On Antigravity (no subagents), the agent self-reflects with strict turn markers:
+**Subagent vs self-reflection.** On Claude Code / Cursor / Gemini CLI / GitHub Copilot CLI / Antigravity, Q&A runs as: main thread holds Query Agent persona, spawns Answer Generator Agent as subagent for each question, receives back `(answer, citations, discrepancy)`. On Mistral Vibe and OpenHands, the agent self-reflects with strict turn markers:
 
 ```
 === Query Agent (probing) ===

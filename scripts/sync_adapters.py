@@ -78,8 +78,8 @@ TOOLS: dict[str, ToolCaps] = {
     "antigravity": ToolCaps(
         name="antigravity",
         root=REPO_ROOT / "extensions" / ".agent",
-        supports_subagent=False,
-        qa_mode="self-reflection",
+        supports_subagent=True,
+        qa_mode="subagent",
         command_dir="workflows",  # antigravity calls them workflows
         command_ext="md",
         skill_dir="skills",

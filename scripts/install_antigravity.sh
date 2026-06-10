@@ -75,8 +75,7 @@ path.parent.mkdir(parents=True, exist_ok=True)
 path.write_text(json.dumps(snippet, indent=2) + "\n", encoding="utf-8")
 PY
 
-echo -e "\n  ${YELLOW}ℹ️  Antigravity CLI does NOT support general subagents — /5-osp-qa falls${NC}"
-echo "     back to self-reflection mode (see docs/KNOWN_LIMITATIONS.md)."
+echo -e "\n  ${GREEN}ℹ️  Antigravity CLI supports subagents — /5-osp-qa uses subagent mode.${NC}"
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"

@@ -3,12 +3,12 @@ description: "OSP Phase 5: Multi-Aspect Q&A — configurable pairs per criterion
 reads: [".brain/session.json", ".brain/raw/00_review_guidelines.md", ".brain/raw/01_structured_summary.md", ".brain/raw/03_domain_narrative.md", ".brain/raw/04_missing_baselines.md"]
 writes: [".brain/raw/05_qa_<criterion_slug>.md (per criterion)", ".brain/session.json"]
 ---
-> **Tool capability:** This tool does NOT support subagents. Use the self-reflection fallback: strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) within the main context window. This is a documented weaker substitute — see KNOWN_LIMITATIONS.md.
+> **Tool capability:** This tool supports subagents. The Query Agent MUST delegate each question to `osp-answer-generator-agent` as a subagent with a fresh, minimal context bundle. Do NOT use self-reflection.
 
 
 # /5-osp-qa — Multi-Aspect Q&A Engine
 
-For each criterion in `session.json.qa_criteria[]`, generate N probing Q&A pairs (N = `qa_pairs_per_criterion`, default 2). The Query Agent runs in the main thread; the Answer Generator runs as a subagent (or self-reflects on Antigravity).
+For each criterion in `session.json.qa_criteria[]`, generate N probing Q&A pairs (N = `qa_pairs_per_criterion`, default 2). The Query Agent runs in the main thread; the Answer Generator runs as a subagent on tools that support it.
 
 ## Activation
 
@@ -44,8 +44,8 @@ Invoke the `osp-query-agent` skill (main thread). The Query Agent will spawn `os
 
 ## Mode selection
 
-- **Subagent mode (default):** Claude Code, Cursor, Gemini CLI, GitHub Copilot CLI. The Query Agent delegates each question to the Answer Generator as a subagent with a fresh, minimal context bundle.
-- **Self-reflection mode (Antigravity only):** The Query Agent uses strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) within the main context window.
+- **Subagent mode (default):** Claude Code, Cursor, Gemini CLI, GitHub Copilot CLI, Antigravity. The Query Agent delegates each question to the Answer Generator as a subagent with a fresh, minimal context bundle.
+- **Self-reflection mode:** Mistral Vibe and OpenHands use strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) within the main context window.
 
 ## Steps
 

@@ -21,8 +21,8 @@ These rules apply automatically in any project where Open ScholarPeer is install
 
 ## Subagent vs self-reflection
 
-- **Prefer subagents** for the Q&A engine on tools that support them (Claude Code, Cursor, Gemini CLI, Copilot CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, Kimi Code).
-- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) on tools without (or with only partial) subagent support: Antigravity, Mistral Vibe, OpenHands.
+- **Prefer subagents** for the Q&A engine on tools that support them (Claude Code, Cursor, Gemini CLI, Copilot CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, Kimi Code, Antigravity).
+- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) on tools without (or with only partial) subagent support: Mistral Vibe, OpenHands.
 - Self-reflection is a documented weaker substitute. See `KNOWN_LIMITATIONS.md`.
 
 ## User orientation (required on every phase invocation)

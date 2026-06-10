@@ -114,7 +114,7 @@ The agent stopped early. Re-run `/2-osp-literature` — the structural file requ
 
 ### Q&A phase produces fewer than 10 pairs per criterion
 
-The file template at `defaults/qa_pair_template.md` declares 10 placeholder slots. If the agent stopped early, re-run `/5-osp-qa`. On Antigravity (self-reflection mode), pair generation is sequential and slower — be patient.
+The file template at `defaults/qa_pair_template.md` declares 10 placeholder slots. If the agent stopped early, re-run `/5-osp-qa`. On Mistral Vibe and OpenHands (self-reflection mode), pair generation is sequential and slower — be patient.
 
 ### `/open-scholar-peer` says "No `.brain/session.json`"
 
