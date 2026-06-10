@@ -28,11 +28,11 @@ TOOL="${2:?usage: clean_adapter.sh <dest_dir> <tool_name>}"
 [[ -d "$DEST" ]] || exit 0
 
 case "$TOOL" in
-  claude|cursor|kimi|vibe|openhands|antigravity-cli)
+  claude|cursor|kimi|vibe|openhands)
     cmd_subdir="commands"; cmd_ext="md"; skill_subdir="skills" ;;
   gemini)
     cmd_subdir="commands"; cmd_ext="toml"; skill_subdir="skills" ;;
-  antigravity)
+  antigravity|antigravity-cli)
     cmd_subdir="workflows"; cmd_ext="md"; skill_subdir="skills" ;;
   copilot)
     cmd_subdir="prompts"; cmd_ext="md"; skill_subdir="skills" ;;

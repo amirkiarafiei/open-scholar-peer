@@ -180,7 +180,7 @@ run_install_smoke "openhands" "install_openhands.sh" \
 
 run_install_smoke "antigravity-cli" "install_antigravity_cli.sh" \
   "${COMMON[@]}" \
-  ".agents/commands/0-osp-onboarding.md" \
+  ".agents/workflows/0-osp-onboarding.md" \
   ".agents/skills/osp-orchestrator/SKILL.md" \
   "AGENTS.md" \
   ".agents/mcp_config.json"
