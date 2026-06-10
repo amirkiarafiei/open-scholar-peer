@@ -28,7 +28,7 @@ TOOL="${2:?usage: clean_adapter.sh <dest_dir> <tool_name>}"
 [[ -d "$DEST" ]] || exit 0
 
 case "$TOOL" in
-  claude|cursor|kimi|vibe|openhands)
+  claude|cursor|kimi|vibe|openhands|antigravity-cli)
     cmd_subdir="commands"; cmd_ext="md"; skill_subdir="skills" ;;
   gemini)
     cmd_subdir="commands"; cmd_ext="toml"; skill_subdir="skills" ;;
@@ -78,7 +78,7 @@ case "$TOOL" in
     rm -f "$DEST/steering/osp-rules.md" ;;
   qwen)
     rm -f "$DEST/QWEN.md" ;;
-  codex|kimi|vibe|opencode|openhands)
+  codex|kimi|vibe|opencode|openhands|antigravity-cli)
     rm -f "$DEST/AGENTS.md" ;;
   *)
     rm -f "$DEST/rules/osp-rules.md" ;;

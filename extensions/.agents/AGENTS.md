@@ -1,7 +1,3 @@
----
-name: osp-rules
-description: Always-on rules for Open ScholarPeer review sessions
----
 
 # Open ScholarPeer — Always-On Rules
 

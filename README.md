@@ -137,6 +137,7 @@ Anonymous Semantic Scholar limits are tight. Get a free key at https://www.seman
 | [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✗ (self-reflection fallback) | manual snippet (TOML) |
 | [OpenHands](https://docs.openhands.dev) | ✗ (self-reflection fallback) | via OpenHands UI / `config.toml` |
 | [Antigravity](https://antigravity.google/) | ✗ (self-reflection fallback) | ✓ (`~/.gemini/antigravity/mcp_config.json`) |
+| [Antigravity CLI](https://antigravity.google/cli/) | ✓ | ✓ (`.agents/mcp_config.json`) |
 
 See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for self-reflection caveats and per-tool MCP wiring details.
 
@@ -151,8 +152,8 @@ extensions/
 │   ├── skills/        ← 8 personas (orchestrator + 7 paper agents)
 │   ├── rules/         ← always-on instructions
 │   └── defaults/      ← templates that enforce structure (k=3 rounds, N=qa_pairs_per_criterion)
-└── .{claude,cursor,gemini,agent,github,junie,kiro,
-       codex,kimi,qwen,vibe,opencode,openhands}/   ← Auto-generated per-tool adapters (13 tools)
+└── .{claude,cursor,gemini,agent,agents,github,junie,kiro,
+       codex,kimi,qwen,vibe,opencode,openhands}/   ← Auto-generated per-tool adapters (14 tools)
 
 mcp-server/
 ├── osp_mcp.py         ← Consolidated FastMCP server

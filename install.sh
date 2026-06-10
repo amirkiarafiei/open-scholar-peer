@@ -43,6 +43,7 @@ echo "  10) Kiro"
 echo "  11) Kimi Code"
 echo "  12) Mistral Vibe"
 echo "  13) OpenHands"
+echo "  14) Antigravity CLI"
 
 # When piped from `curl | bash`, stdin is the pipe (drained), so a normal `read`
 # would return EOF immediately and silently default. Read the user's choice from
@@ -52,8 +53,8 @@ echo "  13) OpenHands"
 # /dev/tty exists in metadata but isn't actually openable.
 choice=""
 if [[ -t 0 ]]; then
-  read -rp "Choice [1-13] (default: 1): " choice || true
-elif read -rp "Choice [1-13] (default: 1): " choice </dev/tty 2>/dev/null; then
+  read -rp "Choice [1-14] (default: 1): " choice || true
+elif read -rp "Choice [1-14] (default: 1): " choice </dev/tty 2>/dev/null; then
   : # tty input collected
 else
   echo "  (no terminal available — defaulting to 1: Claude Code)"
@@ -82,5 +83,6 @@ case "$choice" in
   11) bash "$SOURCE_DIR/scripts/install_kimi.sh" ;;
   12) bash "$SOURCE_DIR/scripts/install_vibe.sh" ;;
   13) bash "$SOURCE_DIR/scripts/install_openhands.sh" ;;
+  14) bash "$SOURCE_DIR/scripts/install_antigravity_cli.sh" ;;
   *)  bash "$SOURCE_DIR/scripts/install_claude.sh" ;;
 esac

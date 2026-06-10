@@ -5,7 +5,7 @@
 
 ## What this project is
 
-Open ScholarPeer (OSP) implements the paper *"ScholarPeer: A Context-Aware Multi-Agent Framework for Automated Peer Review"* as a portable set of skills, slash commands, and an MCP server that install into a user's project across 13 AI tools (Claude Code, Cursor, Gemini CLI, Copilot CLI, Antigravity, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, Kimi Code, Mistral Vibe, OpenHands).
+Open ScholarPeer (OSP) implements the paper *"ScholarPeer: A Context-Aware Multi-Agent Framework for Automated Peer Review"* as a portable set of skills, slash commands, and an MCP server that install into a user's project across 14 AI tools (Claude Code, Cursor, Gemini CLI, Copilot CLI, Antigravity, Antigravity CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, Kimi Code, Mistral Vibe, OpenHands).
 
 **There is no runtime code.** OSP is configuration-as-code. The library is the prompts and the sync infrastructure that keeps them consistent across tools.
 
@@ -18,7 +18,7 @@ python3 scripts/sync_adapters.py
 # Validate per-tool parity (must pass before any commit touching _shared/):
 python3 scripts/test_parity.py
 
-# Smoke-test all 13 installers in temp dirs (must pass before tagging release):
+# Smoke-test all 14 installers in temp dirs (must pass before tagging release):
 bash scripts/test_install.sh
 
 # Syntax-check shell scripts:
@@ -33,7 +33,7 @@ cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -r requirements.
 
 ## Architecture (one paragraph)
 
-`extensions/_shared/` is the canonical source: 8 commands + 8 skills + rules + defaults + a manifest. `scripts/sync_adapters.py` regenerates 13 per-tool adapter directories under `extensions/.{claude,cursor,gemini,agent,github,junie,kiro,codex,kimi,qwen,vibe,opencode,openhands}/` (plus a legacy `.agents/` mirror for Antigravity). Per-tool installers (`scripts/install_*.sh`) copy the adapter into the user's project, run `init_brain.sh` to scaffold `.brain/`, run `init_mcp.sh` to set up a self-contained Python venv at `.open-scholar-peer/mcp/`, and either auto-merge the MCP server into the tool's config (`merge_mcp_config.py`) or emit a paste-ready snippet for tools with TOML / global / non-standard configs. State during a review lives at `<user-project>/.brain/` (gitignored).
+`extensions/_shared/` is the canonical source: 8 commands + 8 skills + rules + defaults + a manifest. `scripts/sync_adapters.py` regenerates 14 per-tool adapter directories under `extensions/.{claude,cursor,gemini,agent,agents,github,junie,kiro,codex,kimi,qwen,vibe,opencode,openhands}/`. Per-tool installers (`scripts/install_*.sh`) copy the adapter into the user's project, run `init_brain.sh` to scaffold `.brain/`, run `init_mcp.sh` to set up a self-contained Python venv at `.open-scholar-peer/mcp/`, and either auto-merge the MCP server into the tool's config (`merge_mcp_config.py`) or emit a paste-ready snippet for tools with TOML / global / non-standard configs. State during a review lives at `<user-project>/.brain/` (gitignored).
 
 ## The Golden Rule
 
@@ -50,10 +50,10 @@ cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -r requirements.
 ## Common gotchas
 
 - `extensions/` has DOTFILE subdirs (`.claude`, `.cursor`, …). `ls extensions/` doesn't show them — use `ls -la`. `git add extensions/` does pick them up.
-- `/.agents/` at repo root is leftover unrelated tooling, gitignored. The OSP Antigravity adapter is at `extensions/.agents/`. Do not confuse them.
+- `/.agents/` at repo root is leftover unrelated tooling, gitignored. The OSP Antigravity adapter is at `extensions/.agent/`, and the Antigravity CLI adapter is at `extensions/.agents/`. Do not confuse them.
 - `reviewer-os/` at repo root is an external reference (gitignored), not part of OSP.
 - When adding or renaming a command/skill, update **both** `extensions/_shared/MANIFEST.md` and `docs/ARTIFACT_CONTRACTS.md`.
-- Q&A behavior differs per tool: Antigravity, Mistral Vibe, OpenHands fall back to self-reflection (no/partial subagents); the other 10 use subagent isolation. Logic lives in `sync_adapters.py::adapt_qa_body_for_tool()`.
+- Q&A behavior differs per tool: Antigravity (legacy), Mistral Vibe, OpenHands fall back to self-reflection (no/partial subagents); the other 11 use subagent isolation. Logic lives in `sync_adapters.py::adapt_qa_body_for_tool()`.
 - Paper hyperparameters: `k=3` literature rounds is fixed (enforced via 3 round files); `N_QA` is **user-configurable** at `/5-osp-qa` start (default 2 pairs/criterion, persisted as `session.json.qa_pairs_per_criterion`). The Q&A template renders `### Q1`…`### QN` from that field.
 - Tools that share the project-root `AGENTS.md` surface (Copilot, Codex, Kimi, Vibe, OpenCode, OpenHands) all merge through `scripts/merge_agents_md.sh` using `<!-- OSP-BEGIN/OSP-END -->` markers. Do not roll your own merge logic.
 - The MCP server runs as a subprocess of the host tool over stdio. To debug, run `python3 mcp-server/osp_mcp.py` standalone — it'll wait for MCP protocol messages and surface any startup errors.
@@ -84,7 +84,7 @@ scripts/
   ├── clean_adapter.sh           Wipes OSP-managed files before re-copy (per tool)
   ├── init_brain.sh              .brain/ scaffolding (called by installers)
   ├── init_mcp.sh                .open-scholar-peer/mcp/ setup (called by installers)
-  ├── install_*.sh               One per tool (13 total)
+  ├── install_*.sh               One per tool (14 total)
   └── test_*.{py,sh}             Parity validator + installer smoke
 
 docs/

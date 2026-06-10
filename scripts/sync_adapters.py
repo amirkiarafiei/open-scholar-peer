@@ -86,6 +86,17 @@ TOOLS: dict[str, ToolCaps] = {
         rule_dir="rules",
         extra_files=[],
     ),
+    "antigravity-cli": ToolCaps(
+        name="antigravity-cli",
+        root=REPO_ROOT / "extensions" / ".agents",
+        supports_subagent=True,
+        qa_mode="subagent",
+        command_dir="commands",
+        command_ext="md",
+        skill_dir="skills",
+        rule_dir=None,
+        extra_files=[("AGENTS.md", "rules")],
+    ),
     "copilot": ToolCaps(
         name="copilot",
         root=REPO_ROOT / "extensions" / ".github",
@@ -187,8 +198,7 @@ TOOLS: dict[str, ToolCaps] = {
     ),
 }
 
-# Antigravity dual-write target (legacy `.agents/` mirror of `.agent/`)
-ANTIGRAVITY_MIRROR = REPO_ROOT / "extensions" / ".agents"
+
 
 
 # ---------- Frontmatter helpers --------------------------------------------
@@ -373,13 +383,6 @@ def sync_tool(tool: ToolCaps) -> list[str]:
     return written
 
 
-def mirror_antigravity_to(src_root: Path, mirror_dest: Path) -> None:
-    """Antigravity is discovered via both `.agent/` (newer) and `.agents/` (legacy).
-    After syncing the newer dir, copy it verbatim to the legacy mirror path."""
-    if not src_root.exists():
-        return
-    wipe(mirror_dest)
-    shutil.copytree(src_root, mirror_dest)
 
 
 # ---------- Drift check ----------------------------------------------------
@@ -412,10 +415,6 @@ def run_drift_check(selected: list[ToolCaps]) -> int:
             tmp_tool = dataclasses.replace(tool, root=tmp_root / tool.name)
             sync_tool(tmp_tool)
 
-        # Antigravity mirror inside tmp
-        if any(t.name == "antigravity" for t in selected):
-            mirror_antigravity_to(tmp_root / "antigravity", tmp_root / "antigravity-mirror")
-
         # Compare
         for tool in selected:
             tmp_path = tmp_root / tool.name
@@ -423,14 +422,6 @@ def run_drift_check(selected: list[ToolCaps]) -> int:
             print(f"  {mark} {tool.name} ({tool.root.relative_to(REPO_ROOT)})")
             if mark == "✗":
                 drift.append(tool.name)
-
-        if any(t.name == "antigravity" for t in selected):
-            tmp_mirror = tmp_root / "antigravity-mirror"
-            actual_mirror = ANTIGRAVITY_MIRROR
-            mark = "✓" if trees_equal(actual_mirror, tmp_mirror) else "✗"
-            print(f"  {mark} antigravity-mirror ({actual_mirror.relative_to(REPO_ROOT)})")
-            if mark == "✗":
-                drift.append("antigravity-mirror")
 
     if drift:
         print(f"\n  ❌ Drift detected in: {', '.join(drift)}")
@@ -463,9 +454,7 @@ def main() -> int:
         print(f"  ▸ syncing {tool.name} → {tool.root.relative_to(REPO_ROOT)}")
         total_written.extend(sync_tool(tool))
 
-    if any(t.name == "antigravity" for t in selected):
-        print("  ▸ mirroring .agent/ → .agents/ (legacy compat)")
-        mirror_antigravity_to(TOOLS["antigravity"].root, ANTIGRAVITY_MIRROR)
+
 
     print(f"\n  ✅ {len(total_written)} files written.")
     return 0

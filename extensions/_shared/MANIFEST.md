@@ -50,12 +50,12 @@ This file enumerates every canonical asset under `extensions/_shared/`. The sync
 
 For each canonical file in `_shared/`, the sync script produces a tool-specific equivalent:
 
-| Source (in `_shared/`) | Claude (`.claude/`) | Cursor (`.cursor/`) | Gemini (`.gemini/`) | Antigravity (`.agent/` + `.agents/`) | Copilot CLI (`.github/`) |
-|---|---|---|---|---|---|
-| `commands/<name>.md` | `commands/<name>.md` (frontmatter) | `commands/<name>.md` | `commands/<name>.toml` | `workflows/<name>.md` | `prompts/<name>.md` |
-| `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` |
-| `rules/osp-rules.md` | `rules/osp-rules.md` | `rules/osp-rules.mdc` | `GEMINI.md` (always-on) | `rules/osp-rules.md` | `instructions/osp-rules.md` + `AGENTS.md` |
-| `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` |
+| Source (in `_shared/`) | Claude (`.claude/`) | Cursor (`.cursor/`) | Gemini (`.gemini/`) | Antigravity (`.agent/`) | Antigravity CLI (`.agents/`) | Copilot CLI (`.github/`) |
+|---|---|---|---|---|---|---|
+| `commands/<name>.md` | `commands/<name>.md` (frontmatter) | `commands/<name>.md` | `commands/<name>.toml` | `workflows/<name>.md` | `commands/<name>.md` | `prompts/<name>.md` |
+| `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` |
+| `rules/osp-rules.md` | `rules/osp-rules.md` | `rules/osp-rules.mdc` | `GEMINI.md` (always-on) | `rules/osp-rules.md` | `AGENTS.md` (always-on) | `instructions/osp-rules.md` + `AGENTS.md` |
+| `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` |
 
 ## Capability flags per tool
 
@@ -68,3 +68,4 @@ The sync script encodes a capability matrix that customizes the Q&A workflow:
 | Gemini CLI | yes | subagent | `.gemini/extensions/<ext>/gemini-extension.json` |
 | GitHub Copilot CLI | yes | subagent | `.github/copilot-cli/mcp.json` (TBD — see Phase 5) |
 | Antigravity | **no** | **self-reflection** (turn markers) | `~/.gemini/antigravity/mcp_config.json` (global, manual) |
+| Antigravity CLI | yes | subagent | `.agents/mcp_config.json` (local, auto-merged) |

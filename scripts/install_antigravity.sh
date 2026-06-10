@@ -14,14 +14,14 @@ echo -e "\n${CYAN}Open ScholarPeer → Antigravity${NC}\n"
 
 # 1. Copy adapter to project. Wipe stale OSP-managed files in BOTH .agents/
 #    (legacy discovery) and .agent/ (newer) before re-copy; user content preserved.
-SRC="$ROOT_DIR/extensions/.agents"
+SRC="$ROOT_DIR/extensions/.agent"
 DEST_PRIMARY="./.agents"
 DEST_FUTURE="./.agent"
 mkdir -p "$DEST_PRIMARY" "$DEST_FUTURE"
 bash "$SCRIPTS_DIR/clean_adapter.sh" "$DEST_PRIMARY" "antigravity"
 bash "$SCRIPTS_DIR/clean_adapter.sh" "$DEST_FUTURE" "antigravity"
 cp -r "$SRC/." "$DEST_PRIMARY/"
-cp -r "$ROOT_DIR/extensions/.agent/." "$DEST_FUTURE/"
+cp -r "$SRC/." "$DEST_FUTURE/"
 echo -e "  ${GREEN}✅ Adapter copied → ./.agents/ and ./.agent/${NC}"
 
 # 2. Brain

@@ -178,6 +178,13 @@ run_install_smoke "openhands" "install_openhands.sh" \
   "AGENTS.md" \
   ".open-scholar-peer/openhands_mcp_snippet.json"
 
+run_install_smoke "antigravity-cli" "install_antigravity_cli.sh" \
+  "${COMMON[@]}" \
+  ".agents/commands/0-osp-onboarding.md" \
+  ".agents/skills/osp-orchestrator/SKILL.md" \
+  "AGENTS.md" \
+  ".agents/mcp_config.json"
+
 echo ""
 if [[ $FAIL -eq 0 ]]; then
   echo -e "${GREEN}✅ All installer smoke tests passed.${NC}"
