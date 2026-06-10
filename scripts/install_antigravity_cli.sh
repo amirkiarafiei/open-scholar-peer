@@ -35,16 +35,13 @@ fi
 # 4. MCP server runtime
 . "$SCRIPTS_DIR/init_mcp.sh"
 
-# 5. Antigravity CLI MCP config — merge into global config directories and local .agents/
-CLI_MCP_CONFIG_GLOBAL="${HOME}/.gemini/config/mcp_config.json"
-CLI_MCP_CONFIG_SPECIFIC="${HOME}/.gemini/antigravity-cli/mcp_config.json"
+# 5. Antigravity CLI MCP config — merge into global config and local .agents/
+CLI_MCP_CONFIG_GLOBAL="${HOME}/.gemini/antigravity-cli/mcp_config.json"
 CLI_MCP_CONFIG_LOCAL="./.agents/mcp_config.json"
 
 mkdir -p "$(dirname "$CLI_MCP_CONFIG_GLOBAL")"
-mkdir -p "$(dirname "$CLI_MCP_CONFIG_SPECIFIC")"
 
 python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$CLI_MCP_CONFIG_GLOBAL" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
-python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$CLI_MCP_CONFIG_SPECIFIC" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$CLI_MCP_CONFIG_LOCAL" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
 echo -e "\n${GREEN}Done!${NC}\n"
