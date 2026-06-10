@@ -30,11 +30,15 @@ echo -e "  ${GREEN}✅ Adapter copied → ./.agents/ and ./.agent/${NC}"
 # 3. MCP server runtime
 . "$SCRIPTS_DIR/init_mcp.sh"
 
-# 4. Antigravity MCP config — ~/.gemini/antigravity/mcp_config.json (global, JSON,
-#    mcpServers format). Per https://antigravity.google/docs/mcp.
-AG_MCP_CONFIG="${HOME}/.gemini/antigravity/mcp_config.json"
-mkdir -p "$(dirname "$AG_MCP_CONFIG")"
-python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$AG_MCP_CONFIG" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
+# 4. Antigravity MCP config — merge into global config directories
+AG_MCP_CONFIG_LEGACY="${HOME}/.gemini/antigravity/mcp_config.json"
+AG_MCP_CONFIG_SHARED="${HOME}/.gemini/config/mcp_config.json"
+
+mkdir -p "$(dirname "$AG_MCP_CONFIG_LEGACY")"
+mkdir -p "$(dirname "$AG_MCP_CONFIG_SHARED")"
+
+python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$AG_MCP_CONFIG_LEGACY" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
+python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$AG_MCP_CONFIG_SHARED" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
 echo -e "\n  ${YELLOW}ℹ️  Antigravity does NOT support general subagents — /5-osp-qa falls${NC}"
 echo "     back to self-reflection mode (see docs/KNOWN_LIMITATIONS.md)."
