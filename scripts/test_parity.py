@@ -43,7 +43,7 @@ TOOLS = [
     ToolSpec("antigravity", REPO_ROOT / "extensions" / ".agent",
              "workflows", "md", "skills", ["rules/osp-rules.md"]),
     ToolSpec("antigravity-cli", REPO_ROOT / "extensions" / ".agents",
-             "workflows", "md", "skills", ["AGENTS.md"]),
+             "workflows", "md", "skills", ["rules/osp-rules.md", "AGENTS.md"]),
     ToolSpec("copilot", REPO_ROOT / "extensions" / ".github",
              "prompts", "md", "skills", ["instructions/osp-rules.md", "AGENTS.md"]),
     ToolSpec("junie", REPO_ROOT / "extensions" / ".junie",

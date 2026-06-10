@@ -78,8 +78,11 @@ case "$TOOL" in
     rm -f "$DEST/steering/osp-rules.md" ;;
   qwen)
     rm -f "$DEST/QWEN.md" ;;
-  codex|kimi|vibe|opencode|openhands|antigravity-cli)
+  codex|kimi|vibe|opencode|openhands)
     rm -f "$DEST/AGENTS.md" ;;
+  antigravity-cli)
+    rm -f "$DEST/AGENTS.md"
+    rm -f "$DEST/rules/osp-rules.md" ;;
   *)
     rm -f "$DEST/rules/osp-rules.md" ;;
 esac

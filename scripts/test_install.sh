@@ -182,6 +182,7 @@ run_install_smoke "antigravity-cli" "install_antigravity_cli.sh" \
   "${COMMON[@]}" \
   ".agents/workflows/0-osp-onboarding.md" \
   ".agents/skills/osp-orchestrator/SKILL.md" \
+  ".agents/rules/osp-rules.md" \
   "AGENTS.md" \
   ".agents/mcp_config.json"
 

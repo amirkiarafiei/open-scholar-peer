@@ -94,7 +94,7 @@ TOOLS: dict[str, ToolCaps] = {
         command_dir="workflows",
         command_ext="md",
         skill_dir="skills",
-        rule_dir=None,
+        rule_dir="rules",
         extra_files=[("AGENTS.md", "rules")],
     ),
     "copilot": ToolCaps(
