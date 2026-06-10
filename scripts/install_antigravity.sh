@@ -37,17 +37,33 @@ mkdir -p "$(dirname "$AG_MCP_CONFIG")"
 python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$AG_MCP_CONFIG" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
 # Save a ready-to-paste snippet alongside the project for manual verification.
+: "${OSP_MCP_PYTHON:?OSP_MCP_PYTHON not set; run init_mcp.sh first}"
+: "${OSP_MCP_SERVER:?OSP_MCP_SERVER not set; run init_mcp.sh first}"
 python3 - <<'PY'
 import json
 import os
+import sys
 from pathlib import Path
+
+try:
+    osp_python = os.environ["OSP_MCP_PYTHON"]
+    osp_server = os.environ["OSP_MCP_SERVER"]
+except KeyError as exc:
+    print(
+        f"ERROR: {exc.args[0]} is not set. Run init_mcp.sh before writing the Antigravity CLI snippet.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
 
 snippet = {
     "mcpServers": {
         "osp": {
-            "command": os.environ["OSP_MCP_PYTHON"],
-            "args": [os.environ["OSP_MCP_SERVER"]],
+            "command": osp_python,
+            "args": [osp_server],
         },
+        # The merged config at ~/.gemini/antigravity/mcp_config.json includes both
+        # OSP and the markitdown MCP server, so the snippet mirrors the same pair
+        # of MCP servers for easy copy/paste.
         "markitdown": {
             "command": "uvx",
             "args": ["markitdown-mcp"],

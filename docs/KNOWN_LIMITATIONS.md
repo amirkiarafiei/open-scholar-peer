@@ -63,6 +63,7 @@ markitdown paper.pdf > .brain/input/paper.md
 **Impact:** Slightly higher first-run friction on Antigravity. Copilot CLI is auto-merged by `merge_mcp_config.py` but the user should still verify the file looks right.
 
 **Workaround:** Check the snippet at `.open-scholar-peer/antigravity_mcp_snippet.json` (Antigravity CLI) or `~/.copilot/mcp-config.json` (Copilot CLI) after install.
+The Antigravity snippet includes the `markitdown` MCP server because `scripts/install_antigravity.sh` writes the same OSP + markitdown MCP entries that `scripts/merge_mcp_config.py` merges into `~/.gemini/antigravity/mcp_config.json`.
 
 ---
 
