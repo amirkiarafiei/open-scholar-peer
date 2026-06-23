@@ -19,8 +19,12 @@ if [[ ! -d "$SOURCE_DIR/scripts" ]]; then
     exit 1
   fi
   TEMP_DIR=$(mktemp -d)
-  if ! git clone --depth 1 https://github.com/amirkiarafiei/open-scholar-peer "$TEMP_DIR" >/dev/null 2>&1; then
-    echo "  ✗ Failed to clone open-scholar-peer from GitHub. Check your network and retry."
+  CLONE_BRANCH=""
+  if [[ -n "$OSP_BRANCH" ]]; then
+    CLONE_BRANCH="-b $OSP_BRANCH"
+  fi
+  if ! git clone --depth 1 $CLONE_BRANCH https://github.com/amirkiarafiei/open-scholar-peer "$TEMP_DIR" >/dev/null 2>&1; then
+    echo "  ✗ Failed to clone open-scholar-peer from GitHub (branch: ${OSP_BRANCH:-default}). Check your network/branch name and retry."
     exit 1
   fi
   SOURCE_DIR="$TEMP_DIR"
