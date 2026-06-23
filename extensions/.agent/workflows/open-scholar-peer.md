@@ -1,12 +1,12 @@
 ---
 description: "Open ScholarPeer dispatcher — show review status and route to the next command"
-reads: [".brain/session.json"]
+reads: [".brain/session/session.json"]
 writes: []
 ---
 
 # /open-scholar-peer — Stateless Dispatcher
 
-This command is **always available**. It reads `.brain/session.json` and tells the user where they are in the review and which command to run next. It never executes review work itself.
+This command is **always available**. It reads `.brain/session/session.json` and tells the user where they are in the review and which command to run next. It never executes review work itself.
 
 ## Activation
 
@@ -14,7 +14,7 @@ Invoke the `osp-orchestrator` skill.
 
 ## Steps
 
-1. **Read `.brain/session.json`.** If missing, the user has not initialized OSP in this project. Tell them to run the installer (`bash install.sh`) or, if `.brain/` is just missing, `bash scripts/init_brain.sh`.
+1. **Read `.brain/session/session.json`.** If missing, the user has not initialized OSP in this project. Tell them to run the installer (`bash install.sh`) or, if `.brain/session/` is just missing, `bash scripts/init_brain.sh`.
 
 2. **Print a status snapshot:**
    ```
@@ -36,7 +36,7 @@ Invoke the `osp-orchestrator` skill.
    | `baseline_scout` | `/4-osp-baseline-scout` | Find missing baselines & datasets |
    | `qa` | `/5-osp-qa` | Multi-aspect Q&A (loops over criteria) |
    | `review` | `/6-osp-review` | Final consolidated review |
-   | `completed` | — | Print location of `.brain/review/final_review.md` and ask if any phase needs a re-run |
+   | `completed` | — | Print location of `.brain/session/review/final_review.md` and ask if any phase needs a re-run |
 
 4. **Do NOT advance automatically.** Phase boundaries are intentional — they let the user inspect each artifact before continuing.
 
@@ -45,7 +45,7 @@ Invoke the `osp-orchestrator` skill.
 Provide executing agents with this map of the runtime environment so they understand how CLI tools are wired and how to resolve failures:
 
 ### Environment (set up by the installer)
-- `.open-scholar-peer/`
+- `.brain/runtime/`
   - `osp`           — Unix shim script; calls `osp_cli.py` via `uv` (if available) or `venv`
   - `osp.cmd`       — Windows execution shim
   - `osp_cli.py`    — main CLI; needs: `arxiv`, `semanticscholar`, `requests`, `beautifulsoup4`, `python-dotenv`, `python-dateutil`
@@ -54,9 +54,9 @@ Provide executing agents with this map of the runtime environment so they unders
   - `requirements.txt` — dependency list
 
 ### Dependency resolution order (try in this order)
-1. `.open-scholar-peer/osp <subcommand>`   ← shim handles everything automatically
-2. `uv run --script .open-scholar-peer/osp_cli.py`   ← if `uv` is on PATH
-3. `.open-scholar-peer/venv/bin/python .open-scholar-peer/osp_cli.py`   ← if `venv` exists
+1. `.brain/runtime/osp <subcommand>`   ← shim handles everything automatically
+2. `uv run --script .brain/runtime/osp_cli.py`   ← if `uv` is on PATH
+3. `.brain/runtime/venv/bin/python .brain/runtime/osp_cli.py`   ← if `venv` exists
 4. If none work, tell the user what's missing and ask how to proceed.
 
 ## Output

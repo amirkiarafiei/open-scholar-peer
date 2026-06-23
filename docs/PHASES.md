@@ -11,8 +11,8 @@ Use this file as an execution checklist. Mark items `[ ]` → `[x]` in order. Ph
 - **Project shortname:** `osp` (Open ScholarPeer). Note: "ScholarPeer" alone refers to the upstream paper/Google authors; we use "Open ScholarPeer" / `osp` for our implementation.
 - **Slash commands:** `/N-osp-{step}` for numbered workflow steps (e.g. `/0-osp-onboarding`, `/1-osp-summary`). Plus one stateless dispatcher: `/open-scholar-peer` (reads `session.json`, tells user which numbered command to run next).
 - **Skills:** `osp-{persona}` — no number prefix since order is irrelevant for skills (e.g. `osp-summary-agent`, `osp-query-agent`, `osp-orchestrator`).
-- **Brain root:** `.brain/` at project root.
-- **CLI install root:** `.open-scholar-peer/` at project root (self-contained venv + CLI runner + shims).
+- **Brain root:** `.brain/` at project root. Split into `.brain/session/` (ephemeral paper state) and `.brain/runtime/` (persistent dependencies and shims).
+- **CLI install root:** `.brain/runtime/` at project root (self-contained venv + CLI runner + shims).
 
 ---
 
@@ -23,7 +23,7 @@ Use this file as an execution checklist. Mark items `[ ]` → `[x]` in order. Ph
 - [x] Phase 2 — Canonical `_shared/` content (skills + commands + defaults)
 - [x] Phase 3 — Sync script (`_shared/` → per-tool adapters)
 - [x] Phase 4 — Consolidated CLI tool (arxiv + semantic_scholar + google_scholar)
-- [x] Phase 5 — Installer scripts (`.open-scholar-peer/` setup + CLI execution shims)
+- [x] Phase 5 — Installer scripts (`.brain/runtime/` setup + CLI execution shims)
 - [x] Phase 6 — Cross-tool validation, docs, release readiness *(E2E live-tool test deferred to manual run)*
 
 ---
@@ -69,21 +69,28 @@ Lock down the shared schemas and contracts that all later phases depend on.
 - [ ] **`.brain/` directory contract** documented in `docs/BRAIN_LAYOUT.md`:
   ```
   .brain/
-  ├── session.json
-  ├── input/                          (paper goes here; agent helps user place it)
-  ├── raw/
-  │   ├── 00_review_guidelines.md
-  │   ├── 01_structured_summary.md
-  │   ├── 02a_literature_round1.md
-  │   ├── 02b_literature_round2.md
-  │   ├── 02c_literature_round3.md
-  │   ├── 02_retrieved_literature.md  (consolidated from rounds)
-  │   ├── 03_domain_narrative.md
-  │   ├── 04_missing_baselines.md
-  │   ├── 05_qa_<criterion_slug>.md   (one per active criterion)
-  │   └── transcripts/                (optional — per-step audit logs)
-  └── review/
-      └── final_review.md
+  ├── runtime/
+  │   ├── osp
+  │   ├── osp.cmd
+  │   ├── osp_cli.py
+  │   ├── convert_pdf.py
+  │   └── venv/
+  └── session/
+      ├── session.json
+      ├── input/                      (paper goes here; agent helps user place it)
+      ├── raw/
+      │   ├── 00_review_guidelines.md
+      │   ├── 01_structured_summary.md
+      │   ├── 02a_literature_round1.md
+      │   ├── 02b_literature_round2.md
+      │   ├── 02c_literature_round3.md
+      │   ├── 02_retrieved_literature.md
+      │   ├── 03_domain_narrative.md
+      │   ├── 04_missing_baselines.md
+      │   ├── 05_qa_<criterion_slug>.md
+      │   └── transcripts/
+      └── review/
+          └── final_review.md
   ```
 - [ ] **Artifact contract** for each step documented in `docs/ARTIFACT_CONTRACTS.md`:
   - Each artifact has three required sections: `## Method` (what was done, queries run, tools used), `## Output` (the actual content), `## Provenance` (sources, citations).
@@ -124,14 +131,14 @@ Author all skills and commands once, in `_shared/`, as the single source of trut
 
 #### Commands (8 total) — `extensions/_shared/commands/{name}.md`
 
-- [ ] `open-scholar-peer` — **stateless dispatcher**. Reads `session.json`, prints current state, tells user which `/N-osp-*` command to run next. Always-available regardless of phase.
-- [ ] `0-osp-onboarding` — Stage 0. Asks venue → web-searches official guidelines → falls back (ask user → generic). Locates paper (asks user, helps find it). Optionally invokes markitdown MCP to convert PDF → MD. Scaffolds criteria-specific empty `05_qa_<slug>.md` files. Saves everything to `session.json`.
-- [ ] `1-osp-summary` — Invokes `osp-summary-agent`. Reads paper from `.brain/input/`. Writes `01_structured_summary.md`.
+- [ ] `open-scholar-peer` — **stateless dispatcher**. Reads `.brain/session/session.json`, prints current state, tells user which `/N-osp-*` command to run next. Always-available regardless of phase.
+- [ ] `0-osp-onboarding` — Stage 0. Asks venue → web-searches official guidelines → falls back (ask user → generic). Locates paper (asks user, helps find it). Optionally invokes markitdown local conversion. Scaffolds criteria-specific empty `05_qa_<slug>.md` files. Saves everything to `session.json`.
+- [ ] `1-osp-summary` — Invokes `osp-summary-agent`. Reads paper from `.brain/session/input/`. Writes `01_structured_summary.md`.
 - [ ] `2-osp-literature` — Invokes `osp-literature-review-agent`. Runs 3 strategy-distinct rounds. Writes `02a/02b/02c_literature_round*.md` then consolidates to `02_retrieved_literature.md`.
 - [ ] `3-osp-historian` — Invokes `osp-historian-agent`. Reads `02_retrieved_literature.md`. Writes `03_domain_narrative.md`.
 - [ ] `4-osp-baseline-scout` — Invokes `osp-baseline-scout-agent`. Reads summary + literature. Writes `04_missing_baselines.md`.
 - [ ] `5-osp-qa` — Invokes `osp-query-agent` (main thread). Loops over `qa_criteria[]`. For each: spawns `osp-answer-generator-agent` as subagent (or self-reflects on Antigravity / Vibe / OpenHands). Forces N Q&A pairs via `### Q1...### QN` template, where N = `session.json.qa_pairs_per_criterion`. Writes `05_qa_<slug>.md` per criterion.
-- [ ] `6-osp-review` — Invokes `osp-reviewer-agent`. Reads everything. Writes consolidated `review/final_review.md`.
+- [ ] `6-osp-review` — Invokes `osp-reviewer-agent`. Reads everything. Writes consolidated `.brain/session/review/final_review.md`.
 
 #### Rules (always-on)
 
@@ -222,34 +229,34 @@ Build one CLI tool (`osp_cli.py`) exposing arxiv + semantic_scholar + google_sch
 
 ### Goal (Phase 5)
 
-Each install script is a one-liner UX: `bash install.sh` → pick tool → everything wired up. Self-contained `.open-scholar-peer/` shims and venv per project.
+Each install script is a one-liner UX: `bash install.sh` → pick tool → everything wired up. Self-contained `.brain/runtime/` shims and venv per project.
 
 ### Deliverables (Phase 5)
 
 - [ ] **`scripts/init_scripts.sh`** — shared helper invoked by all installers:
-  - Creates `<project>/.open-scholar-peer/`
+  - Creates `<project>/.brain/runtime/`
   - Copies `scripts/tools/` into it (including `osp_cli.py`, `convert_pdf.py`, `providers/`)
-  - Configures Python venv at `<project>/.open-scholar-peer/.venv`
+  - Configures Python venv at `<project>/.brain/runtime/venv`
   - Installs requirements in the venv
   - Creates Unix/Windows shims (`osp`, `osp.cmd`) wrapping the venv executions
-  - Adds `.open-scholar-peer/` to `.gitignore`
+  - Adds `.brain/` to `.gitignore`
 - [ ] **`scripts/init_brain.sh`** — updated for v2 schema (already exists; needs schema bump)
 - [ ] **Per-tool installer script updates**:
   - All 14 installers copy tool-specific configurations (prompts, rules, skills, etc.) and run `init_scripts.sh` + `init_brain.sh`.
 - [ ] **`install.sh`** — top-level dispatcher (works; supports all 14 tools).
-- [ ] **Local PDF conversion shim** — register `convert_pdf.py` inside `osp_cli.py` / `.open-scholar-peer/` to handle PDF parsing locally via `markitdown` without needing external MCP servers.
+- [ ] **Local PDF conversion shim** — register `convert_pdf.py` inside `osp_cli.py` / `.brain/runtime/` to handle PDF parsing locally via `markitdown` without needing external MCP servers.
 
 ### Tests (Phase 5)
 
-- [ ] Fresh install on empty directory → `.brain/`, `.open-scholar-peer/`, shims, and adapter files all created
+- [ ] Fresh install on empty directory → `.brain/session/` and `.brain/runtime/` structures, shims, and adapter files all created
 - [ ] Re-running installer is idempotent (no breakage, no duplicate shim entries)
-- [ ] `.open-scholar-peer/osp` (or `.open-scholar-peer\osp.cmd` on Windows) executes successfully
+- [ ] `.brain/runtime/osp` (or `.brain/runtime\osp.cmd` on Windows) executes successfully
 - [ ] Linux + macOS shells both succeed
 
 ### Exit Criteria (Phase 5)
 
 - [ ] One-liner install works for every supported tool
-- [ ] Self-contained `.open-scholar-peer/` CLI shim survives project location moves or parent tool restarts
+- [ ] Self-contained `.brain/runtime/` CLI shim survives project location moves or parent tool restarts
 - [ ] User can verify install by invoking `/open-scholar-peer` and seeing the dispatcher respond
 
 ---
@@ -335,7 +342,7 @@ Ongoing refinements for UX and robustness:
 
 ## Out of Scope (deferred)
 
-- [ ] **Multi-paper sessions** — `.brain/sessions/<paper_slug>/` with active-session pointer. Currently v1 = one paper per `.brain/`.
+- [ ] **Multi-paper sessions** — `.brain/session/sessions/<paper_slug>/` with active-session pointer. Currently v1 = one paper per `.brain/`.
 - [ ] **`src/backend`** — DeepAgents JS / LangGraph standalone runtime.
 - [ ] **`src/frontend`** — Customized Deep Agents UI with stepper UX.
 - [ ] **Publishing `open-scholar-peer` to PyPI** — currently v1 = self-contained venv per project; future = `pipx install open-scholar-peer`.

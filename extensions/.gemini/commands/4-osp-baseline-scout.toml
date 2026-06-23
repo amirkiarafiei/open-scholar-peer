@@ -20,14 +20,13 @@ Invoke the `osp-baseline-scout-agent` skill.
 
 ## Steps
 
-1. Read `.brain/session.json`, `.brain/raw/01_structured_summary.md`, `.brain/raw/02_retrieved_literature.md`.
+1. Read `.brain/session/session.json`, `.brain/session/raw/01_structured_summary.md`, `.brain/session/raw/02_retrieved_literature.md`.
 2. Activate the `osp-baseline-scout-agent` skill.
 3. The skill identifies the paper's task and the baselines actually used (from the structured summary's Evidence section).
-4. The skill independently searches for state-of-the-art methods on the same task and benchmarks. Tools: `.open-scholar-peer/osp` CLI (or `.open-scholar-peer\osp.cmd` on Windows), native Web Search. Targeted queries include leaderboards, benchmark suites, and recent SOTA claims.
+4. The skill independently searches for state-of-the-art methods on the same task and benchmarks. Tools: `.brain/runtime/osp` CLI (or `.brain/runtime\osp.cmd` on Windows), native Web Search. Targeted queries include leaderboards, benchmark suites, and recent SOTA claims.
 5. The skill produces a table of missing baselines and missing datasets with severity ratings (high/medium/low).
-6. Write `.brain/raw/04_missing_baselines.md`.
-7. Write `.brain/raw/04_missing_baselines.md`.
-8. Update `session.json`:
+6. Write `.brain/session/raw/04_missing_baselines.md`.
+7. Update `session.json`:
    - `phases.baseline_scout.status = "completed"`
    - `phases.baseline_scout.notes = "<N> missing baselines (<X> high); <M> missing datasets"`
    - `resume_from = "qa"`
@@ -37,7 +36,7 @@ Invoke the `osp-baseline-scout-agent` skill.
 ```
 ── Baseline Audit complete ───────────────────────────────
 Found <N> missing baselines (<X> high severity) and <M> missing datasets.
-↳ .brain/raw/04_missing_baselines.md
+↳ .brain/session/raw/04_missing_baselines.md
 Next: /5-osp-qa
 ──────────────────────────────────────────────────────────
 ```

@@ -33,7 +33,7 @@ python3 scripts/tools/osp_cli.py --capabilities
 
 ## Architecture (one paragraph)
 
-`extensions/_shared/` is the canonical source: 8 commands + 8 skills + rules + defaults + a manifest. `scripts/sync_adapters.py` regenerates 14 per-tool adapter directories under `extensions/.{claude,cursor,gemini,agent,agents,github,junie,kiro,codex,kimi,qwen,vibe,opencode,openhands}/`. Per-tool installers (`scripts/install_*.sh`) copy the adapter into the user's project, run `init_brain.sh` to scaffold `.brain/`, and run `init_scripts.sh` to set up a self-contained Python runtime and CLI shims at `.open-scholar-peer/`. State during a review lives at `<user-project>/.brain/` (gitignored).
+`extensions/_shared/` is the canonical source: 8 commands + 8 skills + rules + defaults + a manifest. `scripts/sync_adapters.py` regenerates 14 per-tool adapter directories under `extensions/.{claude,cursor,gemini,agent,agents,github,junie,kiro,codex,kimi,qwen,vibe,opencode,openhands}/`. Per-tool installers (`scripts/install_*.sh`) copy the adapter into the user's project, run `init_brain.sh` to scaffold `.brain/session/`, and run `init_scripts.sh` to set up a self-contained Python runtime and CLI shims at `.brain/runtime/`. State during a review lives at `<user-project>/.brain/session/` (gitignored).
 
 ## The Golden Rule
 
@@ -56,8 +56,8 @@ python3 scripts/tools/osp_cli.py --capabilities
 - Q&A behavior differs per tool: Antigravity (legacy), Mistral Vibe, OpenHands fall back to self-reflection (no/partial subagents); the other 11 use subagent isolation. Logic lives in `sync_adapters.py::adapt_qa_body_for_tool()`.
 - Paper hyperparameters: `k=3` literature rounds is fixed (enforced via 3 round files); `N_QA` is **user-configurable** at `/5-osp-qa` start (default 2 pairs/criterion, persisted as `session.json.qa_pairs_per_criterion`). The Q&A template renders `### Q1`…`### QN` from that field.
 - Tools that share the project-root `AGENTS.md` surface (Copilot, Codex, Kimi, Vibe, OpenCode, OpenHands) all merge through `scripts/merge_agents_md.sh` using `<!-- OSP-BEGIN/OSP-END -->` markers. Do not roll your own merge logic.
-- The CLI tool runs as a direct process execution under `.open-scholar-peer/osp`. To debug, execute it standalone or inspect logs printed to `stderr`.
-- `init_scripts.sh` copies `scripts/tools/` into `<user-project>/.open-scholar-peer/` and builds a venv there (or leverages `uv` script runners).
+- The CLI tool runs as a direct process execution under `.brain/runtime/osp`. To debug, execute it standalone or inspect logs printed to `stderr`.
+- `init_scripts.sh` copies `scripts/tools/` into `<user-project>/.brain/runtime/` and builds a venv there (or leverages `uv` script runners).
 
 ## Where things live
 
@@ -81,7 +81,7 @@ scripts/
   ├── merge_agents_md.sh         Idempotent merge into project-root AGENTS.md/QWEN.md
   ├── clean_adapter.sh           Wipes OSP-managed files before re-copy (per tool)
   ├── init_brain.sh              .brain/ scaffolding (called by installers)
-  ├── init_scripts.sh            .open-scholar-peer/ setup (called by installers)
+  ├── init_scripts.sh            .brain/runtime/ setup (called by installers)
   ├── install_*.sh               One per tool (14 total)
   └── test_*.{py,sh}             Parity validator + installer smoke
 
@@ -130,11 +130,9 @@ description: Always-on rules for Open ScholarPeer review sessions
 
 # Open ScholarPeer — Always-On Rules
 
-These rules apply automatically in any project where Open ScholarPeer is installed.
+These rules apply automatically in any project where Open ScholarPeer is installed.## Brain protocol (apply on every invocation)
 
-## Brain protocol (apply on every invocation)
-
-1. **Read `.brain/session.json` first** to understand current state.
+1. **Read `.brain/session/session.json` first** to understand current state.
 2. **Load only the artifacts in the active step's `reads:` contract** (see `docs/ARTIFACT_CONTRACTS.md`). Do not load the full `.brain/` directory.
 3. **After completing a step, update `session.json`:** set the matching `phases.<name>` block to `completed`, set `completed_at`, and update `resume_from`.
 4. **Re-runs overwrite with a warning.** If a step is already `completed`, print one warning, then proceed.
@@ -142,21 +140,20 @@ These rules apply automatically in any project where Open ScholarPeer is install
 ## CLI Tooling Environment & Fallback Map
 
 1. **Verify CLI Shim & Environment Map**:
-   Ensure `.open-scholar-peer/` exists in the project root. The installer sets up:
-   - `.open-scholar-peer/osp` — Unix shim script; wraps `osp_cli.py` execution via `uv` or `venv`.
-   - `.open-scholar-peer/osp.cmd` — Windows shim script wrapper.
-   - `.open-scholar-peer/osp_cli.py` — Main Python search CLI; requires: `arxiv`, `semanticscholar`, `scholarly`, `requests`, `beautifulsoup4`, `python-dotenv`, `python-dateutil`.
-   - `.open-scholar-peer/convert_pdf.py` — PDF converter tool; requires: `markitdown`.
-   - `.open-scholar-peer/venv/` — Pre-built virtualenv (exists if `uv` was absent at install time).
-   - `.open-scholar-peer/requirements.txt` — Full dependency list.
+   Ensure `.brain/runtime/` exists in the project root. The installer sets up:
+   - `.brain/runtime/osp` — Unix shim script; wraps `osp_cli.py` execution via `uv` or `venv`.
+   - `.brain/runtime/osp.cmd` — Windows shim script wrapper.
+   - `.brain/runtime/osp_cli.py` — Main Python search CLI; requires: `arxiv`, `semanticscholar`, `scholarly`, `requests`, `beautifulsoup4`, `python-dotenv`, `python-dateutil`.
+   - `.brain/runtime/convert_pdf.py` — PDF converter tool; requires: `markitdown`.
+   - `.brain/runtime/venv/` — Pre-built virtualenv (exists if `uv` was absent at install time).
+   - `.brain/runtime/requirements.txt` — Full dependency list.
 
 2. **Dependency Resolution & Fallback Order**:
    When running literature searches, PDF conversions, or external lookups, verify the files exist and execute using this order of preference:
-   - **Step 1**: Run `.open-scholar-peer/osp <subcommand>` (or `osp.cmd` on Windows) — the shim handles Python path and dependencies automatically.
-   - **Step 2**: If the shim fails, run `uv run --script .open-scholar-peer/osp_cli.py <subcommand>` (or `convert_pdf.py` for conversion) if `uv` is available on the user's PATH.
-   - **Step 3**: If `uv` fails or is not found, run `.open-scholar-peer/venv/bin/python .open-scholar-peer/osp_cli.py <subcommand>` (or `convert_pdf.py` using `venv/bin/python`) using the installer-provided virtualenv.
+   - **Step 1**: Run `.brain/runtime/osp <subcommand>` (or `osp.cmd` on Windows) — the shim handles Python path and dependencies automatically.
+   - **Step 2**: If the shim fails, run `uv run --script .brain/runtime/osp_cli.py <subcommand>` (or `convert_pdf.py` for conversion) if `uv` is available on the user's PATH.
+   - **Step 3**: If `uv` fails or is not found, run `.brain/runtime/venv/bin/python .brain/runtime/osp_cli.py <subcommand>` (or `convert_pdf.py` using `venv/bin/python`) using the installer-provided virtualenv.
    - **Step 4**: If none of the above succeed, do not guess or skip. Surface the exact traceback or error to the user, explain what's missing, and ask how to proceed.
-
 
 ## Persona discipline
 
@@ -187,22 +184,21 @@ After the phase completes, the closing report block must say **what was done** (
 
 ## Output discipline
 
-- Every `.brain/raw/*.md` file uses the universal artifact structure: `## Method`, `## Output`, `## Provenance`.
+- Every `.brain/session/raw/*.md` file uses the universal artifact structure: `## Method`, `## Output`, `## Provenance`.
 - Reports describe what was done — they are not raw transcripts of tool calls.
 - Citations must trace back to retrieved literature; do not invent them.
 
 ## File references in user-facing output
 
 - When mentioning a `.brain/` artifact in a report or reply, use the vendor-provided native file reference format for your tool:
-  - Claude Code / Cursor / Gemini CLI / Codex CLI / Qwen Code / OpenCode / Junie / Kiro: `@.brain/raw/01_summary.md`
-  - Copilot CLI: `#file:.brain/raw/01_summary.md`
+  - Claude Code / Cursor / Gemini CLI / Codex CLI / Qwen Code / OpenCode / Junie / Kiro: `@.brain/session/raw/01_summary.md`
+  - Copilot CLI: `#file:.brain/session/raw/01_summary.md`
   - Kimi Code / Mistral Vibe / OpenHands / Antigravity: plain path (no native shorthand)
-- Always pair the native reference with the `↳ .brain/…` path in the terminal report block so users can locate files regardless of tool.
+- Always pair the native reference with the `↳ .brain/session/…` path in the terminal report block so users can locate files regardless of tool.
 
 ## File ownership
 
-- `.brain/` is gitignored — never commit it.
-- `.open-scholar-peer/` (CLI shims + venv) is gitignored — never commit it.
+- `.brain/` (both `session/` and `runtime/`) is gitignored — never commit it.
 - Tool-specific config files (`.claude/`, etc.) at project root are user-editable.
 - Adapter content under `extensions/.{tool}/` in this repo is **generated by the sync script** — edit `extensions/_shared/` instead and re-run `scripts/sync_adapters.py`.
 <!-- OSP-END -->

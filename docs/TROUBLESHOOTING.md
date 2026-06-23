@@ -17,11 +17,11 @@ sudo apt install python3 python3-venv
 brew install python@3.12
 ```
 
-### `pip install` fails inside `.open-scholar-peer/mcp/`
+### `pip install` fails inside `.brain/runtime/`
 
-Inspect the log:
+Inspect the log or retry installing dependencies:
 ```bash
-.open-scholar-peer/mcp/.venv/bin/pip install -r .open-scholar-peer/mcp/requirements.txt
+.brain/runtime/venv/bin/pip install -r .brain/runtime/requirements.txt
 ```
 Common causes: outdated pip (`pip install --upgrade pip` in the venv), missing system libs for `lxml` or `cryptography` (on Ubuntu: `sudo apt install build-essential libxml2-dev libxslt1-dev libssl-dev`).
 
@@ -59,16 +59,16 @@ bash install.sh   # or scripts/install_<tool>.sh
 
 Verify that the CLI shim exists and is runnable:
 ```bash
-./.open-scholar-peer/osp --capabilities
+./.brain/runtime/osp --capabilities
 ```
 If it prints a capabilities JSON manifest, the runner is correctly configured. If it exits with an error or a Python traceback, check:
 - Is Python 3.10+ installed? Run `python3 --version`.
-- Is there a virtualenv? Run `ls .open-scholar-peer/venv/bin/python`.
+- Is there a virtualenv? Run `ls .brain/runtime/venv/bin/python`.
 - If the traceback is about missing dependencies, try running the installer again: `bash install.sh`.
 
 ### PDF conversion fails with "binary format and conversion failed"
 
-The conversion utilizes `uvx markitdown` or `python3 .open-scholar-peer/convert_pdf.py`. Verify `uvx` or `pip install markitdown` is functioning:
+The conversion utilizes `uvx markitdown` or `python3 .brain/runtime/convert_pdf.py`. Verify `uvx` or `pip install markitdown` is functioning:
 ```bash
 uvx --version          # uv 0.4+ required
 uvx markitdown <pdf>   # should output markdown content
@@ -77,7 +77,7 @@ If `uv` is not installed, install it:
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
-Alternatively, convert the paper manually to Markdown and place the text at `.brain/input/paper.md`.
+Alternatively, convert the paper manually to Markdown and place the text at `.brain/session/input/paper.md`.
 
 ### Semantic Scholar returns 429 Too Many Requests
 
@@ -106,7 +106,7 @@ Read the `"guidance"` field for actionable troubleshooting advice.
 
 ### `/0-osp-onboarding` says it can't find the paper
 
-Run `/open-scholar-peer` — the orchestrator will detect you're at the onboarding step and ask you for the paper's path. You can provide any path; it will copy the file into `.brain/input/` for you.
+Run `/open-scholar-peer` — the orchestrator will detect you're at the onboarding step and ask you for the paper's path. You can provide any path; it will copy the file into `.brain/session/input/` for you.
 
 ### `/1-osp-summary` refuses with "binary format and conversion failed"
 
@@ -114,18 +114,18 @@ This is the hard input guard working correctly. Either:
 1. Fix or install markitdown dependencies (see above).
 2. Provide a markdown version manually:
    ```bash
-   markitdown paper.pdf > .brain/input/paper.md   # if you have it CLI-locally
+   markitdown paper.pdf > .brain/session/input/paper.md   # if you have it CLI-locally
    ```
 
 ### `/2-osp-literature` produces only 1-2 round files instead of 3
 
-The agent stopped early. Re-run `/2-osp-literature` — the structural file requirement (`02a/02b/02c_literature_round*.md`) is enforced, so missing files block consolidation. Check `.brain/raw/` to see how far it got.
+The agent stopped early. Re-run `/2-osp-literature` — the structural file requirement (`02a/02b/02c_literature_round*.md`) is enforced, so missing files block consolidation. Check `.brain/session/raw/` to see how far it got.
 
 ### Q&A phase produces fewer than 10 pairs per criterion
 
 The file template at `defaults/qa_pair_template.md` declares 10 placeholder slots. If the agent stopped early, re-run `/5-osp-qa`. On Antigravity (self-reflection mode), pair generation is sequential and slower — be patient.
 
-### `/open-scholar-peer` says "No `.brain/session.json`"
+### `/open-scholar-peer` says "No `.brain/session/session.json`"
 
 Run the brain initializer:
 ```bash
@@ -172,5 +172,5 @@ bash scripts/test_install.sh
 Open an issue at https://github.com/amirkiarafiei/open-scholar-peer/issues with:
 - The slash command you ran
 - The exact error message
-- Your `.brain/session.json` (with any sensitive paper content redacted)
+- Your `.brain/session/session.json` (with any sensitive paper content redacted)
 - The output of `python3 scripts/test_parity.py`

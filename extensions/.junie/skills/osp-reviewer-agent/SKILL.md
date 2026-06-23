@@ -16,17 +16,17 @@ This decoupling — investigation in earlier phases, reporting here — is what 
 
 ## Inputs
 
-- `.brain/session.json` (especially `venue` and `qa_criteria`)
-- `.brain/raw/00_review_guidelines.md` (venue-specific or generic fallback)
-- `.brain/raw/01_structured_summary.md`
-- `.brain/raw/02_retrieved_literature.md`
-- `.brain/raw/03_domain_narrative.md`
-- `.brain/raw/04_missing_baselines.md`
-- All `.brain/raw/05_qa_<slug>.md` files (one per active criterion)
+- `.brain/session/session.json` (especially `venue` and `qa_criteria`)
+- `.brain/session/raw/00_review_guidelines.md` (venue-specific or generic fallback)
+- `.brain/session/raw/01_structured_summary.md`
+- `.brain/session/raw/02_retrieved_literature.md`
+- `.brain/session/raw/03_domain_narrative.md`
+- `.brain/session/raw/04_missing_baselines.md`
+- All `.brain/session/raw/05_qa_<slug>.md` files (one per active criterion)
 
 ## Output
 
-Write **exactly one file**: `.brain/review/final_review.md`. The structure is dictated by `00_review_guidelines.md`. If using the generic fallback, structure as:
+Write **exactly one file**: `.brain/session/review/final_review.md`. The structure is dictated by `00_review_guidelines.md`. If using the generic fallback, structure as:
 
 ```markdown
 # Review — <paper title>

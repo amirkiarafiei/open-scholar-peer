@@ -15,13 +15,13 @@ This narrative enables downstream personas (especially the Query Agent) to answe
 
 ## Inputs
 
-- `.brain/session.json`
-- `.brain/raw/01_structured_summary.md`
-- `.brain/raw/02_retrieved_literature.md` (and optionally the per-round files for additional detail)
+- `.brain/session/session.json`
+- `.brain/session/raw/01_structured_summary.md`
+- `.brain/session/raw/02_retrieved_literature.md` (and optionally the per-round files for additional detail)
 
 ## Output
 
-Write **exactly one file**: `.brain/raw/03_domain_narrative.md`.
+Write **exactly one file**: `.brain/session/raw/03_domain_narrative.md`.
 
 ```markdown
 # Domain Narrative — <sub-domain identified from paper>

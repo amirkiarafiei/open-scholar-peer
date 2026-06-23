@@ -26,7 +26,7 @@ The Query Agent passes:
    - `01_structured_summary.md` (claims/method/evidence)
    - `03_domain_narrative.md` (relevant eras and precedents)
    - `04_missing_baselines.md` (relevant adversarial findings)
-4. **Available tools:** The CLI shim `.open-scholar-peer/osp` (or `.open-scholar-peer\osp.cmd` on Windows) for search queries, and native Web Search (where applicable).
+4. **Available tools:** The CLI shim `.brain/runtime/osp` (or `.brain/runtime\osp.cmd` on Windows) for search queries, and native Web Search (where applicable).
 
 ## Verification protocol
 

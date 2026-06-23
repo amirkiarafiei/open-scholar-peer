@@ -21,14 +21,14 @@ By decoupling comprehension from critique here, downstream agents can operate on
 
 ## Inputs
 
-- `.brain/session.json` (read for venue, paper path)
-- `.brain/input/paper.{pdf,md,...}` — the actual manuscript
+- `.brain/session/session.json` (read for venue, paper path)
+- `.brain/session/input/paper.{pdf,md,...}` — the actual manuscript
 
-If the paper is in a binary format (PDF/DOCX/etc.), prefer the parsed `.md` version when present (`.brain/input/paper.md`). If only PDF/DOCX is present, convert it using `uvx markitdown <path> > .brain/input/paper.md` or our helper script `python3 .open-scholar-peer/convert_pdf.py <path> .brain/input/paper.md` (or `python3 .open-scholar-peer\convert_pdf.py` on Windows).
+If the paper is in a binary format (PDF/DOCX/etc.), prefer the parsed `.md` version when present (`.brain/session/input/paper.md`). If only PDF/DOCX is present, convert it using `uvx markitdown <path> > .brain/session/input/paper.md` or our helper script `python3 .brain/runtime/convert_pdf.py <path> .brain/session/input/paper.md` (or `python3 .brain/runtime\convert_pdf.py` on Windows).
 
 ## Output
 
-Write **exactly one file**: `.brain/raw/01_structured_summary.md`. Use the universal artifact structure (Method / Output / Provenance):
+Write **exactly one file**: `.brain/session/raw/01_structured_summary.md`. Use the universal artifact structure (Method / Output / Provenance):
 
 ```markdown
 # Structured Summary

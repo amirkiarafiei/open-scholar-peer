@@ -67,7 +67,7 @@ bash install.sh   # interactive — pick your AI tool
 The installer:
 1. Copies the right adapter files into your project (`.claude/`, `.cursor/`, etc.).
 2. Initializes `.brain/` (gitignored — your working state).
-3. Sets up the self-contained Python runtime and CLI shims at `.open-scholar-peer/` (gitignored — the CLI runner).
+3. Sets up the self-contained Python runtime and CLI shims at `.brain/runtime/` (gitignored — the CLI runner).
 
 Then in your AI tool:
 
@@ -161,13 +161,12 @@ scripts/
 │   └── providers/     ← arxiv, semantic_scholar, google_scholar (extensible)
 ├── sync_adapters.py   ← Regenerates per-tool adapters from _shared/
 ├── install_*.sh       ← Per-tool installers
-├── init_scripts.sh    ← Sets up .open-scholar-peer/ with shims/venv
+├── init_scripts.sh    ← Sets up .brain/runtime/ with shims/venv
 └── test_*.{py,sh}     ← Parity + install smoke tests
 
-.brain/                ← Per-project state (gitignored)
-└── raw/, review/, input/, session.json
-
-.open-scholar-peer/    ← Per-project CLI/shims runtime (gitignored)
+.brain/                ← State store and runtime (gitignored)
+├── session/           ← Ephemeral paper state (raw/, review/, input/, session.json)
+└── runtime/           ← Persistent Python runtime and shims (venv/, osp, osp_cli.py)
 ```
 
 ---

@@ -20,8 +20,6 @@ __pycache__/
 .vscode/
 *.swp
 
-# Open ScholarPeer CLI shim runtime (venv + shims, gitignored)
-.open-scholar-peer/
 
 # API keys (never commit)
 .env

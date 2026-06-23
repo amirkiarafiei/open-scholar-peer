@@ -16,13 +16,13 @@ Critically, you operate **independently** of the authors' narrative. You analyze
 
 ## Inputs
 
-- `.brain/session.json`
-- `.brain/raw/01_structured_summary.md`
-- `.brain/raw/02_retrieved_literature.md` (your retrieval baseline — but you may also re-search if the corpus is missing benchmark-specific work)
+- `.brain/session/session.json`
+- `.brain/session/raw/01_structured_summary.md`
+- `.brain/session/raw/02_retrieved_literature.md` (your retrieval baseline — but you may also re-search if the corpus is missing benchmark-specific work)
 
 ## Tools
 
-Use the same retrieval tools as the Literature Agent (the CLI shim `.open-scholar-peer/osp` or `.open-scholar-peer\osp.cmd` on Windows, and native Web Search). You are encouraged to run targeted searches like:
+Use the same retrieval tools as the Literature Agent (the CLI shim `.brain/runtime/osp` or `.brain/runtime\osp.cmd` on Windows, and native Web Search). You are encouraged to run targeted searches like:
 - `"<task name> state of the art <year>"`
 - `"<benchmark name> leaderboard"`
 - `"<dataset name> comparison"`
@@ -30,7 +30,7 @@ Use the same retrieval tools as the Literature Agent (the CLI shim `.open-schola
 
 ## Output
 
-Write **exactly one file**: `.brain/raw/04_missing_baselines.md`.
+Write **exactly one file**: `.brain/session/raw/04_missing_baselines.md`.
 
 ```markdown
 # Missing Baselines & Datasets

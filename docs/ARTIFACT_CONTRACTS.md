@@ -1,10 +1,10 @@
 # Artifact Contracts — Open ScholarPeer v2
 
-Every workflow step has a strict I/O contract. The agent **must** load only the artifacts in `reads:` (not the whole `.brain/`) and **must** write the single artifact in `writes:`. This is how context-awareness is enforced without dumping the full transcript into every persona.
+Every workflow step has a strict I/O contract. The agent **must** load only the artifacts in `reads:` (not the whole `.brain/session/`) and **must** write the single artifact in `writes:`. This is how context-awareness is enforced without dumping the full transcript into every persona.
 
 ## Universal artifact structure
 
-Every `.brain/raw/*.md` file (and `review/final_review.md`) has three required top-level sections:
+Every `.brain/session/raw/*.md` file (and `.brain/session/review/final_review.md`) has three required top-level sections:
 
 ```markdown
 # <Artifact title>
@@ -28,14 +28,14 @@ Every `.brain/raw/*.md` file (and `review/final_review.md`) has three required t
 
 | Step | Command | Skill | Reads | Writes |
 |---|---|---|---|---|
-| 0 | `/0-osp-onboarding` | `osp-orchestrator` | `session.json` | `00_review_guidelines.md`, scaffolds empty `05_qa_<slug>.md`, updates `session.json` |
-| 1 | `/1-osp-summary` | `osp-summary-agent` | `session.json`, `.brain/input/paper.{pdf,md}` | `01_structured_summary.md` |
-| 2 | `/2-osp-literature` | `osp-literature-review-agent` | `session.json`, `01_structured_summary.md` | `02a_literature_round1.md`, `02b_literature_round2.md`, `02c_literature_round3.md`, then consolidated `02_retrieved_literature.md` |
-| 3 | `/3-osp-historian` | `osp-historian-agent` | `session.json`, `01_structured_summary.md`, `02_retrieved_literature.md` | `03_domain_narrative.md` |
-| 4 | `/4-osp-baseline-scout` | `osp-baseline-scout-agent` | `session.json`, `01_structured_summary.md`, `02_retrieved_literature.md` | `04_missing_baselines.md` |
-| 5 | `/5-osp-qa` | `osp-query-agent` (main) + `osp-answer-generator-agent` (subagent) | `session.json`, `01_structured_summary.md`, `03_domain_narrative.md`, `04_missing_baselines.md`, `00_review_guidelines.md` | `05_qa_<criterion_slug>.md` (one per active criterion) |
-| 6 | `/6-osp-review` | `osp-reviewer-agent` | `session.json`, `00_review_guidelines.md`, `01_structured_summary.md`, `02_retrieved_literature.md`, `03_domain_narrative.md`, `04_missing_baselines.md`, all `05_qa_*.md` | `review/final_review.md` |
-| — | `/open-scholar-peer` | `osp-orchestrator` | `session.json` | (none — dispatcher only) |
+| 0 | `/0-osp-onboarding` | `osp-orchestrator` | `.brain/session/session.json` | `.brain/session/raw/00_review_guidelines.md`, scaffolds empty `.brain/session/raw/05_qa_<slug>.md`, updates `.brain/session/session.json` |
+| 1 | `/1-osp-summary` | `osp-summary-agent` | `.brain/session/session.json`, `.brain/session/input/paper.{pdf,md}` | `.brain/session/raw/01_structured_summary.md` |
+| 2 | `/2-osp-literature` | `osp-literature-review-agent` | `.brain/session/session.json`, `.brain/session/raw/01_structured_summary.md` | `.brain/session/raw/02a_literature_round1.md`, `.brain/session/raw/02b_literature_round2.md`, `.brain/session/raw/02c_literature_round3.md`, then consolidated `.brain/session/raw/02_retrieved_literature.md` |
+| 3 | `/3-osp-historian` | `osp-historian-agent` | `.brain/session/session.json`, `.brain/session/raw/01_structured_summary.md`, `.brain/session/raw/02_retrieved_literature.md` | `.brain/session/raw/03_domain_narrative.md` |
+| 4 | `/4-osp-baseline-scout` | `osp-baseline-scout-agent` | `.brain/session/session.json`, `.brain/session/raw/01_structured_summary.md`, `.brain/session/raw/02_retrieved_literature.md` | `.brain/session/raw/04_missing_baselines.md` |
+| 5 | `/5-osp-qa` | `osp-query-agent` (main) + `osp-answer-generator-agent` (subagent) | `.brain/session/session.json`, `.brain/session/raw/01_structured_summary.md`, `.brain/session/raw/03_domain_narrative.md`, `.brain/session/raw/04_missing_baselines.md`, `.brain/session/raw/00_review_guidelines.md` | `.brain/session/raw/05_qa_<criterion_slug>.md` (one per active criterion) |
+| 6 | `/6-osp-review` | `osp-reviewer-agent` | `.brain/session/session.json`, `.brain/session/raw/00_review_guidelines.md`, `.brain/session/raw/01_structured_summary.md`, `.brain/session/raw/02_retrieved_literature.md`, `.brain/session/raw/03_domain_narrative.md`, `.brain/session/raw/04_missing_baselines.md`, all `.brain/session/raw/05_qa_*.md` | `.brain/session/review/final_review.md` |
+| — | `/open-scholar-peer` | `osp-orchestrator` | `.brain/session/session.json` | (none — dispatcher only) |
 
 ## Round-strategy contract for `/2-osp-literature`
 
@@ -47,13 +47,13 @@ The literature step writes **three separate files** to make the 3-round expansio
 | `02b_literature_round2.md` | `method-anchor` | Search using the proposed method's name and technical terms. Goal: find prior work using similar techniques. |
 | `02c_literature_round3.md` | `temporal-expansion` | Search filtered to last 12 months + concurrent work + arXiv pre-prints + workshop papers. Goal: catch what static knowledge cutoffs miss. |
 
-Each round must use **all available retrieval tools** (via `.open-scholar-peer/osp` CLI + native Web Search) with **different query formulations** per round. Queries used are listed in each round's `## Provenance`.
+Each round must use **all available retrieval tools** (via `.brain/runtime/osp` CLI + native Web Search) with **different query formulations** per round. Queries used are listed in each round's `## Provenance`.
 
-After all three rounds, the agent writes `02_retrieved_literature.md` consolidating retained papers (deduplicated), with one entry per paper: title, authors, year, venue, abstract, source(s) it appeared in.
+After all three rounds, the agent writes `.brain/session/raw/02_retrieved_literature.md` consolidating retained papers (deduplicated), with one entry per paper: title, authors, year, venue, abstract, source(s) it appeared in.
 
 ## Q&A contract for `/5-osp-qa`
 
-For every criterion in `session.json.qa_criteria[]`, the step produces `.brain/raw/05_qa_<slug>.md` with **exactly N Q&A pairs**, where N is `session.json.qa_pairs_per_criterion` (user-configurable at `/5-osp-qa` start; default 2). The file template (from `defaults/qa_pair_template.md`) is:
+For every criterion in `session.json.qa_criteria[]`, the step produces `.brain/session/raw/05_qa_<slug>.md` with **exactly N Q&A pairs**, where N is `session.json.qa_pairs_per_criterion` (user-configurable at `/5-osp-qa` start; default 2). The file template (from `defaults/qa_pair_template.md`) is:
 
 ```markdown
 # Q&A — <criterion label>

@@ -1,7 +1,7 @@
 ---
 description: "OSP Phase 3: Compress retrieved literature into a chronological domain narrative"
-reads: [".brain/session.json", ".brain/raw/01_structured_summary.md", ".brain/raw/02_retrieved_literature.md"]
-writes: [".brain/raw/03_domain_narrative.md", ".brain/session.json"]
+reads: [".brain/session/session.json", ".brain/session/raw/01_structured_summary.md", ".brain/session/raw/02_retrieved_literature.md"]
+writes: [".brain/session/raw/03_domain_narrative.md", ".brain/session/session.json"]
 ---
 
 # /3-osp-historian — Sub-Domain Historian
@@ -18,13 +18,12 @@ Invoke the `osp-historian-agent` skill.
 
 ## Steps
 
-1. Read `.brain/session.json`, `.brain/raw/01_structured_summary.md`, `.brain/raw/02_retrieved_literature.md`.
+1. Read `.brain/session/session.json`, `.brain/session/raw/01_structured_summary.md`, `.brain/session/raw/02_retrieved_literature.md`.
 2. Activate the `osp-historian-agent` skill.
 3. The skill builds a chronological narrative grouped by inflection points (eras), each characterized by its dominant approach and what triggered the transition out.
 4. The skill places the paper under review in the narrative — same era it claims, or a different one — and identifies its closest precedents.
-5. Write `.brain/raw/03_domain_narrative.md`.
-6. Write `.brain/raw/03_domain_narrative.md`.
-7. Update `session.json`:
+5. Write `.brain/session/raw/03_domain_narrative.md`.
+6. Update `session.json`:
    - `phases.historian.status = "completed"`
    - `phases.historian.notes = "<N> eras identified; paper placed in era <N>"`
    - `resume_from = "baseline_scout"`
@@ -35,7 +34,7 @@ Invoke the `osp-historian-agent` skill.
 ── Domain Narrative complete ─────────────────────────────
 Mapped <N> historical eras; placed paper in era <E>.
 Closest precedents: <2-3 bullet items>
-↳ .brain/raw/03_domain_narrative.md
+↳ .brain/session/raw/03_domain_narrative.md
 Next: /4-osp-baseline-scout
 ──────────────────────────────────────────────────────────
 ```

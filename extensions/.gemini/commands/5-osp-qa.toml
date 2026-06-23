@@ -50,7 +50,7 @@ Invoke the `osp-query-agent` skill (main thread). The Query Agent will spawn `os
 1. Read all input artifacts listed in the frontmatter.
 2. Activate the `osp-query-agent` skill.
 3. For each criterion in `qa_criteria[]`:
-   - Open or initialize `.brain/raw/05_qa_<criterion_slug>.md` from `defaults/qa_pair_template.md`.
+   - Open or initialize `.brain/session/raw/05_qa_<criterion_slug>.md` from `defaults/qa_pair_template.md`.
    - Generate exactly `qa_pairs_per_criterion` Q&A pairs:
      - For each, the Query Agent formulates a probing question grounded in the structured summary, narrative, and missing baselines.
      - The Query Agent delegates to the Answer Generator (subagent or self-reflection per mode).
@@ -67,14 +67,14 @@ Invoke the `osp-query-agent` skill (main thread). The Query Agent will spawn `os
 ```
 ── Q&A Engine complete ──────────────────────────────────────
 Ran <N> pairs across <C> criteria — <M> discrepancies flagged.
-↳ .brain/raw/05_qa_<slug>.md  (one file per criterion)
+↳ .brain/session/raw/05_qa_<slug>.md  (one file per criterion)
 Next: /6-osp-review
 ─────────────────────────────────────────────────────────────
 ```
 
 ## Re-run behavior
 
-Re-running overwrites `05_qa_<slug>.md` per criterion. To re-run only one criterion, pass its slug as an argument; the rest are skipped.
+Re-running overwrites `.brain/session/raw/05_qa_<slug>.md` per criterion. To re-run only one criterion, pass its slug as an argument; the rest are skipped.
 
 ## Pitfalls
 

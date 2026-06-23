@@ -34,11 +34,11 @@ The CLI shim loads the env var on every execution.
 
 ## 3. PDF parsing depends on the host tool's environment or convert_pdf.py script
 
-**What:** OSP needs a readable text version of the paper at `.brain/input/paper.md` for the Summary Agent. The `convert_pdf.py` script wrapper is configured for this purpose.
+**What:** OSP needs a readable text version of the paper at `.brain/session/input/paper.md` for the Summary Agent. The `convert_pdf.py` script wrapper is configured for this purpose.
 
 **Limitation:** If `markitdown` is not installed in the environment (or `uv` cannot run it), and the paper is supplied as a PDF/DOCX, conversion will fail.
 
-**Impact:** `/0-osp-onboarding` will refuse to advance until either (a) dependencies are installed, or (b) the user manually provides `.brain/input/paper.md`. This is intentional fail-fast behavior to avoid silent downstream errors.
+**Impact:** `/0-osp-onboarding` will refuse to advance until either (a) dependencies are installed, or (b) the user manually provides `.brain/session/input/paper.md`. This is intentional fail-fast behavior to avoid silent downstream errors.
 
 **Workaround:** Install markitdown:
 ```bash
@@ -46,14 +46,14 @@ pip install markitdown          # if not already installed
 ```
 or convert manually:
 ```bash
-markitdown paper.pdf > .brain/input/paper.md
+markitdown paper.pdf > .brain/session/input/paper.md
 ```
 
 ---
 
 ## 4. CLI shim execution permissions and environment paths
 
-**What:** OSP executes scripts locally through the `.open-scholar-peer/osp` Unix shim (or `.open-scholar-peer\osp.cmd` Windows shim).
+**What:** OSP executes scripts locally through the `.brain/runtime/osp` Unix shim (or `.brain/runtime\osp.cmd` Windows shim).
 
 **Limitation:** If Python 3.10+ is missing, or the sandbox environment has locked down local script executions (blocking subprocesses), the shim will fail to run.
 
@@ -63,19 +63,19 @@ markitdown paper.pdf > .brain/input/paper.md
 
 ---
 
-## 5. Single paper per `.brain/` (multi-paper sessions deferred)
+## 5. Single paper per `.brain/session/` (multi-paper sessions deferred)
 
 **What:** v1 of OSP supports one active review per project directory.
 
-**Limitation:** To review a second paper in the same project, you must archive or delete the existing `.brain/` and start fresh.
+**Limitation:** To review a second paper in the same project, you must archive or delete the existing `.brain/session/` and start fresh.
 
-**Impact:** Researchers who maintain a directory of in-progress reviews must either use separate project directories or move `.brain/` aside between papers.
+**Impact:** Researchers who maintain a directory of in-progress reviews must either use separate project directories or move `.brain/session/` aside between papers.
 
-**Future:** Multi-paper sessions (`.brain/sessions/<paper_slug>/` with active-session pointer) are planned but deferred.
+**Future:** Multi-paper sessions (`.brain/session/sessions/<paper_slug>/` with active-session pointer) are planned but deferred.
 
 **Workaround:** Use one project directory per paper, or:
 ```bash
-mv .brain .brain.archive-$(date +%F)
+mv .brain/session .brain/session.archive-$(date +%F)
 ```
 
 ---

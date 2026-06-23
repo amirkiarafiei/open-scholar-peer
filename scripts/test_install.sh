@@ -19,7 +19,7 @@ stub_init_scripts() {
   cat > "$target" << 'STUB'
 #!/usr/bin/env bash
 # Smoke-test stub: skip venv creation, just create the directory tree and shims.
-TARGET_DIR="$(pwd)/.open-scholar-peer"
+TARGET_DIR="$(pwd)/.brain/runtime"
 mkdir -p "$TARGET_DIR"
 touch "$TARGET_DIR/osp" "$TARGET_DIR/osp.cmd" "$TARGET_DIR/osp_cli.py"
 echo "  [stub] init_scripts skipped venv setup"
@@ -75,11 +75,11 @@ run_install_smoke() {
 
 # Per-tool expected file lists (relative to the user's project dir)
 COMMON=(
-  ".brain/session.json"
-  ".brain/raw"
-  ".brain/review"
-  ".brain/input"
-  ".open-scholar-peer/osp"
+  ".brain/session/session.json"
+  ".brain/session/raw"
+  ".brain/session/review"
+  ".brain/session/input"
+  ".brain/runtime/osp"
   ".gitignore"
 )
 

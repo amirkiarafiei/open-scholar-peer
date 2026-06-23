@@ -20,7 +20,7 @@ Tell the user which round is about to run, what its goal is, and what tools will
 Strategy: <sub-domain anchor | method anchor | temporal expansion>
 Goal:     <one sentence — what this round is trying to find>
 Tools:    arxiv  +  semantic_scholar  +  google_scholar  +  web search (if available)
-Writes:   .brain/raw/02N_literature_round<N>.md
+Writes:   .brain/session/raw/02N_literature_round<N>.md
 Effort:   ~8-12 tool calls, ~1-3 min
 ─────────────────────────────────────────────────────────
 ```
@@ -29,8 +29,8 @@ This block runs even if the user has run literature review before — they may n
 
 ## Inputs
 
-- `.brain/session.json`
-- `.brain/raw/01_structured_summary.md` (the Summary Agent's output)
+- `.brain/session/session.json`
+- `.brain/session/raw/01_structured_summary.md` (the Summary Agent's output)
 
 ## Mandatory three-round retrieval protocol
 
@@ -48,10 +48,10 @@ After all three rounds, write `02_retrieved_literature.md` consolidating retaine
 
 In **every round** you MUST run search queries using the following tools:
 
-- `.open-scholar-peer/osp search-all "<query>" --limit 5` (on Windows, use `.open-scholar-peer\osp.cmd`) — this CLI tool queries arXiv, Semantic Scholar, and Google Scholar sequentially, deduplicates papers, and truncates abstracts.
+- `.brain/runtime/osp search-all "<query>" --limit 5` (on Windows, use `.brain/runtime\osp.cmd`) — this CLI tool queries arXiv, Semantic Scholar, and Google Scholar sequentially, deduplicates papers, and truncates abstracts.
 - Native `Web Search` (when your host tool provides one) — non-academic mentions, news, blog summaries.
 
-**Sequential Execution:** Do NOT run multiple concurrent database/CLI calls or parallel tool invocations, as this will trigger Google Scholar IP blocks. The CLI tool has a built-in 2s delay for Google Scholar and maintains rate-limiting cache locks to protect your IP. Always run `.open-scholar-peer/osp` first, then run your native Web Search. Do not run them concurrently.
+**Sequential Execution:** Do NOT run multiple concurrent database/CLI calls or parallel tool invocations, as this will trigger Google Scholar IP blocks. The CLI tool has a built-in 2s delay for Google Scholar and maintains rate-limiting cache locks to protect your IP. Always run `.brain/runtime/osp` first, then run your native Web Search. Do not run them concurrently.
 
 
 Relying on only one source biases the corpus. A paper that ranks low in one index may be the top result in another.
@@ -102,4 +102,4 @@ After all four files exist:
 - Do **not** synthesize a narrative — that's the Historian's job. Just retrieve and tabulate.
 - Do **not** skip a round because you "already covered it" — the strategy differentiation is the point.
 - Do **not** discard pre-prints just because they're unpublished — round 3's whole purpose is catching them.
-- Do **not** silently fail a tool — if `.open-scholar-peer/osp` is unreachable or fails, check the error payload for the "guidance" block, report it, and list it in Provenance under "Tools unavailable" so the user knows.
+- Do **not** silently fail a tool — if `.brain/runtime/osp` is unreachable or fails, check the error payload for the "guidance" block, report it, and list it in Provenance under "Tools unavailable" so the user knows.

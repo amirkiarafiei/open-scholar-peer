@@ -139,18 +139,17 @@ We define the ScholarPeer methodology as a deterministic sequence of steps. By u
 Unlike ReviewerOS, this project includes MCP configuration artifacts so each installed tool can immediately expose required external resources/tools.
 
 ### D. Installers (Project Scaffolding)
-Installer scripts copy selected tool assets from `extensions/` into target root directories (e.g., `.cursor`, `.claude`, `.gemini`, `.agent`/`.agents`, `.github`) and initialize `.brain/`.
+Installer scripts copy selected tool assets from `extensions/` into target root directories (e.g., `.cursor`, `.claude`, `.gemini`, `.agent`/`.agents`, `.github`) and initialize `.brain/` (setting up `.brain/session/` and `.brain/runtime/`).
 
 ---
 
 ## 6. The `.brain` State Management System
-To manage the complex, multi-step flow of a peer review and ensure high agent observability, the framework relies on a `.brain` directory located at the **root of the repository/workspace**.
+To manage the complex, multi-step flow of a peer review and ensure high agent observability, the framework relies on a `.brain/` directory located at the **root of the repository/workspace**, containing two subdirectories: `.brain/runtime/` (persistent scripts/shims/venv) and `.brain/session/` (ephemeral paper state).
 
 * **Initialization:** When the user installs the framework (via the install scripts), the `.brain` folder is scaffolded at the root.
 * **Architecture of `.brain`:**
-  * `/templates/`: Contains the rigid markdown/JSON templates for agent outputs.
-  * `session.json`: A state-tracking file (inspired by `reviewer-os`). The workflows read and update this file to know exactly where the methodology left off, what the current progress is, and which subagent is currently active.
-  * `/artifacts/`: Where the populated templates (e.g., `extracted_claims.json`, `domain_narrative.md`) are saved by the agents as they complete their isolated tasks.
+  * `session/session.json`: A state-tracking file. The workflows read and update this file to know exactly where the methodology left off and what the current progress is.
+  * `session/raw/`: Where the populated artifacts (e.g., structured summaries, narrative, missing baselines) are saved by the agents as they complete their isolated tasks.
 
 ---
 

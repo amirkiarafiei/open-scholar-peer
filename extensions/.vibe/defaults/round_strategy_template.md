@@ -5,7 +5,7 @@
 - **Strategy:** `{{strategy_slug}}` (one of: `sub-domain-anchor`, `method-anchor`, `temporal-expansion`)
 - **Goal of this round:** {{strategy_goal}}
 - **Tools used (must use all available):**
-  - `.open-scholar-peer/osp` CLI (sequentially calls arXiv, Semantic Scholar, and Google Scholar)
+  - `.brain/runtime/osp` CLI (sequentially calls arXiv, Semantic Scholar, and Google Scholar)
   - native Web Search (where available)
 - **Query formulation rules for this round:**
   - Round 1 (sub-domain-anchor): use the paper's stated sub-domain and primary keywords; aim for the canonical 10–20 most-cited works in this area.

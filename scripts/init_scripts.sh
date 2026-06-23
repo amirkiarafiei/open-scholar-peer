@@ -28,7 +28,7 @@ _spin() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-TARGET_DIR="$(pwd)/.open-scholar-peer"
+TARGET_DIR="$(pwd)/.brain/runtime"
 SOURCE_DIR="$ROOT_DIR/scripts/tools"
 
 if [[ ! -d "$SOURCE_DIR" ]]; then
@@ -43,7 +43,7 @@ fi
 
 mkdir -p "$TARGET_DIR"
 cp -r "$SOURCE_DIR/." "$TARGET_DIR/"
-echo -e "  ${GREEN}✅ CLI scripts copied → .open-scholar-peer/${NC}"
+echo -e "  ${GREEN}✅ CLI scripts copied → .brain/runtime/${NC}"
 
 # Check for uv (Fix 9 grace)
 VENV_DIR="$TARGET_DIR/venv"
@@ -64,9 +64,9 @@ else
     python3 -m venv "$VENV_DIR" &>/dev/null &
     _spin $! "Creating Python virtualenv…"
     wait $! || { echo -e "  ${RED}✗ Failed to create virtualenv${NC}"; exit 1; }
-    echo -e "  ${GREEN}✅ Virtualenv created → .open-scholar-peer/venv${NC}"
+    echo -e "  ${GREEN}✅ Virtualenv created → .brain/runtime/venv${NC}"
   else
-    echo -e "  ${YELLOW}ℹ️  Reusing existing venv at .open-scholar-peer/venv${NC}"
+    echo -e "  ${YELLOW}ℹ️  Reusing existing venv at .brain/runtime/venv${NC}"
   fi
 
   # Install requirements
@@ -104,7 +104,7 @@ else
 fi
 SHIM
 chmod +x "$TARGET_DIR/osp"
-echo -e "  ${GREEN}✅ Created Unix execution shim → .open-scholar-peer/osp${NC}"
+echo -e "  ${GREEN}✅ Created Unix execution shim → .brain/runtime/osp${NC}"
 
 # Write the Windows shim
 cat > "$TARGET_DIR/osp.cmd" << 'SHIM'
@@ -118,18 +118,18 @@ if exist "%DIR%venv\Scripts\python.exe" (
 )
 endlocal
 SHIM
-echo -e "  ${GREEN}✅ Created Windows execution shim → .open-scholar-peer/osp.cmd${NC}"
+echo -e "  ${GREEN}✅ Created Windows execution shim → .brain/runtime/osp.cmd${NC}"
 
-# Add .open-scholar-peer/ to .gitignore
+# Add .brain/ to .gitignore
 GITIGNORE="./.gitignore"
 if [[ -f "$GITIGNORE" ]]; then
-  if ! grep -qF ".open-scholar-peer/" "$GITIGNORE" 2>/dev/null; then
-    printf "\n# Open ScholarPeer CLI runtime (gitignored)\n.open-scholar-peer/\n" >> "$GITIGNORE"
-    echo -e "  ${GREEN}✅ Added .open-scholar-peer/ to .gitignore${NC}"
+  if ! grep -qF ".brain/" "$GITIGNORE" 2>/dev/null; then
+    printf "\n# Open ScholarPeer working files & runtime (gitignored)\n.brain/\n" >> "$GITIGNORE"
+    echo -e "  ${GREEN}✅ Added .brain/ to .gitignore${NC}"
   fi
 else
-  printf "# Open ScholarPeer CLI runtime\n.open-scholar-peer/\n" > "$GITIGNORE"
-  echo -e "  ${GREEN}✅ Created .gitignore with .open-scholar-peer/ entry${NC}"
+  printf "# Open ScholarPeer working files & runtime\n.brain/\n" > "$GITIGNORE"
+  echo -e "  ${GREEN}✅ Created .gitignore with .brain/ entry${NC}"
 fi
 
 # Create .env if it doesn't exist

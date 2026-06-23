@@ -33,8 +33,8 @@ Slash commands live in `extensions/_shared/commands/<name>.md` with frontmatter:
 ```yaml
 ---
 description: "One-line summary shown in command palettes"
-reads: [".brain/session.json", ".brain/raw/01_structured_summary.md"]
-writes: [".brain/raw/03_domain_narrative.md", ".brain/session.json"]
+reads: [".brain/session/session.json", ".brain/session/raw/01_structured_summary.md"]
+writes: [".brain/session/raw/03_domain_narrative.md", ".brain/session/session.json"]
 ---
 ```
 

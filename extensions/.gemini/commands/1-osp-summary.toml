@@ -16,28 +16,27 @@ Invoke the `osp-summary-agent` skill. The agent assumes the Summary Agent person
 
 ## Hard input guard (run BEFORE invoking the persona)
 
-The Summary Agent depends on having a readable text representation of the paper. PDF/DOCX/TEX in `.brain/input/` is not enough — silent downstream failures are the #1 risk if the agent receives a binary path.
+The Summary Agent depends on having a readable text representation of the paper. PDF/DOCX/TEX in `.brain/session/input/` is not enough — silent downstream failures are the #1 risk if the agent receives a binary path.
 
 Before activating the skill, verify in this order:
 
-1. **`.brain/input/paper.md` exists and is readable** — ideal case, proceed.
-2. **`.brain/input/paper.md` is missing but a PDF/DOCX exists** — try to convert it now by running `uvx markitdown <path> > .brain/input/paper.md` or using the helper script `python3 .open-scholar-peer/convert_pdf.py <path> .brain/input/paper.md` (or `python3 .open-scholar-peer\convert_pdf.py <path> .brain/input/paper.md` on Windows). Save the result to `.brain/input/paper.md`. Update `session.json.paper.parsed_path`.
+1. **`.brain/session/input/paper.md` exists and is readable** — ideal case, proceed.
+2. **`.brain/session/input/paper.md` is missing but a PDF/DOCX exists** — try to convert it now by running `uvx markitdown <path> > .brain/session/input/paper.md` or using the helper script `python3 .brain/runtime/convert_pdf.py <path> .brain/session/input/paper.md` (or `python3 .brain/runtime\convert_pdf.py <path> .brain/session/input/paper.md` on Windows). Save the result to `.brain/session/input/paper.md`. Update `session.json.paper.parsed_path`.
 3. **Conversion fails AND only a PDF/DOCX is present** — refuse to proceed. Print a clear error:
-   > Paper at `.brain/input/<file>` is in a binary format and conversion failed. Please:
+   > Paper at `.brain/session/input/<file>` is in a binary format and conversion failed. Please:
    >   (a) install markitdown: `pip install markitdown` or run with `uvx markitdown`, or
-   >   (b) convert the paper manually and place the markdown at `.brain/input/paper.md` or `.brain/input/paper.txt`.
-4. **Nothing in `.brain/input/`** — refuse and route to `/0-osp-onboarding`.
+   >   (b) convert the paper manually and place the markdown at `.brain/session/input/paper.md` or `.brain/session/input/paper.txt`.
+4. **Nothing in `.brain/session/input/`** — refuse and route to `/0-osp-onboarding`.
 
-Do NOT silently proceed with a PDF path on the assumption that the host tool will handle it. Even if it can, the conversion result becomes part of the audit trail and must be in `.brain/input/paper.md`.
+Do NOT silently proceed with a PDF path on the assumption that the host tool will handle it. Even if it can, the conversion result becomes part of the audit trail and must be in `.brain/session/input/paper.md`.
 
 ## Steps
 
 1. Run the hard input guard above.
-2. Read `.brain/session.json` and `.brain/input/paper.md` (the validated markdown produced or verified by the guard).
+2. Read `.brain/session/session.json` and `.brain/session/input/paper.md` (the validated markdown produced or verified by the guard).
 3. Activate the `osp-summary-agent` skill — it owns the extraction protocol (claims, method, evidence) and the output format.
-4. The skill writes `.brain/raw/01_structured_summary.md`.
-5. The skill writes `.brain/raw/01_structured_summary.md`.
-6. The skill updates `session.json`:
+4. The skill writes `.brain/session/raw/01_structured_summary.md`.
+5. The skill updates `session.json`:
    - `phases.summary.status = "completed"`
    - `phases.summary.completed_at = <now>`
    - `phases.summary.notes = "<N> claims, <M> evidence items, method identified"`
@@ -48,7 +47,7 @@ Do NOT silently proceed with a PDF path on the assumption that the host tool wil
 ```
 ── Internal Compression complete ────────────────────────
 Extracted <N> claims, <M> pieces of evidence, and the proposed method.
-↳ .brain/raw/01_structured_summary.md
+↳ .brain/session/raw/01_structured_summary.md
 Next: /2-osp-literature
 ─────────────────────────────────────────────────────────
 ```

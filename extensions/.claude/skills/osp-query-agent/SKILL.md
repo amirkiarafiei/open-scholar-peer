@@ -16,11 +16,11 @@ You operate **in the main thread**. The Answer Generator Agent runs as a **subag
 
 ## Inputs
 
-- `.brain/session.json` — especially `qa_criteria[]` and `qa_pairs_per_criterion`
-- `.brain/raw/00_review_guidelines.md`
-- `.brain/raw/01_structured_summary.md`
-- `.brain/raw/03_domain_narrative.md`
-- `.brain/raw/04_missing_baselines.md`
+- `.brain/session/session.json` — especially `qa_criteria[]` and `qa_pairs_per_criterion`
+- `.brain/session/raw/00_review_guidelines.md`
+- `.brain/session/raw/01_structured_summary.md`
+- `.brain/session/raw/03_domain_narrative.md`
+- `.brain/session/raw/04_missing_baselines.md`
 
 ## Loop structure
 
@@ -28,7 +28,7 @@ Read `N = session.json.qa_pairs_per_criterion` (default 2).
 
 For each criterion in `session.json.qa_criteria[]`:
 
-1. Open or initialize `.brain/raw/05_qa_<criterion_slug>.md` from the template at `defaults/qa_pair_template.md`.
+1. Open or initialize `.brain/session/raw/05_qa_<criterion_slug>.md` from the template at `defaults/qa_pair_template.md`.
 2. Generate **exactly N Q&A pairs** for this criterion.
 3. For each question:
    a. **Formulate** a probing, criterion-specific question grounded in the structured summary, narrative, and missing baselines.
@@ -59,7 +59,7 @@ Avoid generic questions. "Is this novel?" is bad. "Is the claim that this method
 On Claude Code / Cursor / Gemini CLI / GitHub Copilot CLI, spawn the Answer Generator Agent as a **subagent** for each question. Pass it:
 - The single question
 - A *minimal* context bundle: the relevant excerpts from `01_structured_summary.md` (claims/method/evidence), the criterion definition, plus relevant entries from `03_domain_narrative.md` and `04_missing_baselines.md`.
-- The available retrieval tools (the CLI shim `.open-scholar-peer/osp` or `.open-scholar-peer\osp.cmd` on Windows, and native Web Search) so the Answer Generator can verify novelty claims.
+- The available retrieval tools (the CLI shim `.brain/runtime/osp` or `.brain/runtime\osp.cmd` on Windows, and native Web Search) so the Answer Generator can verify novelty claims.
 
 The Answer Generator returns `(answer, citations, discrepancy_flag)`. Append it to the file. Discard the subagent context.
 
@@ -83,7 +83,7 @@ This is a **known weaker substitute** for true subagent isolation — see `KNOWN
 
 ## Output format
 
-`.brain/raw/05_qa_<slug>.md` follows `defaults/qa_pair_template.md` exactly:
+`.brain/session/raw/05_qa_<slug>.md` follows `defaults/qa_pair_template.md` exactly:
 - `# Q&A — <criterion label>`
 - `## Method` (mode used, pair count, context bundle, tools)
 - `## Output` containing `### Q1` … `### A<N>` (exactly N numbered pairs)

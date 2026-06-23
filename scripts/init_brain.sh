@@ -3,12 +3,12 @@
 # Called by all install_*.sh scripts.
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
-BRAIN_DIR="./.brain"
+BRAIN_DIR="./.brain/session"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE="$SCRIPT_DIR/../.brain-template/session.json"
 
 if [[ -d "$BRAIN_DIR" ]]; then
-  echo -e "  ${YELLOW}ℹ️  .brain/ already exists — skipping init (your data is safe)${NC}"
+  echo -e "  ${YELLOW}ℹ️  .brain/session/ already exists — skipping init (your data is safe)${NC}"
 else
   mkdir -p "$BRAIN_DIR/raw" "$BRAIN_DIR/review"
   TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -53,17 +53,17 @@ JSON
   fi
   # Ensure input/ subdir exists for paper drop-off
   mkdir -p "$BRAIN_DIR/input"
-  echo -e "  ${GREEN}✅ .brain/ initialized${NC}"
+  echo -e "  ${GREEN}✅ .brain/session/ initialized${NC}"
 fi
 
 # Add .brain/ to .gitignore
 GITIGNORE="./.gitignore"
 if [[ -f "$GITIGNORE" ]]; then
   if ! grep -qF ".brain/" "$GITIGNORE" 2>/dev/null; then
-    printf "\n# Open ScholarPeer working files (may contain confidential paper content)\n.brain/\n" >> "$GITIGNORE"
+    printf "\n# Open ScholarPeer working files & runtime (gitignored)\n.brain/\n" >> "$GITIGNORE"
     echo -e "  ${GREEN}✅ Added .brain/ to .gitignore${NC}"
   fi
 else
-  printf "# Open ScholarPeer working files (may contain confidential paper content)\n.brain/\n" > "$GITIGNORE"
+  printf "# Open ScholarPeer working files & runtime\n.brain/\n" > "$GITIGNORE"
   echo -e "  ${GREEN}✅ Created .gitignore with .brain/ entry${NC}"
 fi
