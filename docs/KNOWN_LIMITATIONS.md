@@ -16,19 +16,24 @@ These are limitations users should know about going in. None block normal operat
 
 ---
 
-## 2. Semantic Scholar anonymous rate limits are aggressive
+## 2. Semantic Scholar (and other providers) can timeout and stall a round
 
-**What:** The `osp search-semantic-scholar` and related CLI subcommands use the official Semantic Scholar API. Without an API key, anonymous limits apply (~100 requests / 5 min, frequently bursty 429s).
+**What:** The `osp search-semantic-scholar` and related CLI subcommands use the official Semantic Scholar API. Without an API key, anonymous limits apply (~100 requests / 5 min, frequently bursty 429s). Under load, the API can also hang silently for the full `OSP_CALL_TIMEOUT` duration (default: 180 s) before returning an error.
 
-**Impact:** During the 3-round literature retrieval (`/2-osp-literature`), an anonymous user may hit rate limits mid-round, causing partial corpora.
+**Impact:** During the 3-round literature retrieval (`/2-osp-literature`), one slow provider can add up to 180 s of dead wait time per query. This is why agents **must** call providers individually (`search-arxiv`, `search-semantic-scholar`, `search-google-scholar`) rather than using `search-all` — individual calls let the agent report partial results and move on immediately after a timeout, instead of being blocked.
 
-**Workaround:** Get a free API key at https://www.semanticscholar.org/product/api#api-key and add it to your `.env` file at the project root:
+**Workaround (recommended):**
+1. Get a free Semantic Scholar API key at https://www.semanticscholar.org/product/api#api-key and add it to `.env`:
+   ```env
+   SEMANTIC_SCHOLAR_API_KEY=sk-...
+   ```
+2. Cap the per-provider timeout to something reasonable for your connection:
+   ```env
+   OSP_CALL_TIMEOUT=30   # 30 s max wait per provider instead of 180 s
+   ```
+   With `OSP_CALL_TIMEOUT=30`, a timing-out provider costs at most 30 s, not 180 s. arXiv and Google Scholar are typically unaffected (they respond in seconds).
 
-```env
-SEMANTIC_SCHOLAR_API_KEY=sk-...
-```
-
-The CLI shim loads the env var on every execution.
+The CLI shim loads both env vars on every execution. The progress report printed after each provider call always shows which sources succeeded and which timed out.
 
 ---
 

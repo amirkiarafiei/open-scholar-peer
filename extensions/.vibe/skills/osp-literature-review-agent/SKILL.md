@@ -19,9 +19,9 @@ Tell the user which round is about to run, what its goal is, and what tools will
 ── Literature Review — Round N/3 ────────────────────────
 Strategy: <sub-domain anchor | method anchor | temporal expansion>
 Goal:     <one sentence — what this round is trying to find>
-Tools:    arxiv  +  semantic_scholar  +  google_scholar  +  web search (if available)
+Tools:    arxiv → semantic_scholar → google_scholar (sequential, one at a time)
 Writes:   .brain/session/raw/02N_literature_round<N>.md
-Effort:   ~8-12 tool calls, ~1-3 min
+Effort:   ~8-12 tool calls, ~1-3 min (timeout per provider: OSP_CALL_TIMEOUT, default 180s)
 ─────────────────────────────────────────────────────────
 ```
 
@@ -46,15 +46,53 @@ After all three rounds, write `02_retrieved_literature.md` consolidating retaine
 
 ## Tools
 
-In **every round** you MUST run search queries using the following tools:
+In **every round** you MUST search each database **separately, in sequence**, using individual provider subcommands. **Never use `search-all`.**
 
-- `.brain/runtime/osp search-all "<query>" --limit 5` (on Windows, use `.brain/runtime\osp.cmd`) — this CLI tool queries arXiv, Semantic Scholar, and Google Scholar sequentially, deduplicates papers, and truncates abstracts.
-- Native `Web Search` (when your host tool provides one) — non-academic mentions, news, blog summaries.
+> **Why sequential, not `search-all`?** Each provider has a different API backend and a different latency profile. arXiv typically responds in seconds; Semantic Scholar (anonymous tier) can block for the full `OSP_CALL_TIMEOUT`; Google Scholar is HTML-scraping with strict IP limits. If you use `search-all`, one slow provider holds the entire round hostage. Running them one at a time lets you report partial results immediately and move on if one hangs.
 
-**Sequential Execution:** Do NOT run multiple concurrent database/CLI calls or parallel tool invocations, as this will trigger Google Scholar IP blocks. The CLI tool has a built-in 2s delay for Google Scholar and maintains rate-limiting cache locks to protect your IP. Always run `.brain/runtime/osp` first, then run your native Web Search. Do not run them concurrently.
+### Mandatory per-provider call order
 
+For each query in a round, execute these three calls **in order**, waiting for each to complete or fail before starting the next:
 
-Relying on only one source biases the corpus. A paper that ranks low in one index may be the top result in another.
+1. `.brain/runtime/osp search-arxiv "<query>" --limit 5`
+2. `.brain/runtime/osp search-semantic-scholar "<query>" --limit 5`
+3. `.brain/runtime/osp search-google-scholar "<query>" --limit 5`
+
+On Windows use `.brain/runtime\osp.cmd` in place of `.brain/runtime/osp`.
+
+### After each provider call — mandatory source status report
+
+After each of the three provider calls completes (success or failure), **immediately print a one-line status update** so the user sees live progress:
+
+```
+  ✅ arxiv         → 5 results  (query: "<query>")
+  ⚠️  semantic_scholar → TIMEOUT after 180s — moving on
+  ✅ google_scholar → 3 results  (query: "<query>")
+```
+
+Use ✅ for success with ≥1 result, ⚠️ for timeout or rate-limit, ❌ for hard error (import fail, auth error). Never silently discard a provider failure.
+
+### After each full round — mandatory sources summary
+
+Before writing the round file, print a consolidated sources block:
+
+```
+── Round N sources ──────────────────────────────────────
+arxiv             ✅  <N> papers
+semantic_scholar  ⚠️  timed out (180s) — 0 papers
+google_scholar    ✅  <N> papers
+web search        ✅  (native tool)
+Total unique:     <N> (after deduplication)
+─────────────────────────────────────────────────────────
+```
+
+This block is mandatory even if all providers succeed — it gives the user visibility into which sources contributed to this round.
+
+### Native web search
+
+After all three CLI provider calls complete, run your host tool's native `Web Search` (if available) for non-academic coverage (news, blog summaries, workshop reports). This is the fourth source and runs after the CLI trilogy.
+
+**Do NOT run any calls concurrently.** Sequential only — parallel calls trigger Google Scholar IP blocks.
 
 ## File templates
 
@@ -99,7 +137,10 @@ After all four files exist:
 
 ## Pitfalls
 
+- Do **not** use `search-all` — it bundles all three providers into one call, meaning one slow or rate-limited provider stalls the entire round. Always call each provider separately.
+- Do **not** run provider calls concurrently — parallel calls trigger Google Scholar IP blocks.
 - Do **not** synthesize a narrative — that's the Historian's job. Just retrieve and tabulate.
 - Do **not** skip a round because you "already covered it" — the strategy differentiation is the point.
 - Do **not** discard pre-prints just because they're unpublished — round 3's whole purpose is catching them.
-- Do **not** silently fail a tool — if `.brain/runtime/osp` is unreachable or fails, check the error payload for the "guidance" block, report it, and list it in Provenance under "Tools unavailable" so the user knows.
+- Do **not** silently fail a tool — if a provider times out or errors, print the ⚠️/❌ status update, record it in the round's Provenance under "Tools unavailable", and move on to the next provider. Never wait indefinitely.
+- Do **not** omit the per-provider status updates or the round sources summary — the user must always be able to see which sources contributed and which ones failed.

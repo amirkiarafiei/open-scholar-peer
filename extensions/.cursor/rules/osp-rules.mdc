@@ -33,7 +33,25 @@ These rules apply automatically in any project where Open ScholarPeer is install
    - **Step 3b** *(PDF conversion fallback)*: If `uv` fails or is not found, run `.brain/runtime/venv/bin/python .brain/runtime/convert_pdf.py <input_path> <output_path>` using the installer-provided virtualenv.
    - **Step 4**: If none of the above succeed, do not guess or skip. Surface the exact traceback or error to the user, explain what's missing, and ask how to proceed.
 
-## Persona discipline
+## Literature search protocol
+
+These rules apply whenever any agent performs literature retrieval (typically `/2-osp-literature` and `/4-osp-baseline-scout`).
+
+1. **Never use `search-all`.** Always call each provider subcommand separately, in sequence:
+   `search-arxiv` → `search-semantic-scholar` → `search-google-scholar`.
+   Reason: providers have different latency profiles. `search-all` lets one slow provider (e.g. Semantic Scholar on the anonymous tier timing out at 180 s) block the entire search. Separate calls allow partial results and immediate progress feedback.
+
+2. **After each provider call, print a one-line status update** immediately:
+   - ✅ `<provider>` → `<N>` results
+   - ⚠️ `<provider>` → TIMEOUT / rate-limited — moving on
+   - ❌ `<provider>` → ERROR `<short reason>`
+
+3. **After completing all provider calls in a round, print a consolidated sources block** before writing the round file. The user must always know which databases were searched, which returned results, and which failed.
+
+4. **Do not run any calls concurrently.** Sequential only — parallel calls trigger Google Scholar IP blocks.
+
+5. **Record all provider failures in the artifact's Provenance section** under "Tools unavailable" so the user understands the completeness of the corpus.
+
 
 - Each numbered command (`/N-osp-*`) activates exactly one persona skill (`osp-<name>-agent`). Do not blend personas.
 - The Q&A engine (`/5-osp-qa`) uses two personas at once: Query Agent (main thread) and Answer Generator (subagent, or self-reflection on tools that lack subagents).

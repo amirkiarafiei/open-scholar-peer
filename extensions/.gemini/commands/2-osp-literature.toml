@@ -18,7 +18,7 @@ Invoke the `osp-literature-review-agent` skill.
 
 ## Resource notice
 
-⚠️ Each invocation makes ~8-12 API calls across 3 databases (arXiv, Semantic Scholar, Google Scholar). Expect 1-3 minutes per round.
+⚠️ Each invocation makes ~8-12 API calls across 3 databases (arXiv, Semantic Scholar, Google Scholar), called **one at a time**. Wall-clock time per round depends on provider latency — a slow or rate-limited provider can add up to `OSP_CALL_TIMEOUT` seconds (default 180s). To cap wait time, set `OSP_CALL_TIMEOUT=30` in your `.env`.
 
 ## Round definitions
 
@@ -39,8 +39,7 @@ Invoke the `osp-literature-review-agent` skill.
 
 3. Run the **next pending round only**:
    - Activate the `osp-literature-review-agent` skill for that round.
-   - The skill searches using **all available retrieval tools** (`search_arxiv`, `search_semantic_scholar`,
-     `search_google_scholar`, native Web Search) with **different query formulations**.
+   - The skill searches each provider **separately, in order**: `search-arxiv` → `search-semantic-scholar` → `search-google-scholar`, then native web search. **Never use `search-all`** — individual calls allow partial results and early progress reporting if one provider hangs.
    - Write the round file (`02a`, `02b`, or `02c`) using the template at `defaults/round_strategy_template.md`.
 
 4. Update `session.json`:
@@ -52,12 +51,19 @@ Invoke the `osp-literature-review-agent` skill.
 
 5. Print a progress banner and brief findings summary:
    ```
-   ── Literature Review ────────────────────────────────────
+   ── Literature Review ────────────────────────────────
    Round N/3 complete  (anchor: <anchor-name>)
    Papers retained this round: <n>
    Top finds: <2-3 bullet highlights>
+
+   Sources this round:
+     arxiv             ✅  <n> papers
+     semantic_scholar  ✅/⚠️  <n> papers (or: timed out)
+     google_scholar    ✅/⚠️  <n> papers (or: rate-limited)
+     web search        ✅/—  (native tool or unavailable)
+
     ↳ .brain/session/raw/02N_literature_round<N>.md
-   ─────────────────────────────────────────────────────────
+   ──────────────────────────────────────────────
    ```
    - If `rounds_completed < 3`: "Run `/2-osp-literature` again to continue to round N+1."
    - If `rounds_completed == 3`: "Next: /3-osp-historian"
