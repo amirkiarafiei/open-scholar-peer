@@ -233,11 +233,11 @@ def execute_google_scholar_search(query: str, limit: int, yr_from: int = None, y
     # Intentional sequential sleep to prevent IP Blocks (Fix 6)
     time.sleep(2)
     try:
+        yr_range = (yr_from, yr_to) if (yr_from or yr_to) else None
         raw_results = call_with_timeout(
             google_scholar.search_advanced, 
             query, 
-            year_start=yr_from, 
-            year_end=yr_to, 
+            year_range=yr_range, 
             num_results=limit
         )
         
@@ -246,7 +246,7 @@ def execute_google_scholar_search(query: str, limit: int, yr_from: int = None, y
             
         return [{
             "title": r["title"],
-            "authors": [r["authors"]],
+            "authors": r["authors"],
             "abstract": r["abstract"],
             "year": None,
             "url": r["url"],
@@ -546,7 +546,7 @@ def main():
                     raise Exception(raw_res[0]["error"])
                 res = [{
                     "title": r["title"],
-                    "authors": [r["authors"]],
+                    "authors": r["authors"],
                     "abstract": truncate_text(r["abstract"], args.abstract_length),
                     "year": None,
                     "url": r["url"],
@@ -577,7 +577,9 @@ def main():
             sys.exit(EXIT_OK)
 
     except OSPCLIError as e:
-        print(e.to_json(), file=sys.stderr)
+        payload = e.to_json()
+        print(payload, file=sys.stderr)
+        print(payload)
         sys.exit(e.exit_code)
     except Exception as e:
         err = OSPCLIError(
@@ -586,7 +588,9 @@ def main():
             exit_code=EXIT_GENERAL_ERROR, 
             guidance="An unexpected system failure occurred."
         )
-        print(err.to_json(), file=sys.stderr)
+        payload = err.to_json()
+        print(payload, file=sys.stderr)
+        print(payload)
         sys.exit(EXIT_GENERAL_ERROR)
 
 if __name__ == "__main__":
