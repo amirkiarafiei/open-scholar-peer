@@ -8,6 +8,7 @@ reviewer-os/
 # Per-project runtime artifacts (created by installers in *user* projects, never in this dev repo)
 .brain/
 .scholar-peer/
+.open-scholar-peer/
 
 # Python
 __pycache__/

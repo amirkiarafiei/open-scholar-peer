@@ -5,7 +5,9 @@ description: Always-on rules for Open ScholarPeer review sessions
 
 # Open ScholarPeer — Always-On Rules
 
-These rules apply automatically in any project where Open ScholarPeer is installed.## Brain protocol (apply on every invocation)
+These rules apply automatically in any project where Open ScholarPeer is installed.
+
+## Brain protocol (apply on every invocation)
 
 1. **Read `.brain/session/session.json` first** to understand current state.
 2. **Load only the artifacts in the active step's `reads:` contract** (see `docs/ARTIFACT_CONTRACTS.md`). Do not load the full `.brain/` directory.
@@ -26,8 +28,10 @@ These rules apply automatically in any project where Open ScholarPeer is install
 2. **Dependency Resolution & Fallback Order**:
    When running literature searches, PDF conversions, or external lookups, verify the files exist and execute using this order of preference:
    - **Step 1**: Run `.brain/runtime/osp <subcommand>` (or `osp.cmd` on Windows) — the shim handles Python path and dependencies automatically.
-   - **Step 2**: If the shim fails, run `uv run --script .brain/runtime/osp_cli.py <subcommand>` (or `convert_pdf.py` for conversion) if `uv` is available on the user's PATH.
-   - **Step 3**: If `uv` fails or is not found, run `.brain/runtime/venv/bin/python .brain/runtime/osp_cli.py <subcommand>` (or `convert_pdf.py` using `venv/bin/python`) using the installer-provided virtualenv.
+   - **Step 2a** *(search CLI fallback)*: If the shim fails and `uv` is available, run `uv run --script .brain/runtime/osp_cli.py <subcommand>`.
+   - **Step 2b** *(PDF conversion fallback)*: If the shim fails and `uv` is available, run `uv run --script .brain/runtime/convert_pdf.py <input_path> <output_path>`.
+   - **Step 3a** *(search CLI fallback)*: If `uv` fails or is not found, run `.brain/runtime/venv/bin/python .brain/runtime/osp_cli.py <subcommand>` using the installer-provided virtualenv.
+   - **Step 3b** *(PDF conversion fallback)*: If `uv` fails or is not found, run `.brain/runtime/venv/bin/python .brain/runtime/convert_pdf.py <input_path> <output_path>` using the installer-provided virtualenv.
    - **Step 4**: If none of the above succeed, do not guess or skip. Surface the exact traceback or error to the user, explain what's missing, and ask how to proceed.
 
 ## Persona discipline
