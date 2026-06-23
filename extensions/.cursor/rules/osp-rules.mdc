@@ -13,12 +13,24 @@ These rules apply automatically in any project where Open ScholarPeer is install
 3. **After completing a step, update `session.json`:** set the matching `phases.<name>` block to `completed`, set `completed_at`, and update `resume_from`.
 4. **Re-runs overwrite with a warning.** If a step is already `completed`, print one warning, then proceed.
 
-## CLI Shim Verification Protocol
+## CLI Tooling Environment & Fallback Map
 
-1. **Verify the CLI shim exists** (`.open-scholar-peer/osp` on Unix, `.open-scholar-peer\osp.cmd` on Windows) before starting any phase that runs literature searches, PDF conversions, or external lookups.
-2. **If missing**, do NOT hallucinate tool results or skip search. Print a warning asking the user to run setup:
-   > "The Open ScholarPeer CLI shim was not found at `.open-scholar-peer/osp`. Please run `bash install.sh` from your project root first."
-   Then exit execution.
+1. **Verify CLI Shim & Environment Map**:
+   Ensure `.open-scholar-peer/` exists in the project root. The installer sets up:
+   - `.open-scholar-peer/osp` — Unix shim script; wraps `osp_cli.py` execution via `uv` or `venv`.
+   - `.open-scholar-peer/osp.cmd` — Windows shim script wrapper.
+   - `.open-scholar-peer/osp_cli.py` — Main Python search CLI; requires: `arxiv`, `semanticscholar`, `scholarly`, `requests`, `beautifulsoup4`, `python-dotenv`, `python-dateutil`.
+   - `.open-scholar-peer/convert_pdf.py` — PDF converter tool; requires: `markitdown`.
+   - `.open-scholar-peer/venv/` — Pre-built virtualenv (exists if `uv` was absent at install time).
+   - `.open-scholar-peer/requirements.txt` — Full dependency list.
+
+2. **Dependency Resolution & Fallback Order**:
+   When running literature searches, PDF conversions, or external lookups, verify the files exist and execute using this order of preference:
+   - **Step 1**: Run `.open-scholar-peer/osp <subcommand>` (or `osp.cmd` on Windows) — the shim handles Python path and dependencies automatically.
+   - **Step 2**: If the shim fails, run `uv run --script .open-scholar-peer/osp_cli.py <subcommand>` (or `convert_pdf.py` for conversion) if `uv` is available on the user's PATH.
+   - **Step 3**: If `uv` fails or is not found, run `.open-scholar-peer/venv/bin/python .open-scholar-peer/osp_cli.py <subcommand>` (or `convert_pdf.py` using `venv/bin/python`) using the installer-provided virtualenv.
+   - **Step 4**: If none of the above succeed, do not guess or skip. Surface the exact traceback or error to the user, explain what's missing, and ask how to proceed.
+
 
 ## Persona discipline
 

@@ -40,6 +40,25 @@ Invoke the `osp-orchestrator` skill.
 
 4. **Do NOT advance automatically.** Phase boundaries are intentional — they let the user inspect each artifact before continuing.
 
+## Environment Map & Fallbacks
+
+Provide executing agents with this map of the runtime environment so they understand how CLI tools are wired and how to resolve failures:
+
+### Environment (set up by the installer)
+- `.open-scholar-peer/`
+  - `osp`           — Unix shim script; calls `osp_cli.py` via `uv` (if available) or `venv`
+  - `osp.cmd`       — Windows execution shim
+  - `osp_cli.py`    — main CLI; needs: `arxiv`, `semanticscholar`, `requests`, `beautifulsoup4`, `python-dotenv`, `python-dateutil`
+  - `convert_pdf.py` — PDF converter; needs: `markitdown`
+  - `venv/`         — pre-built virtualenv (present if `uv` was not available at install time)
+  - `requirements.txt` — dependency list
+
+### Dependency resolution order (try in this order)
+1. `.open-scholar-peer/osp <subcommand>`   ← shim handles everything automatically
+2. `uv run --script .open-scholar-peer/osp_cli.py`   ← if `uv` is on PATH
+3. `.open-scholar-peer/venv/bin/python .open-scholar-peer/osp_cli.py`   ← if `venv` exists
+4. If none work, tell the user what's missing and ask how to proceed.
+
 ## Output
 
 This command produces no artifact and does not modify `session.json`. It is purely informational.

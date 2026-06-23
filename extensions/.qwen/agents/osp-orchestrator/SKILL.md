@@ -48,6 +48,25 @@ Open ScholarPeer — review status
 
 Then wait for the user to invoke the next command. Do NOT proactively run it for them — phase boundaries are intentional.
 
+## Environment Map & Fallbacks
+
+Provide executing agents with this map of the runtime environment so they understand how CLI tools are wired and how to resolve failures:
+
+### Environment (set up by the installer)
+- `.open-scholar-peer/`
+  - `osp`           — Unix shim script; calls `osp_cli.py` via `uv` (if available) or `venv`
+  - `osp.cmd`       — Windows execution shim
+  - `osp_cli.py`    — main CLI; needs: `arxiv`, `semanticscholar`, `requests`, `beautifulsoup4`, `python-dotenv`, `python-dateutil`
+  - `convert_pdf.py` — PDF converter; needs: `markitdown`
+  - `venv/`         — pre-built virtualenv (present if `uv` was not available at install time)
+  - `requirements.txt` — dependency list
+
+### Dependency resolution order (try in this order)
+1. `.open-scholar-peer/osp <subcommand>`   ← shim handles everything automatically
+2. `uv run --script .open-scholar-peer/osp_cli.py`   ← if `uv` is on PATH
+3. `.open-scholar-peer/venv/bin/python .open-scholar-peer/osp_cli.py`   ← if `venv` exists
+4. If none work, tell the user what's missing and ask how to proceed.
+
 ## Persona-switching discipline
 
 When the user invokes `/N-osp-<step>`, you defer entirely to the corresponding `osp-<step>-agent` skill. Do not attempt to merge personas or shortcut steps. The paper's contribution depends on each persona operating with its own focused system prompt and bounded context.
