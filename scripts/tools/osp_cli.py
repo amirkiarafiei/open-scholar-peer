@@ -49,7 +49,7 @@ log = logging.getLogger("osp_cli")
 
 from providers import arxiv, semantic_scholar, google_scholar
 
-_TIMEOUT = int(os.environ.get("OSP_CALL_TIMEOUT", "120"))
+_TIMEOUT = int(os.environ.get("OSP_CALL_TIMEOUT", "180"))
 SEMANTIC_SCHOLAR_KEY = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
 RL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".rl")
 
