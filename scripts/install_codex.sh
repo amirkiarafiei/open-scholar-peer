@@ -4,7 +4,7 @@
 set -e
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPTS_DIR/.." && pwd)"
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+GREEN='[0;32m'; YELLOW='[1;33m'; CYAN='[0;36m'; NC='[0m'
 
 echo -e "\n${CYAN}Open ScholarPeer → Codex CLI${NC}\n"
 
@@ -19,7 +19,6 @@ SRC="$ROOT_DIR/extensions/.codex"
 DEST="./.codex"
 mkdir -p "$DEST"
 bash "$SCRIPTS_DIR/clean_adapter.sh" "$DEST" "codex"
-# Copy everything except AGENTS.md (it goes to project root, merged separately)
 find "$SRC" -mindepth 1 -maxdepth 1 -not -name 'AGENTS.md' -exec cp -r {} "$DEST/" \;
 echo -e "  ${GREEN}✅ Adapter copied → ./.codex/${NC}"
 
@@ -32,31 +31,10 @@ fi
 # 3. Brain
 "$SCRIPTS_DIR/init_brain.sh"
 
-# 4. MCP server runtime
-. "$SCRIPTS_DIR/init_mcp.sh"
-
-# 5. Codex MCP snippet for ~/.codex/config.toml (Codex uses TOML; cannot safely
-#    auto-merge user TOML files — emit a snippet for the user to paste.)
-SNIPPET_PATH="./.open-scholar-peer/codex_mcp_snippet.toml"
-cat > "$SNIPPET_PATH" << TOML
-[mcp_servers.osp]
-command = "$OSP_MCP_PYTHON"
-args = ["$OSP_MCP_SERVER"]
-
-[mcp_servers.markitdown]
-command = "uvx"
-args = ["markitdown-mcp"]
-TOML
-
-echo -e "\n  ${YELLOW}⚠️  Codex uses TOML — add the OSP MCP server with one of:${NC}"
-echo ""
-echo "     (a) Codex CLI (recommended):"
-echo "         codex mcp add osp -- $OSP_MCP_PYTHON $OSP_MCP_SERVER"
-echo ""
-echo "     (b) Or paste the snippet manually into ~/.codex/config.toml:"
-echo "         $SNIPPET_PATH"
+# 4. Set up self-contained CLI scripts in .open-scholar-peer/
+. "$SCRIPTS_DIR/init_scripts.sh"
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"
-echo    "  (1) Wire the MCP server (codex mcp add osp ... or paste snippet)"
-echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."
+echo -e "  (1) Run ${CYAN}/open-scholar-peer${NC} in Codex CLI"
+echo    "      The orchestrator reads your session state and guides you from there."

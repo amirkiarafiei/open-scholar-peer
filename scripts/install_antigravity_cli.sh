@@ -4,7 +4,7 @@
 set -e
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPTS_DIR/.." && pwd)"
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+GREEN='[0;32m'; YELLOW='[1;33m'; CYAN='[0;36m'; NC='[0m'
 
 echo -e "\n${CYAN}Open ScholarPeer → Antigravity CLI${NC}\n"
 
@@ -19,7 +19,6 @@ SRC="$ROOT_DIR/extensions/.agents"
 DEST="./.agents"
 mkdir -p "$DEST"
 bash "$SCRIPTS_DIR/clean_adapter.sh" "$DEST" "antigravity-cli"
-# Copy everything except AGENTS.md (it goes to project root, merged separately)
 find "$SRC" -mindepth 1 -maxdepth 1 -not -name 'AGENTS.md' -exec cp -r {} "$DEST/" \;
 echo -e "  ${GREEN}✅ Adapter copied → ./.agents/${NC}"
 
@@ -32,17 +31,8 @@ fi
 # 3. Brain
 "$SCRIPTS_DIR/init_brain.sh"
 
-# 4. MCP server runtime
-. "$SCRIPTS_DIR/init_mcp.sh"
-
-# 5. Antigravity CLI MCP config — merge into global config and local .agents/
-CLI_MCP_CONFIG_GLOBAL="${HOME}/.gemini/antigravity-cli/mcp_config.json"
-CLI_MCP_CONFIG_LOCAL="./.agents/mcp_config.json"
-
-mkdir -p "$(dirname "$CLI_MCP_CONFIG_GLOBAL")"
-
-python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$CLI_MCP_CONFIG_GLOBAL" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
-python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$CLI_MCP_CONFIG_LOCAL" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
+# 4. Set up self-contained CLI scripts in .open-scholar-peer/
+. "$SCRIPTS_DIR/init_scripts.sh"
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"

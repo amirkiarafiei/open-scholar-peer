@@ -47,7 +47,7 @@ The literature step writes **three separate files** to make the 3-round expansio
 | `02b_literature_round2.md` | `method-anchor` | Search using the proposed method's name and technical terms. Goal: find prior work using similar techniques. |
 | `02c_literature_round3.md` | `temporal-expansion` | Search filtered to last 12 months + concurrent work + arXiv pre-prints + workshop papers. Goal: catch what static knowledge cutoffs miss. |
 
-Each round must use **all available retrieval tools** (osp-mcp arxiv/semantic_scholar/google_scholar + native Web Search) with **different query formulations** per round. Queries used are listed in each round's `## Provenance`.
+Each round must use **all available retrieval tools** (via `.open-scholar-peer/osp` CLI + native Web Search) with **different query formulations** per round. Queries used are listed in each round's `## Provenance`.
 
 After all three rounds, the agent writes `02_retrieved_literature.md` consolidating retained papers (deduplicated), with one entry per paper: title, authors, year, venue, abstract, source(s) it appeared in.
 

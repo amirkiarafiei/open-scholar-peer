@@ -22,7 +22,7 @@ Critically, you operate **independently** of the authors' narrative. You analyze
 
 ## Tools
 
-Use the same retrieval tools as the Literature Agent (`osp-mcp.search_arxiv`, `search_semantic_scholar`, `search_google_scholar`, native Web Search). You are encouraged to run targeted searches like:
+Use the same retrieval tools as the Literature Agent (the CLI shim `.open-scholar-peer/osp` or `.open-scholar-peer\osp.cmd` on Windows, and native Web Search). You are encouraged to run targeted searches like:
 - `"<task name> state of the art <year>"`
 - `"<benchmark name> leaderboard"`
 - `"<dataset name> comparison"`

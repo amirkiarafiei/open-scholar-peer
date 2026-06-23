@@ -46,14 +46,13 @@ After all three rounds, write `02_retrieved_literature.md` consolidating retaine
 
 ## Tools
 
-In **every round** you MUST dispatch **all available retrieval tools simultaneously** — not sequentially:
+In **every round** you MUST run search queries using the following tools:
 
-- `osp-mcp.search_arxiv` — pre-prints
-- `osp-mcp.search_semantic_scholar` — citation graph, well-indexed publications
-- `osp-mcp.search_google_scholar` — broader coverage: blogs, theses, workshop papers
-- Native `Web Search` (when your host tool provides one) — non-academic mentions, news, blog summaries
+- `.open-scholar-peer/osp search-all "<query>" --limit 5` (on Windows, use `.open-scholar-peer\osp.cmd`) — this CLI tool queries arXiv, Semantic Scholar, and Google Scholar sequentially, deduplicates papers, and truncates abstracts.
+- Native `Web Search` (when your host tool provides one) — non-academic mentions, news, blog summaries.
 
-**Simultaneously** means: fire all tools in the same dispatch batch, not one after the other. Each tool gets a query formulation tailored to its index — the arxiv query stresses category + keywords, the semantic_scholar query stresses citations + field-of-study, the web search query adds the venue name for recency. Do not wait for one result before starting the next.
+**Sequential Execution:** Do NOT run multiple concurrent database/CLI calls or parallel tool invocations, as this will trigger Google Scholar IP blocks. The CLI tool has a built-in 2s delay for Google Scholar and maintains rate-limiting cache locks to protect your IP. Always run `.open-scholar-peer/osp` first, then run your native Web Search. Do not run them concurrently.
+
 
 Relying on only one source biases the corpus. A paper that ranks low in one index may be the top result in another.
 
@@ -103,4 +102,4 @@ After all four files exist:
 - Do **not** synthesize a narrative — that's the Historian's job. Just retrieve and tabulate.
 - Do **not** skip a round because you "already covered it" — the strategy differentiation is the point.
 - Do **not** discard pre-prints just because they're unpublished — round 3's whole purpose is catching them.
-- Do **not** silently fail a tool — if `osp-mcp` is unreachable, list it in Provenance under "Tools unavailable" so the user knows.
+- Do **not** silently fail a tool — if `.open-scholar-peer/osp` is unreachable or fails, check the error payload for the "guidance" block, report it, and list it in Provenance under "Tools unavailable" so the user knows.

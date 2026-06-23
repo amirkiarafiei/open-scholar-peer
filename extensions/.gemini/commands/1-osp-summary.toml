@@ -21,12 +21,11 @@ The Summary Agent depends on having a readable text representation of the paper.
 Before activating the skill, verify in this order:
 
 1. **`.brain/input/paper.md` exists and is readable** — ideal case, proceed.
-2. **`.brain/input/paper.md` is missing but a PDF/DOCX exists** — try to convert it now using the `markitdown` MCP tool (`markitdown.convert`). Save the result to `.brain/input/paper.md`. Update `session.json.paper.parsed_path`.
-3. **`markitdown` MCP is unavailable AND only a PDF/DOCX is present** — refuse to proceed. Print a clear error:
-   > Paper at `.brain/input/<file>` is in a binary format and `markitdown` MCP is not available. Either:
-   >   (a) install markitdown: `uvx markitdown-mcp` (verify with `uvx --version`), or
-   >   (b) convert the paper manually and place the markdown at `.brain/input/paper.md`, or
-   >   (c) confirm your host tool can read this format natively (e.g. Claude Code reads PDFs) and re-run with `--force-binary` if exposed by the workflow.
+2. **`.brain/input/paper.md` is missing but a PDF/DOCX exists** — try to convert it now by running `uvx markitdown <path> > .brain/input/paper.md` or using the helper script `python3 .open-scholar-peer/convert_pdf.py <path> .brain/input/paper.md` (or `python3 .open-scholar-peer\convert_pdf.py <path> .brain/input/paper.md` on Windows). Save the result to `.brain/input/paper.md`. Update `session.json.paper.parsed_path`.
+3. **Conversion fails AND only a PDF/DOCX is present** — refuse to proceed. Print a clear error:
+   > Paper at `.brain/input/<file>` is in a binary format and conversion failed. Please:
+   >   (a) install markitdown: `pip install markitdown` or run with `uvx markitdown`, or
+   >   (b) convert the paper manually and place the markdown at `.brain/input/paper.md` or `.brain/input/paper.txt`.
 4. **Nothing in `.brain/input/`** — refuse and route to `/0-osp-onboarding`.
 
 Do NOT silently proceed with a PDF path on the assumption that the host tool will handle it. Even if it can, the conversion result becomes part of the audit trail and must be in `.brain/input/paper.md`.

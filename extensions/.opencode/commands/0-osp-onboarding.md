@@ -25,8 +25,8 @@ Invoke the `osp-orchestrator` skill (no domain persona needed for this step).
 - If empty, ask the user where the paper is. Help them collaboratively — accept any path, then copy the file into `.brain/input/`.
 - **Always produce `.brain/input/paper.md`** (the canonical readable form):
   - If the original is `.md`, ensure it's named `paper.md` (rename if necessary).
-  - If the original is `.pdf` / `.docx` / `.tex`, attempt conversion with the `markitdown` MCP tool (`markitdown.convert`). Save output to `.brain/input/paper.md`.
-  - If `markitdown` is unavailable, **do not silently advance**. Tell the user explicitly that downstream phases require `paper.md` and offer two options: (a) install markitdown (`uvx markitdown-mcp`), or (b) provide a manual markdown conversion. Pause until one is in place.
+  - If the original is `.pdf` / `.docx` / `.tex`, attempt conversion using `uvx markitdown <path> > .brain/input/paper.md` or by running our helper script `python3 .open-scholar-peer/convert_pdf.py <path> .brain/input/paper.md` (or `python3 .open-scholar-peer\convert_pdf.py <path> .brain/input/paper.md` on Windows).
+  - If both methods fail, tell the user explicitly that downstream phases require `.brain/input/paper.md` and offer to let them provide a manual markdown conversion. Pause until it is in place.
 - Save `paper.path` (original) and `paper.parsed_path` (the canonical `.brain/input/paper.md`) into `session.json`.
 
 ### 3. Identify the venue

@@ -4,7 +4,7 @@
 set -e
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPTS_DIR/.." && pwd)"
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+GREEN='[0;32m'; YELLOW='[1;33m'; CYAN='[0;36m'; NC='[0m'
 
 echo -e "\n${CYAN}Open ScholarPeer → Mistral Vibe${NC}\n"
 
@@ -33,38 +33,14 @@ fi
 # 3. Brain
 "$SCRIPTS_DIR/init_brain.sh"
 
-# 4. MCP server runtime
-. "$SCRIPTS_DIR/init_mcp.sh"
-
-# 5. Vibe MCP snippet — TOML, can't auto-merge user TOML safely. Vibe reads
-#    ./.vibe/config.toml (project-local) AND ~/.vibe/config.toml (global).
-#    Per https://docs.mistral.ai/mistral-vibe/terminal/configuration#mcp-server-configuration
-SNIPPET_PATH="./.open-scholar-peer/vibe_mcp_snippet.toml"
-cat > "$SNIPPET_PATH" << TOML
-[[mcp_servers]]
-name = "osp"
-command = "$OSP_MCP_PYTHON"
-args = ["$OSP_MCP_SERVER"]
-
-[[mcp_servers]]
-name = "markitdown"
-command = "uvx"
-args = ["markitdown-mcp"]
-TOML
-
-echo -e "\n  ${YELLOW}⚠️  Vibe uses TOML config (we cannot safely auto-merge). Append the${NC}"
-echo "     entries below to either of:"
-echo "         ./.vibe/config.toml      (project-local)"
-echo "         ~/.vibe/config.toml      (global)"
-echo ""
-echo "     A ready-to-paste snippet has been saved to:"
-echo "         $SNIPPET_PATH"
+# 4. Set up self-contained CLI scripts in .open-scholar-peer/
+. "$SCRIPTS_DIR/init_scripts.sh"
 
 echo -e "\n  ${YELLOW}ℹ️  Vibe documents independent agent profiles but no general subagent${NC}"
 echo "     delegation — /5-osp-qa falls back to self-reflection mode (see"
+# Wait, typo in the line below was in the original snippet, let's keep it or fix it: docs/KNOWN_LIMITATIONS.md
 echo "     docs/KNOWN_LIMITATIONS.md)."
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"
-echo    "  (1) Paste the MCP snippet into your Vibe config.toml"
-echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."
+echo -e "  (1) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."

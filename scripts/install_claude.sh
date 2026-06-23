@@ -4,11 +4,11 @@
 set -e
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPTS_DIR/.." && pwd)"
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+GREEN='[0;32m'; YELLOW='[1;33m'; CYAN='[0;36m'; NC='[0m'
 
 echo -e "\n${CYAN}Open ScholarPeer → Claude Code${NC}\n"
 
-# 1. Copy adapter into .claude/ (wipe stale OSP-managed files first; user content preserved)
+# 1. Copy adapter (wipe stale OSP-managed files first; user content preserved)
 SRC="$ROOT_DIR/extensions/.claude"
 DEST="./.claude"
 mkdir -p "$DEST"
@@ -19,11 +19,8 @@ echo -e "  ${GREEN}✅ Adapter copied → ./.claude/${NC}"
 # 2. Initialize .brain/
 "$SCRIPTS_DIR/init_brain.sh"
 
-# 3. Set up self-contained MCP server in .scholar-peer/mcp/
-. "$SCRIPTS_DIR/init_mcp.sh"
-
-# 4. Merge MCP entries into ./.mcp.json
-python3 "$SCRIPTS_DIR/merge_mcp_config.py" "./.mcp.json" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
+# 3. Set up self-contained CLI scripts in .open-scholar-peer/
+. "$SCRIPTS_DIR/init_scripts.sh"
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"

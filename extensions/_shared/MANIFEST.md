@@ -61,11 +61,11 @@ For each canonical file in `_shared/`, the sync script produces a tool-specific 
 
 The sync script encodes a capability matrix that customizes the Q&A workflow:
 
-| Tool | Subagents | Q&A mode | MCP config path |
-|---|---|---|---|
-| Claude Code | yes | subagent (osp-answer-generator-agent) | `.mcp.json` |
-| Cursor | yes | subagent | `.cursor/mcp.json` |
-| Gemini CLI | yes | subagent | `.gemini/extensions/<ext>/gemini-extension.json` |
-| GitHub Copilot CLI | yes | subagent | `.github/copilot-cli/mcp.json` (TBD — see Phase 5) |
-| Antigravity | **no** | **self-reflection** (turn markers) | `~/.gemini/antigravity/mcp_config.json` (global, manual) |
-| Antigravity CLI | yes | subagent | `.agents/mcp_config.json` (local, auto-merged) |
+| Tool | Subagents | Q&A mode |
+|---|---|---|
+| Claude Code | yes | subagent (osp-answer-generator-agent) |
+| Cursor | yes | subagent |
+| Gemini CLI | yes | subagent |
+| GitHub Copilot CLI | yes | subagent |
+| Antigravity | **no** | **self-reflection** (turn markers) |
+| Antigravity CLI | yes | subagent |

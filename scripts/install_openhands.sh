@@ -4,7 +4,7 @@
 set -e
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPTS_DIR/.." && pwd)"
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+GREEN='[0;32m'; YELLOW='[1;33m'; CYAN='[0;36m'; NC='[0m'
 
 echo -e "\n${CYAN}Open ScholarPeer → OpenHands${NC}\n"
 
@@ -34,35 +34,12 @@ fi
 # 3. Brain
 "$SCRIPTS_DIR/init_brain.sh"
 
-# 4. MCP server runtime
-. "$SCRIPTS_DIR/init_mcp.sh"
-
-# 5. OpenHands MCP — configured via UI Settings → MCP, or per-skill YAML.
-#    Emit a snippet showing both options.
-SNIPPET_PATH="./.open-scholar-peer/openhands_mcp_snippet.json"
-cat > "$SNIPPET_PATH" << JSON
-{
-  "mcpServers": {
-    "osp": {
-      "command": "$OSP_MCP_PYTHON",
-      "args": ["$OSP_MCP_SERVER"]
-    },
-    "markitdown": {
-      "command": "uvx",
-      "args": ["markitdown-mcp"]
-    }
-  }
-}
-JSON
-
-echo -e "\n  ${YELLOW}⚠️  Add the MCP servers via OpenHands → Settings → MCP:${NC}"
-echo "     A ready-to-paste snippet has been saved to:"
-echo "         $SNIPPET_PATH"
+# 4. Set up self-contained CLI scripts in .open-scholar-peer/
+. "$SCRIPTS_DIR/init_scripts.sh"
 
 echo -e "\n  ${YELLOW}ℹ️  OpenHands subagent support is partial — /5-osp-qa falls back${NC}"
 echo "     to self-reflection mode (see docs/KNOWN_LIMITATIONS.md)."
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"
-echo    "  (1) Register the MCP servers in OpenHands → Settings → MCP"
-echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."
+echo -e "  (1) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."

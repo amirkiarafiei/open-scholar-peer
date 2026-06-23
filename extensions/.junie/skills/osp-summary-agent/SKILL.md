@@ -24,7 +24,7 @@ By decoupling comprehension from critique here, downstream agents can operate on
 - `.brain/session.json` (read for venue, paper path)
 - `.brain/input/paper.{pdf,md,...}` — the actual manuscript
 
-If the paper is a PDF and your environment has the `markitdown` MCP available, prefer the parsed `.md` version when present (`.brain/input/paper.md`). If only PDF is present, parse it with `markitdown` and save to `.brain/input/paper.md` as a side effect.
+If the paper is in a binary format (PDF/DOCX/etc.), prefer the parsed `.md` version when present (`.brain/input/paper.md`). If only PDF/DOCX is present, convert it using `uvx markitdown <path> > .brain/input/paper.md` or our helper script `python3 .open-scholar-peer/convert_pdf.py <path> .brain/input/paper.md` (or `python3 .open-scholar-peer\convert_pdf.py` on Windows).
 
 ## Output
 

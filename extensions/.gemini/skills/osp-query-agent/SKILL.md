@@ -59,7 +59,7 @@ Avoid generic questions. "Is this novel?" is bad. "Is the claim that this method
 On Claude Code / Cursor / Gemini CLI / GitHub Copilot CLI, spawn the Answer Generator Agent as a **subagent** for each question. Pass it:
 - The single question
 - A *minimal* context bundle: the relevant excerpts from `01_structured_summary.md` (claims/method/evidence), the criterion definition, plus relevant entries from `03_domain_narrative.md` and `04_missing_baselines.md`.
-- The available retrieval tools (`osp-mcp.*`, native Web Search) so the Answer Generator can verify novelty claims.
+- The available retrieval tools (the CLI shim `.open-scholar-peer/osp` or `.open-scholar-peer\osp.cmd` on Windows, and native Web Search) so the Answer Generator can verify novelty claims.
 
 The Answer Generator returns `(answer, citations, discrepancy_flag)`. Append it to the file. Discard the subagent context.
 

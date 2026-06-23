@@ -4,7 +4,7 @@
 set -e
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPTS_DIR/.." && pwd)"
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+GREEN='[0;32m'; YELLOW='[1;33m'; CYAN='[0;36m'; NC='[0m'
 
 echo -e "\n${CYAN}Open ScholarPeer → OpenCode${NC}\n"
 
@@ -31,37 +31,10 @@ fi
 # 3. Brain
 "$SCRIPTS_DIR/init_brain.sh"
 
-# 4. MCP server runtime
-. "$SCRIPTS_DIR/init_mcp.sh"
-
-# 5. OpenCode MCP — opencode.json uses a non-standard `mcp` key with stdio block.
-#    Emit a snippet rather than auto-merging, since the schema differs from
-#    other tools' mcpServers format.
-SNIPPET_PATH="./.open-scholar-peer/opencode_mcp_snippet.json"
-cat > "$SNIPPET_PATH" << JSON
-{
-  "mcp": {
-    "osp": {
-      "type": "local",
-      "command": ["$OSP_MCP_PYTHON", "$OSP_MCP_SERVER"]
-    },
-    "markitdown": {
-      "type": "local",
-      "command": ["uvx", "markitdown-mcp"]
-    }
-  }
-}
-JSON
-
-echo -e "\n  ${YELLOW}⚠️  Wire the OSP MCP server with one of:${NC}"
-echo ""
-echo "     (a) OpenCode CLI (recommended):"
-echo "         opencode mcp add osp -- $OSP_MCP_PYTHON $OSP_MCP_SERVER"
-echo ""
-echo "     (b) Or paste the snippet manually into opencode.json:"
-echo "         $SNIPPET_PATH"
+# 4. Set up self-contained CLI scripts in .open-scholar-peer/
+. "$SCRIPTS_DIR/init_scripts.sh"
 
 echo -e "\n${GREEN}Done!${NC}\n"
 echo -e "Next:"
-echo    "  (1) Wire the MCP server (opencode mcp add osp ... or paste snippet)"
-echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."
+echo -e "  (1) Run ${CYAN}/open-scholar-peer${NC} in OpenCode"
+echo    "      The orchestrator reads your session state and guides you from there."
