@@ -22,18 +22,22 @@ These are limitations users should know about going in. None block normal operat
 
 **Impact:** During the 3-round literature retrieval (`/2-osp-literature`), one slow provider can add up to 180 s of dead wait time per query. This is why agents **must** call providers individually (`search-arxiv`, `search-semantic-scholar`, `search-google-scholar`) rather than using `search-all` — individual calls let the agent report partial results and move on immediately after a timeout, instead of being blocked.
 
-**Workaround (recommended):**
-1. Get a free Semantic Scholar API key at https://www.semanticscholar.org/product/api#api-key and add it to `.env`:
+**What to do:**
+
+1. **Get a free Semantic Scholar API key** to avoid anonymous rate limits:
    ```env
    SEMANTIC_SCHOLAR_API_KEY=sk-...
    ```
-2. Cap the per-provider timeout to something reasonable for your connection:
-   ```env
-   OSP_CALL_TIMEOUT=30   # 30 s max wait per provider instead of 180 s
-   ```
-   With `OSP_CALL_TIMEOUT=30`, a timing-out provider costs at most 30 s, not 180 s. arXiv and Google Scholar are typically unaffected (they respond in seconds).
+   Get one at https://www.semanticscholar.org/product/api#api-key and add it to your `.env` at the project root.
 
-The CLI shim loads both env vars on every execution. The progress report printed after each provider call always shows which sources succeeded and which timed out.
+2. **Tune `OSP_CALL_TIMEOUT` to match your tolerance.** This is a first-class config setting — not a workaround. It controls how long the CLI waits for any single provider before moving on. The default is 180 s (conservative). Set it lower if you'd rather get partial results fast than wait for a slow provider:
+   ```env
+   OSP_CALL_TIMEOUT=30   # bail after 30 s instead of 180 s
+   ```
+   arXiv and Google Scholar typically respond in under 5 s and are unaffected. Semantic Scholar on the anonymous tier is the one that can hang.
+
+The CLI shim loads both env vars on every execution. The per-provider status lines printed during each round always tell you which sources succeeded and which timed out.
+
 
 ---
 

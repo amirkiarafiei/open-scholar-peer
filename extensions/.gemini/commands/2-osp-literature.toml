@@ -18,7 +18,7 @@ Invoke the `osp-literature-review-agent` skill.
 
 ## Resource notice
 
-⚠️ Each invocation makes ~8-12 API calls across 3 databases (arXiv, Semantic Scholar, Google Scholar), called **one at a time**. Wall-clock time per round depends on provider latency — a slow or rate-limited provider can add up to `OSP_CALL_TIMEOUT` seconds (default 180s). To cap wait time, set `OSP_CALL_TIMEOUT=30` in your `.env`.
+⚠️ Each invocation makes ~8-12 API calls across 3 databases (arXiv, Semantic Scholar, Google Scholar), called **one at a time**. Wall-clock time per round depends on provider latency — a slow or rate-limited provider blocks until `OSP_CALL_TIMEOUT` expires (default 180 s). Tune this in your `.env` to match your tolerance: `OSP_CALL_TIMEOUT=30` means any hung provider bails in 30 s. This is a config setting, not a workaround.
 
 ## Round definitions
 
