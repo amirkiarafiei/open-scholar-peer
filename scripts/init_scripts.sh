@@ -138,7 +138,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   cat > "$ENV_FILE" << 'ENVEOF'
 # Open ScholarPeer — config (this file is gitignored)
 # SEMANTIC_SCHOLAR_API_KEY=sk-...
-# OSP_CALL_TIMEOUT=90
+# OSP_CALL_TIMEOUT=120
 ENVEOF
   echo -e "  ${GREEN}✅ Created .env at project root — add your API keys there${NC}"
 fi
