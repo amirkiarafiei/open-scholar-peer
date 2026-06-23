@@ -122,105 +122,12 @@ docs/
 - Adding a feature → [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
 - What can break → [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md), [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
-<!-- OSP-BEGIN: managed by Open ScholarPeer; do not edit between markers -->
----
-name: osp-rules
-description: Always-on rules for Open ScholarPeer review sessions
----
+## OSP-BEGIN / OSP-END markers (dev note)
 
-# Open ScholarPeer — Always-On Rules
+`scripts/merge_agents_md.sh` injects `extensions/_shared/rules/osp-rules.md` into the `AGENTS.md` files that live in **user projects** — those used by tools that surface `AGENTS.md` to the agent (Copilot CLI, Codex, Kimi Code, Mistral Vibe, OpenCode, OpenHands). It uses `<!-- OSP-BEGIN -->` / `<!-- OSP-END -->` markers to make the injection idempotent.
 
-These rules apply automatically in any project where Open ScholarPeer is installed.
+**This dev repo's `AGENTS.md` is not a target for that script.** The injected block (end-user runtime rules about `.brain/session/`, literature search protocol, phase orientation, etc.) has no relevance to someone working on the OSP codebase itself. If you accidentally run `merge_agents_md.sh` against this file, the block will re-appear — just delete it again.
 
-## Brain protocol (apply on every invocation)
-
-1. **Read `.brain/session/session.json` first** to understand current state.
-2. **Load only the artifacts in the active step's `reads:` contract** (see `docs/ARTIFACT_CONTRACTS.md`). Do not load the full `.brain/` directory.
-3. **After completing a step, update `session.json`:** set the matching `phases.<name>` block to `completed`, set `completed_at`, and update `resume_from`.
-4. **Re-runs overwrite with a warning.** If a step is already `completed`, print one warning, then proceed.
-
-## CLI Tooling Environment & Fallback Map
-
-1. **Verify CLI Shim & Environment Map**:
-   Ensure `.brain/runtime/` exists in the project root. The installer sets up:
-   - `.brain/runtime/osp` — Unix shim script; wraps `osp_cli.py` execution via `uv` or `venv`.
-   - `.brain/runtime/osp.cmd` — Windows shim script wrapper.
-   - `.brain/runtime/osp_cli.py` — Main Python search CLI; requires: `arxiv`, `semanticscholar`, `scholarly`, `requests`, `beautifulsoup4`, `python-dotenv`, `python-dateutil`.
-   - `.brain/runtime/convert_pdf.py` — PDF converter tool; requires: `markitdown`.
-   - `.brain/runtime/venv/` — Pre-built virtualenv (exists if `uv` was absent at install time).
-   - `.brain/runtime/requirements.txt` — Full dependency list.
-
-2. **Dependency Resolution & Fallback Order**:
-   When running literature searches, PDF conversions, or external lookups, verify the files exist and execute using this order of preference:
-   - **Step 1**: Run `.brain/runtime/osp <subcommand>` (or `osp.cmd` on Windows) — the shim handles Python path and dependencies automatically.
-   - **Step 2a** *(search CLI fallback)*: If the shim fails and `uv` is available, run `uv run --script .brain/runtime/osp_cli.py <subcommand>`.
-   - **Step 2b** *(PDF conversion fallback)*: If the shim fails and `uv` is available, run `uv run --script .brain/runtime/convert_pdf.py <input_path> <output_path>`.
-   - **Step 3a** *(search CLI fallback)*: If `uv` fails or is not found, run `.brain/runtime/venv/bin/python .brain/runtime/osp_cli.py <subcommand>` using the installer-provided virtualenv.
-   - **Step 3b** *(PDF conversion fallback)*: If `uv` fails or is not found, run `.brain/runtime/venv/bin/python .brain/runtime/convert_pdf.py <input_path> <output_path>` using the installer-provided virtualenv.
-   - **Step 4**: If none of the above succeed, do not guess or skip. Surface the exact traceback or error to the user, explain what's missing, and ask how to proceed.
-
-## Literature search protocol
-
-These rules apply whenever any agent performs literature retrieval (typically `/2-osp-literature` and `/4-osp-baseline-scout`).
-
-1. **Never use `search-all`.** Always call each provider subcommand separately, in sequence:
-   `search-arxiv` → `search-semantic-scholar` → `search-google-scholar`.
-   Reason: providers have different latency profiles. `search-all` lets one slow provider (e.g. Semantic Scholar on the anonymous tier timing out at 180 s) block the entire search. Separate calls allow partial results and immediate progress feedback.
-
-2. **After each provider call, print a one-line status update** immediately:
-   - ✅ `<provider>` → `<N>` results
-   - ⚠️ `<provider>` → TIMEOUT / rate-limited — moving on
-   - ❌ `<provider>` → ERROR `<short reason>`
-
-3. **After completing all provider calls in a round, print a consolidated sources block** before writing the round file. The user must always know which databases were searched, which returned results, and which failed.
-
-4. **Do not run any calls concurrently.** Sequential only — parallel calls trigger Google Scholar IP blocks.
-
-5. **Record all provider failures in the artifact's Provenance section** under "Tools unavailable" so the user understands the completeness of the corpus.
+The canonical source for those rules is `extensions/_shared/rules/osp-rules.md`. Edit there, then run `python3 scripts/sync_adapters.py`.
 
 
-- Each numbered command (`/N-osp-*`) activates exactly one persona skill (`osp-<name>-agent`). Do not blend personas.
-- The Q&A engine (`/5-osp-qa`) uses two personas at once: Query Agent (main thread) and Answer Generator (subagent, or self-reflection on tools that lack subagents).
-- The orchestrator (`osp-orchestrator`) never performs review work — it only routes.
-
-## Subagent vs self-reflection
-
-- **Prefer subagents** for the Q&A engine on tools that support them (Claude Code, Cursor, Gemini CLI, Copilot CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, Kimi Code).
-- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) on tools without (or with only partial) subagent support: Antigravity, Mistral Vibe, OpenHands.
-- Self-reflection is a documented weaker substitute. See `KNOWN_LIMITATIONS.md`.
-
-## User orientation (required on every phase invocation)
-
-Before doing any work in a phase, print a short orientation block so the user always knows where they are:
-
-```
-── <Phase name> ──────────────────────────────────────────
-What this phase does: <one sentence — the agent's role and why this step exists>
-Reads:  <list the key input files>
-Writes: <list the key output files>
-Effort: <rough estimate — "~2 min, ~N tool calls", etc.>
-──────────────────────────────────────────────────────────
-```
-
-After the phase completes, the closing report block must say **what was done** (findings, counts, highlights), not just which command to run next. The user is learning the system as they go — orient them every time, even on repeat runs.
-
-## Output discipline
-
-- Every `.brain/session/raw/*.md` file uses the universal artifact structure: `## Method`, `## Output`, `## Provenance`.
-- Reports describe what was done — they are not raw transcripts of tool calls.
-- Citations must trace back to retrieved literature; do not invent them.
-
-## File references in user-facing output
-
-- When mentioning a `.brain/` artifact in a report or reply, use the vendor-provided native file reference format for your tool:
-  - Claude Code / Cursor / Gemini CLI / Codex CLI / Qwen Code / OpenCode / Junie / Kiro: `@.brain/session/raw/01_summary.md`
-  - Copilot CLI: `#file:.brain/session/raw/01_summary.md`
-  - Kimi Code / Mistral Vibe / OpenHands / Antigravity: plain path (no native shorthand)
-- Always pair the native reference with the `↳ .brain/session/…` path in the terminal report block so users can locate files regardless of tool.
-
-## File ownership
-
-- `.brain/` (both `session/` and `runtime/`) is gitignored — never commit it.
-- Tool-specific config files (`.claude/`, etc.) at project root are user-editable.
-- Adapter content under `extensions/.{tool}/` in this repo is **generated by the sync script** — edit `extensions/_shared/` instead and re-run `scripts/sync_adapters.py`.
-<!-- OSP-END -->
