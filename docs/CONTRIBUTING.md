@@ -92,7 +92,22 @@ The CLI search tool at `scripts/tools/osp_cli.py` is intentionally modular. To a
 
 4. **Update `scripts/tools/osp_cli.py` capabilities manifest** inside `output_capabilities()` to document the new command.
 
-5. **Update `osp-literature-review-agent` and related skills** to mention the new command if it should be used in the 3-round retrieval. Re-sync.
+5. **Update `extensions/_shared/rules/osp-rules.md`** — the *"CLI Tooling Environment & Fallback Map"* section lists `.brain/runtime/requirements.txt` with an inline comment naming each package. Add your new package(s) there.
+
+   > **Why this matters:** `osp-rules.md` is the file agents read at runtime to understand what tools are installed and what fallbacks exist. If it is stale, the agent has no map of the environment and will guess blindly when something breaks — even though the tool itself is perfectly installed.
+
+   ```markdown
+   - `.brain/runtime/requirements.txt` — Full dependency list (arxiv, semanticscholar,
+     scholarly, <your-package>, requests, beautifulsoup4, python-dotenv, python-dateutil).
+   ```
+
+   After editing `osp-rules.md`, re-sync:
+
+   ```bash
+   python3 scripts/sync_adapters.py
+   ```
+
+6. **Update `osp-literature-review-agent` and related skills** to mention the new command if it should be used in the 3-round retrieval. Re-sync.
 
 ### Design constraints for new providers
 
@@ -141,7 +156,7 @@ Before submitting:
 - [ ] `python3 scripts/test_parity.py` passes.
 - [ ] `bash scripts/test_install.sh` passes.
 - [ ] If you added a command, skill, or default — `MANIFEST.md` and `ARTIFACT_CONTRACTS.md` are updated.
-- [ ] If you added a CLI provider — `scripts/tools/osp_cli.py` capabilities manifest is updated.
+- [ ] If you added a CLI provider — `scripts/tools/osp_cli.py` capabilities manifest is updated **and** `extensions/_shared/rules/osp-rules.md` CLI Tooling section reflects any new packages.
 - [ ] If user-visible behavior changed — `docs/KNOWN_LIMITATIONS.md` and/or `docs/TROUBLESHOOTING.md` are updated.
 - [ ] PR description explains the WHY, not just the WHAT.
 
