@@ -2,7 +2,7 @@
 
 Wraps the official `semanticscholar` Python client. All blocking calls are
 executed via asyncio.to_thread so the event loop stays responsive. Timeouts
-are applied at the osp_mcp.py layer via asyncio.wait_for.
+are applied at the osp_cli.py layer via call_with_timeout.
 
 Reads the optional SEMANTIC_SCHOLAR_API_KEY env var for higher rate limits.
 """

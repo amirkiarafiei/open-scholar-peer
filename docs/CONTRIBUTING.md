@@ -66,11 +66,11 @@ When refining prompts, prefer adding to the Pitfalls section over expanding the 
 
 ---
 
-## Path 3: Add an MCP provider (e.g. PubMed, OpenAlex)
+## Path 3: Add a CLI provider (e.g. PubMed, OpenAlex)
 
-The MCP server at `mcp-server/osp_mcp.py` is intentionally modular. To add a new provider:
+The CLI search tool at `scripts/tools/osp_cli.py` is intentionally modular. To add a new provider:
 
-1. **Create the module** at `mcp-server/providers/<provider>.py` with plain Python functions:
+1. **Create the module** at `scripts/tools/providers/<provider>.py` with plain Python functions:
 
    ```python
    # providers/pubmed.py
@@ -83,36 +83,22 @@ The MCP server at `mcp-server/osp_mcp.py` is intentionally modular. To add a new
        ...
    ```
 
-2. **Register the FastMCP wrappers** in `osp_mcp.py`:
+2. **Register the provider subcommands** in `scripts/tools/osp_cli.py`:
+   - Add a subcommand parser in `main()` for the new search and detail commands.
+   - Map the subcommand to execute the provider function wrapped inside `call_with_timeout()`.
+   - Ensure the results are returned as a JSON dump on stdout and that any CLI errors return a proper exit code with a guidance block.
 
-   ```python
-   from providers import pubmed as pubmed_provider
+3. **Update `scripts/tools/requirements.txt`** with any new dependencies.
 
-   @mcp.tool()
-   async def search_pubmed(query: str, max_results: int = 10) -> list[dict[str, Any]]:
-       """Search PubMed for biomedical literature.
+4. **Update `scripts/tools/osp_cli.py` capabilities manifest** inside `output_capabilities()` to document the new command.
 
-       <Rich docstring — agents read this to decide when to call your tool.
-        Include args, return shape, and use cases.>
-       """
-       try:
-           return await asyncio.to_thread(pubmed_provider.search, query, max_results)
-       except Exception as e:
-           return [{"error": f"search_pubmed failed: {e}"}]
-   ```
-
-3. **Update `requirements.txt`** with any new dependencies.
-
-4. **Document the new tool** in `mcp-server/README.md`. If the provider needs an API key, document the env var and the link to obtain one.
-
-5. **Update `osp-literature-review-agent` and related skills** to mention the new tool if it should be used in the 3-round retrieval. Re-sync.
+5. **Update `osp-literature-review-agent` and related skills** to mention the new command if it should be used in the 3-round retrieval. Re-sync.
 
 ### Design constraints for new providers
 
-- **Dumb tools only.** Each tool is atomic and stateless. No orchestration logic, no retries that hide failures, no implicit caching.
-- **Rich docstrings.** The MCP host shows the docstring to the LLM. Vague descriptions cause the agent to call the wrong tool.
-- **Consistent error envelope.** Search-style tools return `[{"error": "..."}]` on failure; single-record tools return `{"error": "..."}`.
-- **No secrets in the registered config.** API keys are read from env vars at runtime, never written into `.mcp.json`.
+- **Dumb tools only.** Each provider is atomic and stateless. No orchestration logic, no retries that hide failures, no implicit caching.
+- **Consistent error envelope.** Return custom exit codes and a descriptive `"guidance"` block in the JSON error payload to advise the agent on recovery.
+- **No secrets in the repository.** API keys are read from the `.env` file at runtime, never checked into version control.
 
 ---
 
@@ -150,12 +136,12 @@ The MCP server at `mcp-server/osp_mcp.py` is intentionally modular. To add a new
 
 Before submitting:
 
-- [ ] Changes are made in `_shared/` (or `mcp-server/`, `scripts/`, `docs/`), never in per-tool adapter dirs.
+- [ ] Changes are made in `_shared/` (or `scripts/`, `docs/`), never in per-tool adapter dirs.
 - [ ] `python3 scripts/sync_adapters.py` runs cleanly.
 - [ ] `python3 scripts/test_parity.py` passes.
 - [ ] `bash scripts/test_install.sh` passes.
 - [ ] If you added a command, skill, or default — `MANIFEST.md` and `ARTIFACT_CONTRACTS.md` are updated.
-- [ ] If you added an MCP provider — `mcp-server/README.md` documents the new tool with rich docstrings.
+- [ ] If you added a CLI provider — `scripts/tools/osp_cli.py` capabilities manifest is updated.
 - [ ] If user-visible behavior changed — `docs/KNOWN_LIMITATIONS.md` and/or `docs/TROUBLESHOOTING.md` are updated.
 - [ ] PR description explains the WHY, not just the WHAT.
 
@@ -165,7 +151,7 @@ Before submitting:
 
 - **Plugin marketplace integrations** — the project's design philosophy is plain-files-and-installers, no marketplace dependency.
 - **Hyperparameter exposure** (temperature, k, N_QA as runtime flags) — host tools don't expose these; structural file enforcement is the deliberate alternative.
-- **Single-monolithic-server "do everything" MCP tools** — keep providers atomic.
+- **Single-monolithic-server "do everything" tools** — keep provider scripts atomic.
 - **Removing the `_shared/` → adapter sync pattern** — this is the project's drift mitigation strategy and is non-negotiable.
 
 If you're not sure whether a contribution fits, open an issue first.

@@ -50,12 +50,23 @@ This file enumerates every canonical asset under `extensions/_shared/`. The sync
 
 For each canonical file in `_shared/`, the sync script produces a tool-specific equivalent:
 
+### Tools 1-6 (Claude, Cursor, Gemini, Antigravity, Antigravity CLI, Copilot CLI)
+
 | Source (in `_shared/`) | Claude (`.claude/`) | Cursor (`.cursor/`) | Gemini (`.gemini/`) | Antigravity (`.agent/`) | Antigravity CLI (`.agents/`) | Copilot CLI (`.github/`) |
 |---|---|---|---|---|---|---|
 | `commands/<name>.md` | `commands/<name>.md` (frontmatter) | `commands/<name>.md` | `commands/<name>.toml` | `workflows/<name>.md` | `commands/<name>.md` | `prompts/<name>.md` |
 | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` |
 | `rules/osp-rules.md` | `rules/osp-rules.md` | `rules/osp-rules.mdc` | `GEMINI.md` (always-on) | `rules/osp-rules.md` | `AGENTS.md` (always-on) | `instructions/osp-rules.md` + `AGENTS.md` |
 | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` |
+
+### Tools 7-14 (Junie, Kiro, Codex, Kimi, Qwen, Vibe, OpenCode, OpenHands)
+
+| Source (in `_shared/`) | Junie (`.junie/`) | Kiro (`.kiro/`) | Codex (`.codex/`) | Kimi (`.kimi/`) | Qwen (`.qwen/`) | Vibe (`.vibe/`) | OpenCode (`.opencode/`) | OpenHands (`.openhands/`) |
+|---|---|---|---|---|---|---|---|---|
+| `commands/<name>.md` | `commands/` (md) | `hooks/` (md) | `prompts/` (md) | `commands/` (md) | `commands/` (md) | `commands/` (md) | `commands/` (md) | `commands/` (md) |
+| `skills/<name>/SKILL.md` | `skills/` (SKILL.md) | `skills/` (SKILL.md) | `skills/` (SKILL.md) | `skills/` (SKILL.md) | `agents/` (SKILL.md) | `skills/` (SKILL.md) | `agents/` (SKILL.md) | `skills/` (SKILL.md) |
+| `rules/osp-rules.md` | `guidelines.md` | `steering/osp-rules.md` | `AGENTS.md` | `AGENTS.md` | `QWEN.md` | `AGENTS.md` | `AGENTS.md` | `AGENTS.md` |
+| `defaults/*.md` | `defaults/` | `defaults/` | `defaults/` | `defaults/` | `defaults/` | `defaults/` | `defaults/` | `defaults/` |
 
 ## Capability flags per tool
 

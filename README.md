@@ -8,7 +8,7 @@ A community implementation of [**ScholarPeer**: A Context-Aware Multi-Agent Fram
   </figure>
 </div>
 
-OSP turns the paper's 7-agent pipeline into a portable set of Skills, Slash Commands, and MCP tools that install into your project directory. Use your favorite AI tool to review papers.
+OSP turns the paper's 7-agent pipeline into a portable set of Skills, Slash Commands, and CLI tools that install into your project directory. Use your favorite AI tool to review papers.
 
 ---
 
@@ -67,8 +67,7 @@ bash install.sh   # interactive — pick your AI tool
 The installer:
 1. Copies the right adapter files into your project (`.claude/`, `.cursor/`, etc.).
 2. Initializes `.brain/` (gitignored — your working state).
-3. Sets up a self-contained Python venv at `.open-scholar-peer/mcp/` (gitignored — the MCP server).
-4. Wires the MCP server into your AI tool's config.
+3. Sets up the self-contained Python runtime and CLI shims at `.open-scholar-peer/` (gitignored — the CLI runner).
 
 Then in your AI tool:
 
@@ -105,7 +104,7 @@ OSP currently connects to arXiv and Semantic Scholar for paper discovery and evi
 | Springer | 🚧 Soon | Required |
 | ScienceDirect | 🚧 Soon | Required |
 
-The literature search layers is implemented in [mcp-server/](mcp-server/), so you can extend it with additional scholarly sources when you have valid access credentials.
+The literature search layer is implemented in [scripts/tools/](scripts/tools/), so you can extend it with additional scholarly sources when you have valid access credentials.
 
 ### 🔑 API keys
 
@@ -116,30 +115,30 @@ The installer creates a `.env` file at your project root. Add your keys there:
 SEMANTIC_SCHOLAR_API_KEY=sk-...
 ```
 
-Anonymous Semantic Scholar limits are tight. Get a free key at https://www.semanticscholar.org/product/api#api-key — the MCP server loads `.env` automatically on startup.
+Anonymous Semantic Scholar limits are tight. Get a free key at https://www.semanticscholar.org/product/api#api-key — the CLI shim loads `.env` automatically on startup.
 
 ---
 
 ## 🔌 Supported AI tools
 
-| Tool | Subagent isolation | MCP auto-config |
-| --- | --- | --- |
-| [Claude Code](https://claude.com/claude-code) | ✓ | ✓ (`.mcp.json`) |
-| [Cursor](https://cursor.com) | ✓ | ✓ (`.cursor/mcp.json`) |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ | ✓ (`.gemini/settings.json`) |
-| [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ | ✓ (`~/.copilot/mcp-config.json`) |
-| [Codex CLI](https://github.com/openai/codex) | ✓ | via `codex mcp add` (TOML) |
-| [Qwen Code](https://github.com/QwenLM/qwen-code) | ✓ | ✓ (`.qwen/settings.json`) |
-| [OpenCode](https://opencode.ai) | ✓ | via `opencode mcp add` (or `opencode.json`) |
-| [Junie](https://www.jetbrains.com/junie/) | ✓ | ✓ (`.junie/mcp/mcp.json`) |
-| [Kiro](https://kiro.dev) | ✓ | ✓ (`.kiro/settings/mcp.json`) |
-| [Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✓ | ✓ (`~/.kimi/mcp.json`) |
-| [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✗ (self-reflection fallback) | manual snippet (TOML) |
-| [OpenHands](https://docs.openhands.dev) | ✗ (self-reflection fallback) | via OpenHands UI / `config.toml` |
-| [Antigravity](https://antigravity.google/) | ✗ (self-reflection fallback) | ✓ (`~/.gemini/antigravity/mcp_config.json`) |
-| [Antigravity CLI](https://antigravity.google/cli/) | ✓ | ✓ (`.agents/mcp_config.json`) |
+| Tool | Subagent isolation |
+| --- | --- |
+| [Claude Code](https://claude.com/claude-code) | ✓ |
+| [Cursor](https://cursor.com) | ✓ |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ |
+| [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ |
+| [Codex CLI](https://github.com/openai/codex) | ✓ |
+| [Qwen Code](https://github.com/QwenLM/qwen-code) | ✓ |
+| [OpenCode](https://opencode.ai) | ✓ |
+| [Junie](https://www.jetbrains.com/junie/) | ✓ |
+| [Kiro](https://kiro.dev) | ✓ |
+| [Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✓ |
+| [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✗ (self-reflection fallback) |
+| [OpenHands](https://docs.openhands.dev) | ✗ (self-reflection fallback) |
+| [Antigravity](https://antigravity.google/) | ✗ (self-reflection fallback) |
+| [Antigravity CLI](https://antigravity.google/cli/) | ✓ |
 
-See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for self-reflection caveats and per-tool MCP wiring details.
+See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for self-reflection caveats and setup details.
 
 ---
 
@@ -155,20 +154,20 @@ extensions/
 └── .{claude,cursor,gemini,agent,agents,github,junie,kiro,
        codex,kimi,qwen,vibe,opencode,openhands}/   ← Auto-generated per-tool adapters (14 tools)
 
-mcp-server/
-├── osp_mcp.py         ← Consolidated FastMCP server
-└── providers/         ← arxiv, semantic_scholar, google_scholar (extensible)
-
 scripts/
+├── tools/             ← CLI tools runtime source
+│   ├── osp_cli.py     ← Unified CLI runner
+│   ├── convert_pdf.py ← markitdown PDF converter
+│   └── providers/     ← arxiv, semantic_scholar, google_scholar (extensible)
 ├── sync_adapters.py   ← Regenerates per-tool adapters from _shared/
 ├── install_*.sh       ← Per-tool installers
-├── init_mcp.sh        ← Sets up .open-scholar-peer/mcp/ with venv
+├── init_scripts.sh    ← Sets up .open-scholar-peer/ with shims/venv
 └── test_*.{py,sh}     ← Parity + install smoke tests
 
 .brain/                ← Per-project state (gitignored)
 └── raw/, review/, input/, session.json
 
-.open-scholar-peer/mcp/     ← Per-project MCP runtime (gitignored)
+.open-scholar-peer/    ← Per-project CLI/shims runtime (gitignored)
 ```
 
 ---
@@ -181,7 +180,7 @@ scripts/
 - **[`docs/ARTIFACT_CONTRACTS.md`](docs/ARTIFACT_CONTRACTS.md)** — Per-step I/O contract.
 - **[`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md)** — What to expect, what won't work, workarounds.
 - **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)** — Common issues, by symptom.
-- **[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)** — How to extend OSP (commands, skills, MCP providers).
+- **[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)** — How to extend OSP (commands, skills, CLI/script providers).
 - **[`docs/paper/SUMMARY.md`](docs/paper/SUMMARY.md)** — Paper essence (architecture and protocol).
 
 ---

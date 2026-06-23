@@ -18,32 +18,31 @@ These are limitations users should know about going in. None block normal operat
 
 ## 2. Semantic Scholar anonymous rate limits are aggressive
 
-**What:** The `osp_mcp.search_semantic_scholar` and related tools use the official Semantic Scholar API. Without an API key, anonymous limits apply (~100 requests / 5 min, frequently bursty 429s).
+**What:** The `osp search-semantic-scholar` and related CLI subcommands use the official Semantic Scholar API. Without an API key, anonymous limits apply (~100 requests / 5 min, frequently bursty 429s).
 
 **Impact:** During the 3-round literature retrieval (`/2-osp-literature`), an anonymous user may hit rate limits mid-round, causing partial corpora.
 
-**Workaround:** Get a free API key at https://www.semanticscholar.org/product/api#api-key and export it before launching your AI tool:
+**Workaround:** Get a free API key at https://www.semanticscholar.org/product/api#api-key and add it to your `.env` file at the project root:
 
-```bash
-export SEMANTIC_SCHOLAR_API_KEY=sk-...
+```env
+SEMANTIC_SCHOLAR_API_KEY=sk-...
 ```
 
-The MCP server reads the env var at startup. Add it to your shell profile to persist.
+The CLI shim loads the env var on every execution.
 
 ---
 
-## 3. PDF parsing depends on the host tool's native Read or markitdown MCP
+## 3. PDF parsing depends on the host tool's environment or convert_pdf.py script
 
-**What:** OSP needs a readable text version of the paper at `.brain/input/paper.md` for the Summary Agent. The `markitdown` MCP server is registered by the installer for this purpose.
+**What:** OSP needs a readable text version of the paper at `.brain/input/paper.md` for the Summary Agent. The `convert_pdf.py` script wrapper is configured for this purpose.
 
-**Limitation:** If `markitdown-mcp` is not installed (or `uvx` is not on PATH), and the paper is supplied as a PDF/DOCX, conversion will fail.
+**Limitation:** If `markitdown` is not installed in the environment (or `uv` cannot run it), and the paper is supplied as a PDF/DOCX, conversion will fail.
 
-**Impact:** `/0-osp-onboarding` will refuse to advance until either (a) markitdown is installed, or (b) the user manually provides `.brain/input/paper.md`. This is intentional fail-fast behavior to avoid silent downstream errors.
+**Impact:** `/0-osp-onboarding` will refuse to advance until either (a) dependencies are installed, or (b) the user manually provides `.brain/input/paper.md`. This is intentional fail-fast behavior to avoid silent downstream errors.
 
 **Workaround:** Install markitdown:
 ```bash
-pipx install uv          # if not already installed
-uvx markitdown-mcp       # smoke-test that the package is fetchable
+pip install markitdown          # if not already installed
 ```
 or convert manually:
 ```bash
@@ -52,17 +51,15 @@ markitdown paper.pdf > .brain/input/paper.md
 
 ---
 
-## 4. Antigravity and Copilot CLI MCP configs require manual setup
+## 4. CLI shim execution permissions and environment paths
 
-**What:** Most tools store MCP config in a project-local file the installer can write directly. Two exceptions:
-- **Antigravity** uses a global config at `~/.gemini/antigravity/mcp_config.json`.
-- **Copilot CLI** uses `~/.copilot/mcp-config.json`.
+**What:** OSP executes scripts locally through the `.open-scholar-peer/osp` Unix shim (or `.open-scholar-peer\osp.cmd` Windows shim).
 
-**Limitation:** Programmatically modifying user-global config files would be intrusive. The installers print a paste-ready snippet (or attempt a careful merge in Copilot's case) but the user must verify the file.
+**Limitation:** If Python 3.10+ is missing, or the sandbox environment has locked down local script executions (blocking subprocesses), the shim will fail to run.
 
-**Impact:** Slightly higher first-run friction on Antigravity. Copilot CLI is auto-merged by `merge_mcp_config.py` but the user should still verify the file looks right.
+**Impact:** Downstream agents will print a warning asking the user to run setup or check executions, and exit.
 
-**Workaround:** Check the snippet at `.open-scholar-peer/antigravity_mcp_snippet.json` (Antigravity) or `~/.copilot/mcp-config.json` (Copilot CLI) after install.
+**Workaround:** Ensure Python is in your PATH and the project folder has correct read/write/execute permissions. Run the installer again if necessary.
 
 ---
 
@@ -85,7 +82,7 @@ mv .brain .brain.archive-$(date +%F)
 
 ## 6. Google Scholar tools are best-effort (HTML scraping)
 
-**What:** Google Scholar has no public API. The `osp_mcp.search_google_scholar` tools scrape HTML.
+**What:** Google Scholar has no public API. The `osp search-google-scholar` CLI command scrapes HTML.
 
 **Limitation:** Subject to Google's rate limits and HTML structure changes. Results may be empty or stale during heavy usage.
 

@@ -9,7 +9,7 @@ The `.brain/` directory at the project root is the persistent state store for an
 ├── session.json                       Single source of truth for run state
 ├── input/                             User drops paper here (any format)
 │   ├── paper.pdf                      (or .docx, .tex, etc.)
-│   └── paper.md                       (parsed via markitdown MCP, optional)
+│   └── paper.md                       (parsed via osp convert-pdf, optional)
 ├── raw/                               All intermediate phase artifacts
 │   ├── 00_review_guidelines.md        Venue criteria scraped or pasted at onboarding
 │   ├── 01_structured_summary.md       Summary Agent output (claims, method, evidence)
@@ -41,5 +41,5 @@ The `.brain/` directory at the project root is the persistent state store for an
 ## What is *not* in `.brain/`
 
 - Tool-specific configs (`.mcp.json`, `.claude/`, `.cursor/`, etc.) — those live at project root.
-- The MCP server itself — that lives in `.open-scholar-peer/mcp/` (also gitignored).
+- The CLI runner shim and virtualenv — those live in `.open-scholar-peer/` (also gitignored).
 - Any human-edited templates — those live in `extensions/_shared/defaults/` (committed to repo).

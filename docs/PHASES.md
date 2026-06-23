@@ -1,6 +1,6 @@
 # Open ScholarPeer (OSP) — v2 Implementation Phases
 
-This plan supersedes the v1 phases (which are obsolete — v1 collapsed 7 paper-specified agent roles into 3 commands, losing scientific fidelity). v2 maps 1:1 to the paper's agent topology, adds dynamic venue scaffolding, and uses a self-contained MCP install.
+This plan supersedes the v1 phases (which are obsolete — v1 collapsed 7 paper-specified agent roles into 3 commands, losing scientific fidelity). v2 maps 1:1 to the paper's agent topology, adds dynamic venue scaffolding, and uses a self-contained local CLI/script runtime.
 
 Use this file as an execution checklist. Mark items `[ ]` → `[x]` in order. Phases are sequential; each depends on the previous.
 
@@ -12,7 +12,7 @@ Use this file as an execution checklist. Mark items `[ ]` → `[x]` in order. Ph
 - **Slash commands:** `/N-osp-{step}` for numbered workflow steps (e.g. `/0-osp-onboarding`, `/1-osp-summary`). Plus one stateless dispatcher: `/open-scholar-peer` (reads `session.json`, tells user which numbered command to run next).
 - **Skills:** `osp-{persona}` — no number prefix since order is irrelevant for skills (e.g. `osp-summary-agent`, `osp-query-agent`, `osp-orchestrator`).
 - **Brain root:** `.brain/` at project root.
-- **MCP install root:** `.open-scholar-peer/mcp/` at project root (self-contained venv + server).
+- **CLI install root:** `.open-scholar-peer/` at project root (self-contained venv + CLI runner + shims).
 
 ---
 
@@ -22,8 +22,8 @@ Use this file as an execution checklist. Mark items `[ ]` → `[x]` in order. Ph
 - [x] Phase 1 — Foundation (brain schema, shared layout, artifact contracts)
 - [x] Phase 2 — Canonical `_shared/` content (skills + commands + defaults)
 - [x] Phase 3 — Sync script (`_shared/` → per-tool adapters)
-- [x] Phase 4 — Consolidated MCP server (arxiv + semantic_scholar + google_scholar)
-- [x] Phase 5 — Installer scripts (`.open-scholar-peer/mcp/` setup + per-tool MCP wiring)
+- [x] Phase 4 — Consolidated CLI tool (arxiv + semantic_scholar + google_scholar)
+- [x] Phase 5 — Installer scripts (`.open-scholar-peer/` setup + CLI execution shims)
 - [x] Phase 6 — Cross-tool validation, docs, release readiness *(E2E live-tool test deferred to manual run)*
 
 ---
@@ -189,73 +189,67 @@ Build the Python sync script that generates per-tool adapters from `_shared/`. M
 
 ---
 
-## Phase 4 — Consolidated MCP Server
+## Phase 4 — Consolidated CLI Tool
 
 ### Goal (Phase 4)
 
-Build one MCP server (`osp_mcp`) exposing arxiv + semantic_scholar + google_scholar tools with proper docstrings and error handling.
+Build one CLI tool (`osp_cli.py`) exposing arxiv + semantic_scholar + google_scholar tools with proper argument parsing, timeout handling, and error formatting.
 
 ### Deliverables (Phase 4)
 
-- [ ] `mcp-server/osp_mcp.py` — single FastMCP server combining:
-  - **arXiv tools** (rewrite from current thin version): `search_arxiv`, `get_arxiv_paper_details` — full docstrings, typed returns.
-  - **Semantic Scholar tools** (port from `~/.gemini/antigravity/mcp-servers/semantic-scholar-server/`): `search_semantic_scholar`, `get_paper_details`, `get_author_details`, `get_citations_and_references`. Reads `SEMANTIC_SCHOLAR_API_KEY` env var, falls back to anonymous limits.
-  - **Google Scholar tools** (port from `~/.gemini/antigravity/mcp-servers/google-scholar-server/`): `search_google_scholar`, `advanced_google_scholar_search`, `get_author_info`.
-- [ ] `mcp-server/requirements.txt` — fastmcp, semanticscholar, scholarly, etc.
-- [ ] `mcp-server/README.md` — how to run standalone, env vars, API key setup, extension points (community can add more providers).
-- [ ] All tools have rich docstrings (3+ sentences, parameter descriptions, return shape) so agents understand when to call them.
-- [ ] Consistent error envelope across all tools (`{"error": "..."}`).
+- [ ] `scripts/tools/osp_cli.py` — single CLI script combining:
+  - **arXiv tools**: `search_arxiv`, `get_arxiv_paper_details` — with argument parsers.
+  - **Semantic Scholar tools**: `search_semantic_scholar`, `get_paper_details`, `get_author_details`, `get_citations_and_references`, etc. Reads `SEMANTIC_SCHOLAR_API_KEY` env var, falls back to anonymous limits.
+  - **Google Scholar tools**: `search_google_scholar`, `advanced_google_scholar_search`, `get_author_info`.
+- [ ] `scripts/tools/requirements.txt` — semanticscholar, scholarly, arxiv, etc. (no FastMCP dependency).
+- [ ] All commands have clear argument parser descriptions and help text.
+- [ ] Consistent error envelope across all commands (`{"error": "..."}`).
 
 ### Tests (Phase 4)
 
-- [ ] Server starts cleanly with `python osp_mcp.py`
-- [ ] Each tool returns valid response on a real query (manual smoke test)
-- [ ] Server runs without `SEMANTIC_SCHOLAR_API_KEY` set (anonymous mode works)
+- [ ] CLI executes cleanly with `python3 osp_cli.py`
+- [ ] Each command returns valid JSON response on a real query (manual smoke test)
+- [ ] CLI runs without `SEMANTIC_SCHOLAR_API_KEY` set (anonymous mode works)
 
 ### Exit Criteria (Phase 4)
 
-- [ ] Single MCP server with 9–10 well-documented tools across 3 providers
-- [ ] Future contributors can add a new provider by adding a section + tool decorators
+- [ ] Single Python CLI tool with all search provider functions exposed as subcommands
+- [ ] Future contributors can add a new provider by adding a module + registering it in `osp_cli.py`
 
 ---
 
-## Phase 5 — Installer Scripts
+## Phase 5 — Installer Scripts & CLI Shims
 
 ### Goal (Phase 5)
 
-Each install script is a one-liner UX: `bash install.sh` → pick tool → everything wired up. Self-contained `.open-scholar-peer/mcp/` per project.
+Each install script is a one-liner UX: `bash install.sh` → pick tool → everything wired up. Self-contained `.open-scholar-peer/` shims and venv per project.
 
 ### Deliverables (Phase 5)
 
-- [ ] **`scripts/init_mcp.sh`** — shared helper invoked by all installers:
-  1. Create `<project>/.open-scholar-peer/mcp/`
-  2. Copy `mcp-server/osp_mcp.py` + `requirements.txt` into it
-  3. `python3 -m venv .open-scholar-peer/mcp/.venv`
-  4. `.open-scholar-peer/mcp/.venv/bin/pip install -r requirements.txt`
-  5. Add `.open-scholar-peer/` to `.gitignore`
+- [ ] **`scripts/init_scripts.sh`** — shared helper invoked by all installers:
+  - Creates `<project>/.open-scholar-peer/`
+  - Copies `scripts/tools/` into it (including `osp_cli.py`, `convert_pdf.py`, `providers/`)
+  - Configures Python venv at `<project>/.open-scholar-peer/.venv`
+  - Installs requirements in the venv
+  - Creates Unix/Windows shims (`osp`, `osp.cmd`) wrapping the venv executions
+  - Adds `.open-scholar-peer/` to `.gitignore`
 - [ ] **`scripts/init_brain.sh`** — updated for v2 schema (already exists; needs schema bump)
-- [ ] **Per-tool MCP config writers** (one logical block per installer):
-  - `install_claude.sh` → write/merge `<project>/.mcp.json` with two entries: `osp` (points to `.open-scholar-peer/mcp/.venv/bin/python` + `osp_mcp.py`) and `markitdown` (uvx or pipx command).
-  - `install_cursor.sh` → write `<project>/.cursor/mcp.json` with same two entries.
-  - `install_gemini.sh` → write `<project>/.gemini/mcp.json` (or extension manifest) with same two entries.
-  - `install_antigravity.sh` → emit instructions for the user to add entries to `~/.gemini/antigravity/mcp_config.json` (global config — can't be done programmatically for this tool); copy a ready-to-paste snippet to clipboard or file.
-  - `install_copilot.sh` → write the equivalent for Copilot CLI.
-- [ ] **Per-tool adapter file copy** — each installer copies its `extensions/.{tool}/` content into the user's project root.
-- [ ] **`install.sh`** — top-level dispatcher (mostly works; update tool labels: "GitHub Copilot CLI" not just "GitHub Copilot").
-- [ ] **MarkItDown MCP** — register the official Microsoft `markitdown-mcp` package alongside `osp_mcp` in every tool's MCP config. Document the install command (`pipx install markitdown-mcp` or equivalent).
+- [ ] **Per-tool installer script updates**:
+  - All 14 installers copy tool-specific configurations (prompts, rules, skills, etc.) and run `init_scripts.sh` + `init_brain.sh`.
+- [ ] **`install.sh`** — top-level dispatcher (works; supports all 14 tools).
+- [ ] **Local PDF conversion shim** — register `convert_pdf.py` inside `osp_cli.py` / `.open-scholar-peer/` to handle PDF parsing locally via `markitdown` without needing external MCP servers.
 
 ### Tests (Phase 5)
 
-- [ ] Fresh install on empty directory → `.brain/`, `.open-scholar-peer/`, tool config, adapter files all created
-- [ ] Re-running installer is idempotent (no breakage, no duplicate config entries)
-- [ ] `.open-scholar-peer/mcp/.venv/bin/python osp_mcp.py` runs successfully
-- [ ] Existing user config files (e.g., pre-existing `.mcp.json`) are merged, not overwritten
+- [ ] Fresh install on empty directory → `.brain/`, `.open-scholar-peer/`, shims, and adapter files all created
+- [ ] Re-running installer is idempotent (no breakage, no duplicate shim entries)
+- [ ] `.open-scholar-peer/osp` (or `.open-scholar-peer\osp.cmd` on Windows) executes successfully
 - [ ] Linux + macOS shells both succeed
 
 ### Exit Criteria (Phase 5)
 
 - [ ] One-liner install works for every supported tool
-- [ ] Self-contained `.open-scholar-peer/mcp/` survives repo deletion
+- [ ] Self-contained `.open-scholar-peer/` CLI shim survives project location moves or parent tool restarts
 - [ ] User can verify install by invoking `/open-scholar-peer` and seeing the dispatcher respond
 
 ---
@@ -297,13 +291,12 @@ Confirm parity across tools, document limitations, and ship.
 
 Ongoing refinements for UX and robustness:
 
-#### MCP Server & Tool Improvements
+#### CLI Tool & Providers Improvements
 
-- [x] **Timeout wrapper** — all async tool calls wrapped with `asyncio.wait_for(timeout=OSP_CALL_TIMEOUT)` to prevent hangs (Semantic Scholar, arXiv); default 90s, overridable via `.env` or env var
+- [x] **Timeout wrapper** — all provider calls wrapped with execution timeout to prevent hangs (Semantic Scholar, arXiv); default 90s, overridable via `.env` or env var
 - [x] **Expanded Semantic Scholar** — from 4 → 10 tools: `get_paper_references`, `get_paper_citations`, `get_papers_batch`, `search_authors`, `get_author_papers`, `get_paper_recommendations`, `search_snippets` (in addition to `search_semantic_scholar` and `get_paper_details`)
 - [x] **ArXiv via package** — switched from raw HTTP to `arxiv` Python package for better rate limiting and reliability
-- [x] **Dotenv loading** — MCP server loads `.env` at startup for API key injection
-- [x] **Sidecar tracking** — OSP-managed MCP entries tracked in `.scholar-peer/osp-managed-entries.json` to prevent Gemini JSON validation breakage
+- [x] **Dotenv loading** — CLI loads `.env` at execution for API key injection
 
 #### Command & Skill Enhancements
 
@@ -315,10 +308,10 @@ Ongoing refinements for UX and robustness:
 
 #### Installer & Docs Polish
 
-- [x] **Spinner animations** — `init_mcp.sh` uses braille spinner with `kill -0` polling for venv/pip operations; non-blocking in CI
+- [x] **Spinner animations** — `init_scripts.sh` uses braille spinner with `kill -0` polling for venv/pip operations; non-blocking in CI
 - [x] **Numbered "Next:" format** — all installers end with `Next: (1) ... (2) run /open-scholar-peer`
 - [x] **Removed "Drop your paper" instruction** — user relies on `/open-scholar-peer` orchestrator for paper path discovery
-- [x] **Directory rename** — `.scholar-peer/` → `.open-scholar-peer/mcp/` throughout (init_mcp.sh, merge_mcp_config.py, docs, gitignore)
+- [x] **Directory rename** — `.scholar-peer/` → `.open-scholar-peer/` throughout (init_scripts.sh, docs, gitignore)
 - [x] **Tool name shortening** — "Google Antigravity IDE" → "Antigravity", "GitHub Copilot CLI" → "Copilot CLI" (install.sh menu, installer headers, README table, docs)
 - [x] **`.env` for API keys** — installers create `.env` at project root with example placeholder; documented in README
 - [x] **Dynamic Q&A pairs** — default 2 pairs per criterion (user-configurable at `/5-osp-qa` start); templates use `{{qa_pairs_per_criterion}}`
@@ -331,7 +324,7 @@ Ongoing refinements for UX and robustness:
 
 ### Exit Criteria (Phase 6+)
 
-- [x] MCP server is robust (timeouts, expanded tooling, env-loaded keys)
+- [x] CLI tool is robust (timeouts, expanded tooling, env-loaded keys)
 - [x] All agents are informative (orientation blocks, findings-based reports)
 - [x] Literature review uses all tools simultaneously
 - [x] Installers are polished (spinners, numbered ending, no "drop paper" instruction)
@@ -345,6 +338,6 @@ Ongoing refinements for UX and robustness:
 - [ ] **Multi-paper sessions** — `.brain/sessions/<paper_slug>/` with active-session pointer. Currently v1 = one paper per `.brain/`.
 - [ ] **`src/backend`** — DeepAgents JS / LangGraph standalone runtime.
 - [ ] **`src/frontend`** — Customized Deep Agents UI with stepper UX.
-- [ ] **Publishing `osp-mcp` to PyPI** — currently v1 = self-contained venv per project; future = `pipx install osp-mcp`.
+- [ ] **Publishing `open-scholar-peer` to PyPI** — currently v1 = self-contained venv per project; future = `pipx install open-scholar-peer`.
 - [ ] **CI for sync drift** — currently manual; future = pre-commit hook or GH Actions check that fails if `_shared/` is newer than any adapter.
 - [ ] **Parallelization within Phase 1** — Summary, LitReview, Historian, BaselineScout could run in parallel but currently sequential for simplicity and methodology fidelity.

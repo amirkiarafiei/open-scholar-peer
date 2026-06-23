@@ -53,43 +53,52 @@ bash install.sh   # or scripts/install_<tool>.sh
 
 ---
 
-## MCP server issues
+## CLI runtime issues
 
-### `osp` MCP server appears "disconnected" in the AI tool
+### `osp` CLI shim appears unreachable in the AI tool
 
-Try running it manually to surface errors:
+Verify that the CLI shim exists and is runnable:
 ```bash
-.open-scholar-peer/mcp/.venv/bin/python .open-scholar-peer/mcp/osp_mcp.py
+./.open-scholar-peer/osp --capabilities
 ```
-The server runs on stdio and stays open waiting for MCP protocol messages. If it exits immediately with a Python traceback, that's the bug.
+If it prints a capabilities JSON manifest, the runner is correctly configured. If it exits with an error or a Python traceback, check:
+- Is Python 3.10+ installed? Run `python3 --version`.
+- Is there a virtualenv? Run `ls .open-scholar-peer/venv/bin/python`.
+- If the traceback is about missing dependencies, try running the installer again: `bash install.sh`.
 
-### `markitdown` MCP not converting PDFs
+### PDF conversion fails with "binary format and conversion failed"
 
-`markitdown-mcp` is registered as `{"command": "uvx", "args": ["markitdown-mcp"]}`. Verify `uvx` works:
+The conversion utilizes `uvx markitdown` or `python3 .open-scholar-peer/convert_pdf.py`. Verify `uvx` or `pip install markitdown` is functioning:
 ```bash
 uvx --version          # uv 0.4+ required
-uvx markitdown-mcp     # should fetch and start the package
+uvx markitdown <pdf>   # should output markdown content
 ```
-If `uvx` is not installed:
+If `uv` is not installed, install it:
 ```bash
-pipx install uv
-# or
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
+Alternatively, convert the paper manually to Markdown and place the text at `.brain/input/paper.md`.
 
 ### Semantic Scholar returns 429 Too Many Requests
 
-Anonymous rate limits are tight. Get a free API key (https://www.semanticscholar.org/product/api#api-key) and export it:
-```bash
-export SEMANTIC_SCHOLAR_API_KEY=sk-...
+Anonymous rate limits are tight. Get a free API key (https://www.semanticscholar.org/product/api#api-key) and add it to your `.env` file at the project root:
+```env
+SEMANTIC_SCHOLAR_API_KEY=sk-...
 ```
-Add to your shell profile (`~/.zshrc`, `~/.bashrc`) so it persists across sessions. Restart your AI tool to pick up the new env var.
+The CLI shim loads the `.env` file automatically on every search execution.
 
-### `osp` server starts but tools return errors
+### CLI starts but returns errors
 
-Each tool has consistent error envelopes. Look for entries like `[{"error": "..."}]` in the AI tool's output and check:
-- Network connectivity (`curl https://api.semanticscholar.org/graph/v1/paper/search?query=test`)
-- For Google Scholar tools: HTML scraping may have hit a rate limit; wait 5-10 minutes.
+Look for JSON error envelopes in your tool's terminal logs. The CLI provides a structured error return value:
+```json
+{
+  "error": "provider_error",
+  "provider": "google_scholar",
+  "message": "...",
+  "guidance": "..."
+}
+```
+Read the `"guidance"` field for actionable troubleshooting advice.
 
 ---
 
@@ -99,10 +108,10 @@ Each tool has consistent error envelopes. Look for entries like `[{"error": "...
 
 Run `/open-scholar-peer` — the orchestrator will detect you're at the onboarding step and ask you for the paper's path. You can provide any path; it will copy the file into `.brain/input/` for you.
 
-### `/1-osp-summary` refuses with "binary format and markitdown unavailable"
+### `/1-osp-summary` refuses with "binary format and conversion failed"
 
 This is the hard input guard working correctly. Either:
-1. Install markitdown (see above).
+1. Fix or install markitdown dependencies (see above).
 2. Provide a markdown version manually:
    ```bash
    markitdown paper.pdf > .brain/input/paper.md   # if you have it CLI-locally
