@@ -54,10 +54,17 @@ Provide executing agents with this map of the runtime environment so they unders
   - `requirements.txt` — dependency list
 
 ### Dependency resolution order (try in this order)
-1. `.brain/runtime/osp <subcommand>`   ← shim handles everything automatically
-2. `uv run --script .brain/runtime/osp_cli.py`   ← if `uv` is on PATH
-3. `.brain/runtime/venv/bin/python .brain/runtime/osp_cli.py`   ← if `venv` exists
-4. If none work, tell the user what's missing and ask how to proceed.
+
+**For search CLI (`osp_cli.py` / shim):**
+1. `.brain/runtime/osp <subcommand>` (or `osp.cmd` on Windows)
+2. `uv run --script .brain/runtime/osp_cli.py <subcommand>`
+3. `.brain/runtime/venv/bin/python .brain/runtime/osp_cli.py <subcommand>`
+
+**For PDF conversion (`convert_pdf.py` — separate script, not the shim):**
+1. `uv run --script .brain/runtime/convert_pdf.py <input_path> <output_path>`
+2. `.brain/runtime/venv/bin/python .brain/runtime/convert_pdf.py <input_path> <output_path>`
+
+If none work, tell the user what's missing and ask how to proceed.
 
 ## Output
 

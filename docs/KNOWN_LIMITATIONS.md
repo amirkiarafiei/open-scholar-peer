@@ -20,7 +20,7 @@ These are limitations users should know about going in. None block normal operat
 
 **What:** The `osp search-semantic-scholar` and related CLI subcommands use the official Semantic Scholar API. Without an API key, anonymous limits apply (~100 requests / 5 min, frequently bursty 429s). Under load, the API can also hang silently for the full `OSP_CALL_TIMEOUT` duration (default: 180 s) before returning an error.
 
-**Impact:** During the 3-round literature retrieval (`/2-osp-literature`), one slow provider can add up to 180 s of dead wait time per query. This is why agents **must** call providers individually (`search-arxiv`, `search-semantic-scholar`, `search-google-scholar`) rather than using `search-all` — individual calls let the agent report partial results and move on immediately after a timeout, instead of being blocked.
+**Impact:** During the 3-round literature retrieval (`/2-osp-literature`), one slow provider can add up to 180 s of dead wait time per query. This is why agents are encouraged to call providers individually (`search-arxiv`, `search-semantic-scholar`, `search-google-scholar`) rather than relying on `search-all` — individual calls let the agent report partial results and move on immediately after a timeout, instead of being blocked by one slow API.
 
 **What to do:**
 

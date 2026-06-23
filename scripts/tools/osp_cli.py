@@ -293,10 +293,11 @@ def output_capabilities():
             },
             {
                 "name": "search-all",
-                "description": "Queries all three database engines sequentially, deduplicates papers, truncates abstracts.",
+                "description": "Queries all three database engines sequentially, deduplicates papers, truncates abstracts. Available but discouraged; prefer individual provider-specific calls (search-arxiv, search-semantic-scholar, search-google-scholar) for better timeout isolation.",
                 "required_args": ["query"],
                 "optional_args": {"--limit": "int (default 5)", "--year-from": "YYYY", "--year-to": "YYYY"},
-                "rate_limits": "Bounded by individual provider constraints."
+                "rate_limits": "Bounded by individual provider constraints.",
+                "deprecated": True
             },
             {
                 "name": "get-arxiv-details",

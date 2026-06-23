@@ -37,9 +37,8 @@ These rules apply automatically in any project where Open ScholarPeer is install
 
 These rules apply whenever any agent performs literature retrieval (typically `/2-osp-literature` and `/4-osp-baseline-scout`).
 
-1. **Never use `search-all`.** Always call each provider subcommand separately, in sequence:
-   `search-arxiv` → `search-semantic-scholar` → `search-google-scholar`.
-   Reason: providers have different latency profiles. `search-all` lets one slow provider (e.g. Semantic Scholar on the anonymous tier timing out at 180 s) block the entire search. Separate calls allow partial results and immediate progress feedback.
+1. **Prefer individual provider calls over `search-all`.** We strongly recommend calling each provider subcommand separately, in sequence (`search-arxiv` → `search-semantic-scholar` → `search-google-scholar`), rather than using `search-all`.
+   Reason: providers have different latency profiles. If one provider (e.g. Semantic Scholar on the anonymous tier timing out at 180 s) hangs, `search-all` will block the entire search. Sequential separate calls allow the agent to capture partial results and report progress immediately.
 
 2. **After each provider call, print a one-line status update** immediately:
    - ✅ `<provider>` → `<N>` results
@@ -52,6 +51,8 @@ These rules apply whenever any agent performs literature retrieval (typically `/
 
 5. **Record all provider failures in the artifact's Provenance section** under "Tools unavailable" so the user understands the completeness of the corpus.
 
+
+## Persona discipline
 
 - Each numbered command (`/N-osp-*`) activates exactly one persona skill (`osp-<name>-agent`). Do not blend personas.
 - The Q&A engine (`/5-osp-qa`) uses two personas at once: Query Agent (main thread) and Answer Generator (subagent, or self-reflection on tools that lack subagents).

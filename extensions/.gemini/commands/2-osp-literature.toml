@@ -39,7 +39,7 @@ Invoke the `osp-literature-review-agent` skill.
 
 3. Run the **next pending round only**:
    - Activate the `osp-literature-review-agent` skill for that round.
-   - The skill searches each provider **separately, in order**: `search-arxiv` → `search-semantic-scholar` → `search-google-scholar`, then native web search. **Never use `search-all`** — individual calls allow partial results and early progress reporting if one provider hangs.
+   - The skill searches each provider **separately, in order**: `search-arxiv` → `search-semantic-scholar` → `search-google-scholar`, then native web search. Prefer individual calls over `search-all` to ensure partial results and early progress reporting if one provider hangs, though `search-all` remains available if a unified lookup is preferred.
    - Write the round file (`02a`, `02b`, or `02c`) using the template at `defaults/round_strategy_template.md`.
 
 4. Update `session.json`:

@@ -46,9 +46,9 @@ After all three rounds, write `02_retrieved_literature.md` consolidating retaine
 
 ## Tools
 
-In **every round** you MUST search each database **separately, in sequence**, using individual provider subcommands. **Never use `search-all`.**
+In **every round** you should search each database **separately, in sequence**, using individual provider subcommands. Avoid using `search-all` unless necessary.
 
-> **Why sequential, not `search-all`?** Each provider has a different API backend and a different latency profile. arXiv typically responds in seconds; Semantic Scholar (anonymous tier) can block for the full `OSP_CALL_TIMEOUT`; Google Scholar is HTML-scraping with strict IP limits. If you use `search-all`, one slow provider holds the entire round hostage. Running them one at a time lets you report partial results immediately and move on if one hangs.
+> **Why sequential, not `search-all`?** Each provider has a different API backend and a different latency profile. arXiv typically responds in seconds; Semantic Scholar (anonymous tier) can block for the full `OSP_CALL_TIMEOUT`; Google Scholar is HTML-scraping with strict IP limits. If you use `search-all`, one slow provider holds the entire round hostage. Running them one at a time lets you report partial results immediately and move on if one hangs. Therefore, sequential calls are highly preferred, though `search-all` remains available if a unified lookup is preferred.
 
 ### Mandatory per-provider call order
 
@@ -137,7 +137,7 @@ After all four files exist:
 
 ## Pitfalls
 
-- Do **not** use `search-all` — it bundles all three providers into one call, meaning one slow or rate-limited provider stalls the entire round. Always call each provider separately.
+- Avoid `search-all` — it bundles all three providers into one call, meaning one slow or rate-limited provider stalls the entire round. Sequential per-provider calls are highly preferred.
 - Do **not** run provider calls concurrently — parallel calls trigger Google Scholar IP blocks.
 - Do **not** synthesize a narrative — that's the Historian's job. Just retrieve and tabulate.
 - Do **not** skip a round because you "already covered it" — the strategy differentiation is the point.
