@@ -111,6 +111,91 @@ def check_tool(tool: ToolSpec, commands: list[str], skills: list[str], defaults:
     return issues
 
 
+def check_dependencies() -> list[str]:
+    import ast
+    issues = []
+    tools_dir = REPO_ROOT / "scripts" / "tools"
+    req_file = tools_dir / "requirements.txt"
+    if not req_file.exists():
+        return [f"requirements.txt missing at {req_file}"]
+
+    # Parse requirements.txt
+    packages = set()
+    with open(req_file, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            name = line.split(">=")[0].split("==")[0].split("<=")[0].split(">")[0].split("<")[0].strip().lower()
+            packages.add(name)
+
+    # Mapping of top-level import name to requirements package name
+    import_mapping = {
+        "bs4": "beautifulsoup4",
+        "dateutil": "python-dateutil",
+        "dotenv": "python-dotenv",
+        "arxiv": "arxiv",
+        "semanticscholar": "semanticscholar",
+        "scholarly": "scholarly",
+        "requests": "requests",
+        "mcp": "mcp",
+        "fastmcp": "fastmcp",
+        "markitdown": "markitdown",
+    }
+
+    # Standard library modules to ignore
+    stdlib = {
+        "sys", "os", "json", "time", "urllib", "argparse", "dataclasses", 
+        "pathlib", "typing", "re", "shutil", "abc", "threading", "concurrent", 
+        "tempfile", "hashlib", "traceback", "datetime", "ast", "importlib", "logging",
+        "warnings", "__future__"
+    }
+
+    # Python files to check
+    py_files = [
+        tools_dir / "osp_cli.py",
+        tools_dir / "convert_pdf.py",
+        tools_dir / "providers" / "arxiv.py",
+        tools_dir / "providers" / "google_scholar.py",
+        tools_dir / "providers" / "semantic_scholar.py",
+    ]
+
+    for pfile in py_files:
+        if not pfile.exists():
+            continue
+        try:
+            with open(pfile, "r") as f:
+                tree = ast.parse(f.read(), filename=pfile.name)
+        except Exception as e:
+            issues.append(f"Failed to parse AST of {pfile.name}: {e}")
+            continue
+
+        for node in ast.walk(tree):
+            imported_names = []
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    imported_names.append(alias.name.split(".")[0])
+            elif isinstance(node, ast.ImportFrom):
+                if node.level == 0 and node.module:
+                    imported_names.append(node.module.split(".")[0])
+
+            for name in imported_names:
+                if name in stdlib or name == "providers":
+                    continue
+
+                # If name is a local sibling module or folder, ignore it
+                sibling_py = pfile.parent / f"{name}.py"
+                sibling_dir = pfile.parent / name
+                if sibling_py.exists() or sibling_dir.exists():
+                    continue
+
+                pkg = import_mapping.get(name, name.lower())
+                if pkg not in packages:
+                    issues.append(f"[{pfile.name}] imports '{name}' but '{pkg}' is missing from requirements.txt")
+
+    return issues
+
+
 def main() -> int:
     if not SHARED.exists():
         print(f"ERROR: {SHARED} does not exist.", file=sys.stderr)
@@ -127,6 +212,8 @@ def main() -> int:
     print(f"  ▸ canonical: {len(commands)} commands, {len(skills)} skills, {len(defaults)} defaults")
 
     all_issues: list[str] = []
+    
+    # 1. Parity checks
     for tool in TOOLS:
         issues = check_tool(tool, commands, skills, defaults)
         if issues:
@@ -134,14 +221,21 @@ def main() -> int:
         else:
             print(f"  ✓ {tool.name}: parity OK")
 
+    # 2. Dependency checks
+    dep_issues = check_dependencies()
+    if dep_issues:
+        all_issues.extend(dep_issues)
+    else:
+        print("  ✓ tools dependencies: check OK")
+
     if all_issues:
-        print("\n  ❌ Drift detected:")
+        print("\n  ❌ Issues detected:")
         for i in all_issues:
             print(f"     - {i}")
-        print(f"\n  → Run `python3 scripts/sync_adapters.py` to regenerate.")
+        print(f"\n  → Please correct parity or requirements drift.")
         return 1
 
-    print(f"\n  ✅ All {len(TOOLS)} tools have full parity with _shared/")
+    print(f"\n  ✅ All checks passed (parity and dependencies OK)")
     return 0
 
 
