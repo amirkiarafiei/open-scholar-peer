@@ -31,9 +31,7 @@ osp_post_install() {
 
   if [ -z "${OSP_DRIVEN:-}" ]; then
     n=$((n + 1))
-    printf '  (%d) Open %s %bin this directory%b, then type %b/open-scholar-peer%b in its chat.\n' \
-      "$n" "$tool" "${YELLOW:-}" "${NC:-}" "${CYAN:-}" "${NC:-}"
-    printf '      It is a slash command for the agent — not a shell command.\n'
-    printf '      The orchestrator reads your session state and guides you from there.\n'
+    printf '  (%d) Open %s here, and in its interactive chat run %b/open-scholar-peer%b\n' \
+      "$n" "$tool" "${CYAN:-}" "${NC:-}"
   fi
 }
