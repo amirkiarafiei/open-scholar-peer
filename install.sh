@@ -271,18 +271,22 @@ menu_tools() {
 
   i=0; while [ "$i" -lt "$n" ]; do marks="${marks}0"; i=$((i + 1)); done
 
-  rows=$(term_rows)
-  # Rows of chrome around the list: title, sub, blanks, button, two help lines.
-  layout=0
-  [ $(( 12 + n )) -ge "$rows" ] && layout=1
-  [ $((  9 + n )) -ge "$rows" ] && layout=2
-  win=$n
-  if [ "$layout" -eq 2 ]; then
-    win=$(( rows - 9 )); [ "$win" -lt 4 ] && win=4; [ "$win" -gt "$n" ] && win=$n
-  fi
-
   hide_cursor
   while :; do
+    # Re-measured every frame: the window can be resized mid-menu, and geometry
+    # captured once would make every later rewind clamp at row 0 and clip the
+    # top of the menu permanently.
+    rows=$(term_rows)
+    layout=0
+    [ $(( 12 + n )) -ge "$rows" ] && layout=1
+    [ $((  9 + n )) -ge "$rows" ] && layout=2
+    win=$n
+    if [ "$layout" -eq 2 ]; then
+      # Layout 2's chrome is 4 lines (title, scroll indicator, inline button,
+      # help), plus one row left in hand so a full-height frame does not scroll.
+      win=$(( rows - 5 )); [ "$win" -lt 1 ] && win=1; [ "$win" -gt "$n" ] && win=$n
+    fi
+    [ "$cur" -gt "$n" ] && cur=$n
     if [ "$cur" -lt "$n" ]; then
       [ "$cur" -lt "$top" ] && top=$cur
       [ "$cur" -ge $((top + win)) ] && top=$((cur - win + 1))
@@ -497,7 +501,11 @@ if [ -n "$CLI_TOOLS" ]; then
     slug=$(printf '%s' "$slug" | tr -d '[:space:]')
     [ -z "$slug" ] && continue
     if idx=$(slug_to_index "$slug"); then
-      SELECTED_IDX="$SELECTED_IDX $idx"
+      # Skip a repeat: `--tool claude,claude` must install once, not twice.
+      case " $SELECTED_IDX " in
+        *" $idx "*) ;;
+        *) SELECTED_IDX="$SELECTED_IDX $idx" ;;
+      esac
     else
       bad "Unknown tool: $slug"
       say ""
@@ -510,9 +518,18 @@ if [ -n "$CLI_TOOLS" ]; then
   if [ -z "$SELECTED_IDX" ]; then bad "--tool given but no tool parsed."; exit 2; fi
 elif [ "$HAVE_TTY" -eq 0 ]; then
   hr
-  bad "No interactive terminal available, and no --tool given."
+  if [ -r "$TTY" ]; then
+    bad "Standard output is not a terminal, and no --tool given."
+    say ""
+    say "  The menus draw to stdout, so redirecting it (a pipe, > file, tee)"
+    say "  would hide them. Either drop the redirection, or name the tool up front."
+  else
+    bad "No interactive terminal available, and no --tool given."
+    say ""
+    say "  The menus need a terminal."
+  fi
   say ""
-  say "  The menus need a terminal. Either run it interactively:"
+  say "  Run it interactively:"
   say ""
   say "      git clone $REPO_URL && cd open-scholar-peer && bash install.sh"
   say ""
@@ -527,10 +544,10 @@ fi
 
 # --- Interactive path --------------------------------------------------------
 if [ -z "$SELECTED_IDX" ]; then
-  hr; printf '\n'
-
   # Step 1 — where. Guards against running `curl | bash` in the wrong directory.
+  # Skipped entirely when --dir already answered it, separator included.
   if [ -z "$TARGET" ]; then
+    hr; printf '\n'
     MENU_SUB="Your paper, the .brain/ working state and the MCP runtime all live here."
     if ! menu_single "Step 1 of 2 $DOT Where should Open ScholarPeer be installed?" 0 \
       "This directory   $INVOKED_FROM" \
@@ -595,12 +612,17 @@ else
     "$YEL$B" "$ARROW" "$installed" "$failed" "$failed_names" "$R"
 fi
 printf '  %s%s%s\n' "$DIM" "$TARGET" "$R"
-printf '\n'
-printf '  %sWhat to do next%s\n\n' "$B" "$R"
-printf '    %s1.%s Put the paper you want reviewed anywhere in this directory.\n' "$B" "$R"
-printf '    %s2.%s Open your code agent here, and in its interactive chat run:\n' "$B" "$R"
-printf '\n         %s/open-scholar-peer%s\n\n' "$CYN$B" "$R"
-printf '       %sThe orchestrator guides you through all seven steps.%s\n' "$DIM" "$R"
+# Nothing installed means there is nothing to go and use — telling the user to
+# open an agent and run the command would point them at an integration that was
+# never written.
+if [ "$installed" -gt 0 ]; then
+  printf '\n'
+  printf '  %sWhat to do next%s\n\n' "$B" "$R"
+  printf '    %s1.%s Put the paper you want reviewed anywhere in this directory.\n' "$B" "$R"
+  printf '    %s2.%s Open your code agent here, and in its interactive chat run:\n' "$B" "$R"
+  printf '\n         %s/open-scholar-peer%s\n\n' "$CYN$B" "$R"
+  printf '       %sThe orchestrator guides you through all seven steps.%s\n' "$DIM" "$R"
+fi
 if [ "$failed" -ne 0 ]; then
   printf '\n  %sRe-run for the failed tool(s), or install one directly:%s\n' "$DIM" "$R"
   printf '  %sbash install.sh --tool <slug>%s\n' "$DIM" "$R"

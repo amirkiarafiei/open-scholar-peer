@@ -233,8 +233,31 @@ adapters, `.brain/`, `.env`, `.mcp.json`, `.cursor/mcp.json` and the venv all pr
 interactive path was driven through a pty (space → End → Enter) and produced the same result; and
 `bash scripts/test_install.sh` passes for all 14 tools, as do the drift check and parity test.
 
-Acceptance criteria 1–6 pass. Criterion 7 — a reviewing subagent finds no correctness defect — was run
-after this report; see below.
+Acceptance criteria 1–6 pass.
+
+### Review round — 2026-09-11
+
+Criterion 7: a reviewing subagent drove the TUI through a terminal emulator at nine terminal heights,
+plus piped stdin, remote-clone mode, Ctrl-C, `q`, an ASCII locale and a deliberately-failing installer.
+It found six confirmed defects; all six are fixed:
+
+| | Defect | Fix |
+|---|---|---|
+| 1 | **Resize corrupted the menu permanently.** `rows`/`layout`/`win` were measured once before the redraw loop, so shrinking the window made every later `rewind` clamp at row 0 — title and cursor clipped off the top, arrow keys apparently dead, unrecoverable without `q`. | Geometry is re-measured every frame, and `cur` is re-clamped. |
+| 2 | **The success block printed even when every installer failed** — "0 installed, 2 failed" followed by instructions to go use an integration that was never written. | Guarded on `installed > 0`. |
+| 3 | **Tight layout wasted 5 rows** (it reused layout 0's chrome constant) and clipped the title at ≤ 8 rows. | Chrome constant corrected to 4 + one row in hand; window floor lowered. Title, button and cursor now visible at every height from 6 rows up. |
+| 4 | The no-TTY refusal **gave the wrong reason** when stdout was merely redirected. | The refusal stays — a TUI drawn into a pipe is invisible — but now says which of the two cases it is. |
+| 5 | `--dir` plus the interactive menu drew **two horizontal rules back to back**. | Step 1's separator moved inside the block it belongs to. |
+| 6 | `--tool claude,claude` **installed twice** and reported "2 tool(s)". | Duplicate indices skipped. |
+
+Finding 1 is the one that mattered: it exists in both reference installers too, and bites hardest here
+because OSP has the longest list — layout 0 needs a 27-row terminal, so it is the tier most likely to be
+resized out from under. Worth reporting upstream to `subagent-cli-skills` and `kia-context`.
+
+Re-verified after the fixes: the resize scenario now re-lays out correctly (40 → 18 rows, cursor and
+title still visible); title/button/cursor present at rows 6, 8, 12, 16, 20, 24, 30, 40; all-fail exits 1
+with no success block; duplicate slug installs once; and the smoke test, drift check and parity test
+all still pass.
 
 ---
 
