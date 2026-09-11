@@ -14,7 +14,7 @@ These are limitations users should know about going in. None block normal operat
 
 **Impact:** Reviews on the Q&A axis from these two tools are likely lower in independent-verification depth than reviews from the other twelve. The other downstream phases (literature, historian, baseline scout, reviewer) are unaffected.
 
-**Workaround:** If you need full subagent isolation for a paper, use one of the subagent-capable tools listed above.
+**Workaround:** If you need full subagent isolation for a paper, use any of the other twelve — Claude Code, Cursor, Gemini CLI, Antigravity, Antigravity CLI, Copilot CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro or Kimi Code.
 
 ---
 
@@ -56,16 +56,19 @@ markitdown paper.pdf > .brain/input/paper.md
 
 ## 4. Some MCP configs are global, not project-local
 
-**What:** Most tools store MCP config in a project-local file the installer writes directly. Three write outside the project:
-- **Antigravity** — `~/.gemini/antigravity/mcp_config.json` and `~/.gemini/config/mcp_config.json`.
-- **Copilot CLI** — `~/.copilot/mcp-config.json`.
-- **Kimi Code** — `~/.kimi/mcp.json`.
+**What:** Installers wire the MCP server up in one of three ways.
 
-**Limitation:** All three are merged automatically by `merge_mcp_config.py`, which preserves existing entries — but they are *your* global files, shared by every project on the machine, so a bad merge affects more than this review.
+| | Tools | Where |
+|---|---|---|
+| **Project-local, auto-merged** | Claude Code, Cursor, Gemini CLI, Qwen Code, Junie, Kiro | a file inside your project |
+| **Global, auto-merged** | Antigravity (`~/.gemini/antigravity/` **and** `~/.gemini/config/`), Antigravity CLI (`~/.gemini/antigravity-cli/`, plus a project-local copy), Copilot CLI (`~/.copilot/`), Kimi Code (`~/.kimi/`) | a file in your home directory |
+| **Not merged — snippet only** | Codex CLI, Mistral Vibe, OpenCode, OpenHands | the installer writes a paste-ready snippet and tells you the path |
 
-**Impact:** The MCP server is registered once globally rather than per project. Installing OSP in a second directory re-points the same global entry at that directory's server copy.
+**Limitation:** The four in the middle row edit files shared by *every* project on your machine. `merge_mcp_config.py` preserves existing entries, but the blast radius is wider than this review.
 
-**Workaround:** Open the file after install and confirm the `osp` entry looks right. Tools with TOML config (Codex CLI, Mistral Vibe) are *not* auto-merged — those installers write a paste-ready snippet instead and tell you where.
+**Impact:** For those four, the `osp` server is registered once globally rather than per project — installing OSP in a second directory re-points the same global entry at the new directory's server copy. For the bottom row, nothing is wired up until you paste the snippet; the review will run but every literature search will fail.
+
+**Workaround:** After installing, open the file the installer named and confirm the `osp` entry points where you expect. If you have run OSP from a directory you later deleted, the global entry will point at a path that no longer exists — re-run the installer from a real project directory to repair it.
 
 ---
 

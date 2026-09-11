@@ -197,6 +197,7 @@ because it was true on 2026-05-08; read D16 for the current shape.
 | **O6** | Cascading invalidation — re-running an early phase leaves downstream artifacts stale with no warning (`KNOWN_LIMITATIONS.md` §8). Deferred, not solved. | 2026-09-11 | open |
 | **O7** | Drift between `_shared/` and the adapters is caught only when someone remembers to run `--check`. A pre-commit hook or CI job was scoped and deferred. | 2026-09-11 | open |
 | **O8** | Antigravity supports *custom* subagent definitions (`.agents/agents/<name>.md`, YAML frontmatter with `tools`, `model`, `commandExecutionPolicy`). Should `osp-answer-generator-agent` ship as a real one there, rather than relying on the host to route a skill? It would tighten the Q&A isolation, but it is a tool-specific artifact type no other adapter has. See D16. | 2026-09-11 | open |
+| **O10** | `scripts/test_install.sh` merged throwaway `/tmp` paths into the developer's real global MCP configs on every run, for six installers, since the smoke test was written. Fixed by redirecting `HOME` — but nothing stops the next test harness from doing the same. Should running any `install_*.sh` outside a sandbox be made harder? | 2026-09-11 | open |
 | **O9** | A tool's capability can expire without anyone noticing — Antigravity's did, and OSP shipped the weaker Q&A path for months (D16). Nothing re-checks the capability matrix against vendor docs. Is that worth automating, or is it inherently a human job? | 2026-09-11 | open |
 
 ---
