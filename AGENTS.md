@@ -53,7 +53,7 @@ cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -r requirements.
 - `/.agents/` at repo root is leftover unrelated tooling, gitignored. The OSP Antigravity adapter is at `extensions/.agent/`, and the Antigravity CLI adapter is at `extensions/.agents/`. Do not confuse them.
 - `reviewer-os/` at repo root is an external reference (gitignored), not part of OSP.
 - When adding or renaming a command/skill, update **both** `extensions/_shared/MANIFEST.md` and `docs/ARTIFACT_CONTRACTS.md`.
-- Q&A behavior differs per tool: Antigravity (legacy), Mistral Vibe, OpenHands fall back to self-reflection (no/partial subagents); the other 11 use subagent isolation. Logic lives in `sync_adapters.py::adapt_qa_body_for_tool()`.
+- Q&A behavior differs per tool: Mistral Vibe and OpenHands fall back to self-reflection (no/partial subagents); the other 12 use subagent isolation. Logic lives in `sync_adapters.py::adapt_qa_body_for_tool()`. Antigravity moved into the subagent group in 2026-09 — see `kia-context/logs/BRAINSTORM.md` D16.
 - Paper hyperparameters: `k=3` literature rounds is fixed (enforced via 3 round files); `N_QA` is **user-configurable** at `/5-osp-qa` start (default 2 pairs/criterion, persisted as `session.json.qa_pairs_per_criterion`). The Q&A template renders `### Q1`…`### QN` from that field.
 - Tools that share the project-root `AGENTS.md` surface (Copilot, Codex, Kimi, Vibe, OpenCode, OpenHands) all merge through `scripts/merge_agents_md.sh` using `<!-- OSP-BEGIN/OSP-END -->` markers. Do not roll your own merge logic.
 - The MCP server runs as a subprocess of the host tool over stdio. To debug, run `python3 mcp-server/osp_mcp.py` standalone — it'll wait for MCP protocol messages and surface any startup errors.
@@ -146,8 +146,8 @@ These rules apply automatically in any project where Open ScholarPeer is install
 
 ## Subagent vs self-reflection
 
-- **Prefer subagents** for the Q&A engine on tools that support them (Claude Code, Cursor, Gemini CLI, Copilot CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, Kimi Code).
-- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) on tools without (or with only partial) subagent support: Antigravity, Mistral Vibe, OpenHands.
+- **Prefer subagents** for the Q&A engine on tools that support them — every supported tool except the two named below.
+- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) on tools without (or with only partial) subagent support: Mistral Vibe, OpenHands.
 - Self-reflection is a documented weaker substitute. See `KNOWN_LIMITATIONS.md`.
 
 ## User orientation (required on every phase invocation)

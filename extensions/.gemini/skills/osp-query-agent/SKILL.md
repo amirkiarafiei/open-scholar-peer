@@ -56,16 +56,16 @@ Avoid generic questions. "Is this novel?" is bad. "Is the claim that this method
 
 ## Subagent delegation (default mode)
 
-On Claude Code / Cursor / Gemini CLI / GitHub Copilot CLI, spawn the Answer Generator Agent as a **subagent** for each question. Pass it:
+On every tool that supports subagents — which is all of them except Mistral Vibe and OpenHands — spawn the Answer Generator Agent as a **subagent** for each question. Pass it:
 - The single question
 - A *minimal* context bundle: the relevant excerpts from `01_structured_summary.md` (claims/method/evidence), the criterion definition, plus relevant entries from `03_domain_narrative.md` and `04_missing_baselines.md`.
 - The available retrieval tools (`osp-mcp.*`, native Web Search) so the Answer Generator can verify novelty claims.
 
 The Answer Generator returns `(answer, citations, discrepancy_flag)`. Append it to the file. Discard the subagent context.
 
-## Self-reflection fallback (Antigravity only)
+## Self-reflection fallback (Mistral Vibe and OpenHands only)
 
-If you are running in a tool without subagent support (Antigravity), use the following strict turn-marker protocol:
+If you are running in a tool without subagent support (Mistral Vibe, OpenHands), use the following strict turn-marker protocol:
 
 ```
 === Query Agent (probing) ===

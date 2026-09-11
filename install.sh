@@ -61,7 +61,7 @@ fi
 TOOL_HINTS=(
   "subagents $DOT .mcp.json auto"
   "subagents $DOT .cursor/mcp.json auto"
-  "self-reflect $DOT global config auto"
+  "subagents $DOT global config auto"
   "subagents $DOT .gemini/settings.json auto"
   "subagents $DOT ~/.copilot auto"
   "subagents $DOT codex mcp add (TOML)"

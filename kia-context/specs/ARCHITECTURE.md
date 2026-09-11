@@ -143,13 +143,14 @@ answer its own questions; each question goes to a fresh, stateless Answer Genera
 other questions. That isolation is the point — it is what stops the verification being coloured by the
 reasoning that produced the question.
 
-11 of 14 tools support real subagents. The other three — Antigravity (desktop), Mistral Vibe, OpenHands —
-fall back to **self-reflection**: both personas in one context window, separated by hard turn markers
+12 of 14 tools support real subagents. The other two — Mistral Vibe and OpenHands — fall back to
+**self-reflection**: both personas in one context window, separated by hard turn markers
 (`=== Query Agent === … === Answer Generator === …`). This is a weaker substitute and is published as one
 (`docs/KNOWN_LIMITATIONS.md` §1). The banner that tells a tool which mode it is in is injected at sync
 time by `sync_adapters.py::adapt_qa_body_for_tool()` — the single semantic transform in the whole pipeline.
 
-*Measured: `python3 -c "…; sum(1 for t in TOOLS.values() if t.supports_subagent)"` → 11 of 14.*
+*Measured: `python3 -c "…; sum(1 for t in TOOLS.values() if t.supports_subagent)"` → 12 of 14. It read
+11 until 2026-09-11, when Antigravity moved into the subagent group — see `logs/BRAINSTORM.md` D16.*
 
 ---
 
@@ -341,4 +342,4 @@ renaming one breaks a workflow no test will catch.
 | **Persona** | A skill file that gives the host agent one role for one step. Personas are never blended. |
 | **Self-reflection** | The degraded Q&A mode for tools without subagents. Always a substitute, never an equivalent. |
 | **Discrepancy** | A verified conflict between a paper's claim and retrieved evidence, tagged `[DISCREPANCY]`. Discrepancies are what the final review's weaknesses are built from. |
-| **`.agents/` vs `.agent/`** | Two different products. `extensions/.agent/` is Antigravity (desktop, no subagents); `extensions/.agents/` is Antigravity CLI (subagents). A repo-root `/.agents/` is unrelated local tooling and is gitignored. |
+| **`.agents/` vs `.agent/`** | Two different products, both now subagent-capable. `extensions/.agent/` is Antigravity (desktop); `extensions/.agents/` is Antigravity CLI. The desktop installer writes to *both* `./.agents/` and `./.agent/` in the user's project, because Antigravity's own docs moved workspace customizations to `.agents/` while keeping `.agent/` working. A repo-root `/.agents/` in this repository is unrelated local tooling and is gitignored. |
