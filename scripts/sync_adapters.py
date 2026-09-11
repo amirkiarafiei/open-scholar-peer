@@ -78,8 +78,10 @@ TOOLS: dict[str, ToolCaps] = {
     "antigravity": ToolCaps(
         name="antigravity",
         root=REPO_ROOT / "extensions" / ".agent",
-        supports_subagent=False,
-        qa_mode="self-reflection",
+        # Antigravity 2.0 ships an asynchronous subagent framework
+        # (invoke_subagent, custom subagents under .agents/agents/<name>.md).
+        supports_subagent=True,
+        qa_mode="subagent",
         command_dir="workflows",  # antigravity calls them workflows
         command_ext="md",
         skill_dir="skills",

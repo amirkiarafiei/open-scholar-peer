@@ -35,6 +35,7 @@ last_updated: "2026-09-11"
 | [Milestones](#milestones) | The table |
 | [M8](#-milestone-m8-installer-improvements--context-harness) | Context harness (done) |
 | [M9](#-milestone-m9-installer-experience) | Installer experience (done) |
+| [M10](#-milestone-m10-antigravity-gains-subagents) | Antigravity subagents (done) |
 
 ---
 
@@ -79,6 +80,7 @@ A change to canonical content that has not been synced is not done, however corr
 | **M7** | Scale-out and UX | 5 tools → 14; phase orientation, resource warnings, configurable Q&A | M6 | ✅ Done 2026-07-31 |
 | **M8** | Context harness | The harness holds a true picture of the project | M7 | ✅ Done 2026-09-11 |
 | **M9** | Installer experience | Installing OSP is a guided, keyboard-driven flow instead of a numbered prompt, and the README says where to type the slash command | M8 | ✅ Done 2026-09-11 |
+| **M10** | Antigravity gains subagents | Antigravity is treated like every other subagent-capable tool — no self-reflection fallback, and nothing anywhere still claims it cannot delegate | M9 | ✅ Done 2026-09-11 |
 
 > **Numbering never restarts.** When this file is split, part two continues at the next M.
 
@@ -301,6 +303,79 @@ Re-verified after the fixes: the resize scenario now re-lays out correctly (40 �
 title still visible); title/button/cursor present at rows 6, 8, 12, 16, 20, 24, 30, 40; all-fail exits 1
 with no success block; duplicate slug installs once; and the smoke test, drift check and parity test
 all still pass.
+
+---
+
+## 🏁 Milestone M10: Antigravity gains subagents
+
+**Target.** Antigravity 2.0 ships an asynchronous subagent framework (`invoke_subagent`, custom subagents
+under `.agents/agents/<name>.md`, an `/agents` panel, a 10-level nesting limit). OSP classified it as
+having no subagents and routed `/5-osp-qa` through the self-reflection fallback. That is now wrong, and
+being wrong here costs review quality: self-reflection is the documented weaker substitute, so every
+Antigravity user has been getting a worse Q&A phase than the tool can support.
+
+After this milestone Antigravity is treated exactly like the other subagent-capable tools, and the
+self-reflection path survives only for the two tools that still need it — Mistral Vibe and OpenHands.
+
+**Blast radius, measured before starting.** `grep -rn` for Antigravity near self-reflection wording:
+**14 files** hold the claim, of which **8 are canonical or code** and the rest are generated adapters that
+the sync script rewrites.
+
+| Canonical / code | Why it mentions Antigravity |
+|---|---|
+| `scripts/sync_adapters.py` | the capability flag itself — `supports_subagent`, `qa_mode` |
+| `extensions/_shared/commands/5-osp-qa.md` | mode-selection prose, ×2 |
+| `extensions/_shared/rules/osp-rules.md` | the always-on fallback list |
+| `extensions/_shared/skills/osp-query-agent/SKILL.md` | "Self-reflection fallback (Antigravity only)" |
+| `extensions/_shared/skills/osp-answer-generator-agent/SKILL.md` | frontmatter + operating mode, ×2 |
+| `extensions/_shared/MANIFEST.md` | capability-flag table |
+| `scripts/install_antigravity.sh` | prints a "does NOT support subagents" notice |
+| `install.sh` | the tool hint shown in the picker |
+| `README.md`, `AGENTS.md`, `docs/KNOWN_LIMITATIONS.md`, `docs/ARTIFACT_CONTRACTS.md`, `docs/TROUBLESHOOTING.md` | user- and contributor-facing claims |
+
+### Deliverables
+
+- [x] **Capability flag flipped** — `sync_adapters.py` marks Antigravity `supports_subagent=True`, `qa_mode="subagent"`; adapters regenerated.
+- [x] **Canonical prompts** — Antigravity removed from every self-reflection list; the fallback now reads "Mistral Vibe and OpenHands" and stays intact for them.
+- [x] **Docs** — README support table, `AGENTS.md`, `KNOWN_LIMITATIONS.md` §1, `ARTIFACT_CONTRACTS.md`, `TROUBLESHOOTING.md`.
+- [x] **Installer** — the "does NOT support subagents" notice removed from `install_antigravity.sh`; the picker hint in `install.sh` updated.
+- [x] **Harness** — `ARCHITECTURE.md` subagent count and glossary; a decision entry recording what changed and when.
+
+### Acceptance criteria
+
+1. `grep -rin "antigrav" | grep -i "self-reflect"` returns nothing outside historical log entries.
+2. `extensions/.agent/workflows/5-osp-qa.md` carries the **subagent** banner, and `.vibe` / `.openhands` still carry the self-reflection one.
+3. 12 of 14 tools report `supports_subagent`; the two remaining are Mistral Vibe and OpenHands.
+4. `sync_adapters.py --check`, `test_parity.py` and `test_install.sh` all pass.
+5. Every count that was "11" or "three tools" is updated wherever it appears, including in the harness.
+6. A reviewing subagent finds no stale claim and no over-reach beyond the capability change.
+
+**Depends on:** M9.
+
+### Report — 2026-09-11
+
+Six canonical/code files and five doc files changed; the 14 adapter directories regenerated from them.
+Antigravity is now `supports_subagent=True` / `qa_mode="subagent"`, and the self-reflection path survives
+intact for the two tools that still need it. Verified: 12 of 14 report subagent support, the two
+remaining are Mistral Vibe and OpenHands, `extensions/.agent/workflows/5-osp-qa.md` carries the subagent
+banner while `.vibe` and `.openhands` still carry the self-reflection one, and a `grep` for Antigravity
+near self-reflection wording returns nothing outside the log entries that record the change. Drift check,
+parity test and all 14 installer smoke tests pass.
+
+**Scope held deliberately.** Antigravity also documents *custom subagent definition files*
+(`.agents/agents/<name>.md`, YAML frontmatter carrying `tools`, `model`, `commandExecutionPolicy`). Not
+built: no other adapter has such a file, so it would be a new artifact type for the sync script to
+generate and keep in parity, and parity with the other thirteen is precisely what this milestone was for.
+Logged as O8.
+
+**Found while auditing, fixed in passing.** `KNOWN_LIMITATIONS.md` §4 claimed the Antigravity installer
+prints a paste-ready MCP snippet the user must apply by hand. It has not done that for some time — it
+auto-merges both global config files, which is also what the README's support table says. The section now
+describes what actually happens, and names Kimi Code, which writes globally too and was missing from it.
+
+**The uncomfortable part**, recorded as O9: this classification was wrong for as long as it took someone
+to read a vendor changelog. Nothing in the project re-checks the capability matrix against vendor docs, so
+the same silent expiry can happen to any of the other thirteen.
 
 ---
 

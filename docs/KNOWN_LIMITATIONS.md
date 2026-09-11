@@ -4,13 +4,15 @@ These are limitations users should know about going in. None block normal operat
 
 ---
 
-## 1. Some tools fall back to self-reflection for the Q&A engine
+## 1. Two tools fall back to self-reflection for the Q&A engine
 
 **What:** The Multi-Aspect Q&A Engine (`/5-osp-qa`) is designed around true subagent isolation: the Query Agent (main thread) delegates each question to a fresh Answer Generator subagent so the verification cannot be biased by the question's reasoning trace.
 
-**Limitation:** Three of the supported tools — **Antigravity** (legacy desktop app), **Mistral Vibe**, and **OpenHands** — either do not support subagents or have only profile-style independence (no documented subagent delegation). On these, the Q&A engine falls back to **self-reflection mode**: both Query and Answer Generator personas run in the same context window, separated by strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`).
+**Limitation:** Two of the supported tools — **Mistral Vibe** and **OpenHands** — either do not support subagents or have only profile-style independence (no documented subagent delegation). On these, the Q&A engine falls back to **self-reflection mode**: both Query and Answer Generator personas run in the same context window, separated by strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`).
 
-**Impact:** Reviews on the Q&A axis from these tools are likely lower in independent-verification depth than reviews from Claude Code, Cursor, Gemini CLI, Antigravity CLI, Copilot CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, or Kimi Code. The other downstream phases (literature, historian, baseline scout, reviewer) are unaffected.
+*Antigravity used to be on this list. Antigravity 2.0 ships an asynchronous subagent framework, so it moved to full subagent isolation in 2026-09.*
+
+**Impact:** Reviews on the Q&A axis from these two tools are likely lower in independent-verification depth than reviews from the other twelve. The other downstream phases (literature, historian, baseline scout, reviewer) are unaffected.
 
 **Workaround:** If you need full subagent isolation for a paper, use one of the subagent-capable tools listed above.
 
@@ -52,17 +54,18 @@ markitdown paper.pdf > .brain/input/paper.md
 
 ---
 
-## 4. Antigravity and Copilot CLI MCP configs require manual setup
+## 4. Some MCP configs are global, not project-local
 
-**What:** Most tools store MCP config in a project-local file the installer can write directly. Two exceptions:
-- **Antigravity** uses a global config at `~/.gemini/antigravity/mcp_config.json`.
-- **Copilot CLI** uses `~/.copilot/mcp-config.json`.
+**What:** Most tools store MCP config in a project-local file the installer writes directly. Three write outside the project:
+- **Antigravity** — `~/.gemini/antigravity/mcp_config.json` and `~/.gemini/config/mcp_config.json`.
+- **Copilot CLI** — `~/.copilot/mcp-config.json`.
+- **Kimi Code** — `~/.kimi/mcp.json`.
 
-**Limitation:** Programmatically modifying user-global config files would be intrusive. The installers print a paste-ready snippet (or attempt a careful merge in Copilot's case) but the user must verify the file.
+**Limitation:** All three are merged automatically by `merge_mcp_config.py`, which preserves existing entries — but they are *your* global files, shared by every project on the machine, so a bad merge affects more than this review.
 
-**Impact:** Slightly higher first-run friction on Antigravity. Copilot CLI is auto-merged by `merge_mcp_config.py` but the user should still verify the file looks right.
+**Impact:** The MCP server is registered once globally rather than per project. Installing OSP in a second directory re-points the same global entry at that directory's server copy.
 
-**Workaround:** Check the snippet at `.open-scholar-peer/antigravity_mcp_snippet.json` (Antigravity) or `~/.copilot/mcp-config.json` (Copilot CLI) after install.
+**Workaround:** Open the file after install and confirm the `osp` entry looks right. Tools with TOML config (Codex CLI, Mistral Vibe) are *not* auto-merged — those installers write a paste-ready snippet instead and tell you where.
 
 ---
 

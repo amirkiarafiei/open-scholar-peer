@@ -40,8 +40,6 @@ mkdir -p "$(dirname "$AG_MCP_CONFIG_SHARED")"
 python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$AG_MCP_CONFIG_LEGACY" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$AG_MCP_CONFIG_SHARED" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
-echo -e "\n  ${YELLOW}ℹ️  Antigravity does NOT support general subagents — /5-osp-qa falls${NC}"
-echo "     back to self-reflection mode (see docs/KNOWN_LIMITATIONS.md)."
 
 # Closing message — shared wording lives in _post_install.sh
 . "$SCRIPTS_DIR/_post_install.sh"

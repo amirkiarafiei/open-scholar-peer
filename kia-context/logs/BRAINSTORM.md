@@ -86,6 +86,9 @@ and always say what was **rejected** — that is the part that stops it being re
 **Rejected uniform self-reflection because:** it would degrade the 11 tools that can do it properly.
 **Rejected silent fallback because:** presenting a weaker method as equivalent is the dishonesty MANIFESTO rule 7 exists to prevent.
 **Measured:** 11 of 14 tools support subagents.
+**Superseded in part by D16 (2026-09-11):** the decision stands, but the count does not — Antigravity gained
+subagents, so it is 12 of 14 and the fallback covers only Mistral Vibe and OpenHands. Left as written
+because it was true on 2026-05-08; read D16 for the current shape.
 
 ### D6 · `N_QA` 10 → user-configurable, default 2 — 2026-05-08
 
@@ -168,6 +171,16 @@ and always say what was **rejected** — that is the part that stops it being re
 **Rejected committing the whole of `/.agents/` because:** it also holds a locally-installed copy of the OSP Antigravity-CLI adapter, which duplicates `extensions/.agents/` and would drift against it silently. Only the kiacontext skills are tracked; the rest of each tool directory stays ignored.
 **Rule that follows:** none — this is repository hygiene, not product.
 
+### D16 · Antigravity moves from self-reflection to subagents — 2026-09-11
+
+**Considered:** leave the classification alone / flip the capability flag / flip it *and* ship custom subagent definition files under `.agents/agents/`
+**Chose:** flip the flag, and treat Antigravity exactly like the other subagent-capable tools
+**Because:** Antigravity 2.0 documents an asynchronous subagent framework — `invoke_subagent`, custom subagents at `.agents/agents/<name>.md`, an `/agents` panel, a 10-level nesting cap. The old classification was not a preference, it was a fact that expired, and while it stood every Antigravity user got the documented *weaker* Q&A phase (D5) for no reason.
+**Rejected leaving it because:** self-reflection is a substitute, not an equivalent — MANIFESTO rule 7.
+**Rejected shipping custom subagent files because:** no other tool has them. OSP's personas are skills, and a tool-specific agent-definition format would be a new artifact type for the sync script to produce and keep in parity. Parity with the other 13 *is* the fix here. Noted as O8 instead.
+**Measured:** subagent-capable tools 11 → 12 of 14; self-reflection now covers only Mistral Vibe and OpenHands. Blast radius before starting: 14 files carried the claim, 8 of them canonical or code.
+**Rule that follows:** none new — ARCHITECTURE §4 and `docs/KNOWN_LIMITATIONS.md` §1 updated in place.
+
 ---
 
 ## Open questions
@@ -183,6 +196,8 @@ and always say what was **rejected** — that is the part that stops it being re
 | **O5** | The live end-to-end run on a real paper is marked done (`b8aa4df`) but no artifact records its result. Should a reference run be committed as evidence? | 2026-09-11 | open |
 | **O6** | Cascading invalidation — re-running an early phase leaves downstream artifacts stale with no warning (`KNOWN_LIMITATIONS.md` §8). Deferred, not solved. | 2026-09-11 | open |
 | **O7** | Drift between `_shared/` and the adapters is caught only when someone remembers to run `--check`. A pre-commit hook or CI job was scoped and deferred. | 2026-09-11 | open |
+| **O8** | Antigravity supports *custom* subagent definitions (`.agents/agents/<name>.md`, YAML frontmatter with `tools`, `model`, `commandExecutionPolicy`). Should `osp-answer-generator-agent` ship as a real one there, rather than relying on the host to route a skill? It would tighten the Q&A isolation, but it is a tool-specific artifact type no other adapter has. See D16. | 2026-09-11 | open |
+| **O9** | A tool's capability can expire without anyone noticing — Antigravity's did, and OSP shipped the weaker Q&A path for months (D16). Nothing re-checks the capability matrix against vendor docs. Is that worth automating, or is it inherently a human job? | 2026-09-11 | open |
 
 ---
 
