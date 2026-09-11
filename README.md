@@ -156,7 +156,7 @@ Anonymous Semantic Scholar limits are tight. Get a free key at https://www.seman
 | [Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✓ | ✓ (`~/.kimi/mcp.json`) |
 | [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✗ (self-reflection fallback) | manual snippet (TOML) |
 | [OpenHands](https://docs.openhands.dev) | ✗ (self-reflection fallback) | via OpenHands UI / `config.toml` |
-| [Antigravity](https://antigravity.google/) | ✓ | ✓ (`~/.gemini/antigravity/` + `~/.gemini/config/`) |
+| [Antigravity](https://antigravity.google/) | ✓ (falls back if unavailable) | ✓ (`~/.gemini/antigravity/` + `~/.gemini/config/`) |
 | [Antigravity CLI](https://antigravity.google/cli/) | ✓ | ✓ (`.agents/mcp_config.json` + `~/.gemini/antigravity-cli/`) |
 
 See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for self-reflection caveats and per-tool MCP wiring details.

@@ -181,6 +181,17 @@ because it was true on 2026-05-08; read D16 for the current shape.
 **Measured:** subagent-capable tools 11 → 12 of 14; self-reflection now covers only Mistral Vibe and OpenHands. Blast radius before starting: 14 files carried the claim, 8 of them canonical or code.
 **Rule that follows:** none new — ARCHITECTURE §4 and `docs/KNOWN_LIMITATIONS.md` §1 updated in place.
 
+### D17 · Antigravity degrades instead of insisting — 2026-09-11
+
+**Considered:** keep the hard "MUST delegate / do NOT self-reflect" banner D16 gave Antigravity / ship a real subagent definition so the hard banner is safe (O8) / add a third Q&A mode that tries delegation and falls back
+**Chose:** the third mode, `prefer-subagent`
+**Because:** D16 asserted a capability nobody has run. Review raised it as O11: the banner orders delegation to `osp-answer-generator-agent`, but that persona ships as a *skill*, while Antigravity's mechanism is `invoke_subagent` over definitions at `.agents/agents/<name>.md`. If the skill is not reachable that way, a hard banner leaves the phase with no target and the fallback that used to cover it removed. The owner cannot test `agy` right now, so the wording has to work either way.
+**Rejected the hard banner because:** an absolute instruction is only safe when the capability is confirmed. Here it converts an unknown into a failure.
+**Rejected shipping the definition file because:** still O8 — a tool-specific artifact type no other adapter has, and it would not help the five other tools resting on the same assumption.
+**Consequence:** `adapt_qa_body_for_tool()` now has three modes, not two. The banner asks Antigravity to try delegation, fall back to turn markers if it is unavailable, finish the phase either way, and record `Mode:` in the artifact so the run says which happened.
+**Also:** the owner asked for no "MUST"/"do NOT" in this banner. The eleven confirmed-subagent tools keep the absolute wording — there the capability is known, and the absolute is what stops the Query Agent answering its own questions.
+**Rule that follows:** none new. MANIFESTO rule 8 (fail loudly, never degrade in silence) is satisfied by the `Mode:` line: the degradation is recorded in the artifact, not hidden.
+
 ---
 
 ## Open questions
@@ -199,7 +210,7 @@ because it was true on 2026-05-08; read D16 for the current shape.
 | **O8** | Antigravity supports *custom* subagent definitions (`.agents/agents/<name>.md`, YAML frontmatter with `tools`, `model`, `commandExecutionPolicy`). Should `osp-answer-generator-agent` ship as a real one there, rather than relying on the host to route a skill? It would tighten the Q&A isolation, but it is a tool-specific artifact type no other adapter has. See D16. | 2026-09-11 | open |
 | **O9** | A tool's capability can expire without anyone noticing — Antigravity's did, and OSP shipped the weaker Q&A path for months (D16). Nothing re-checks the capability matrix against vendor docs. Is that worth automating, or is it inherently a human job? | 2026-09-11 | open |
 | **O10** | `scripts/test_install.sh` merged throwaway `/tmp` paths into the developer's real global MCP configs on every run, for six installers, since the smoke test was written. Fixed by redirecting `HOME` — but nothing stops the next test harness from doing the same. Should running any `install_*.sh` outside a sandbox be made harder? | 2026-09-11 | open |
-| **O11** | The Q&A banner now tells Antigravity it MUST delegate to `osp-answer-generator-agent` as a subagent and must NOT self-reflect — but that persona ships as a *skill*, and Antigravity's mechanism is `invoke_subagent` over definitions at `.agents/agents/<name>.md` (O8). If `invoke_subagent` needs a registered subagent, the phase has no target and the fallback that used to make it work is gone. Kiro, Junie, Kimi, Qwen and OpenCode already rest on the same skill-as-subagent assumption, so this is not unique to Antigravity — but nobody has confirmed it on any of them. **Needs one real `/5-osp-qa` run on Antigravity 2.0.** See D16. | 2026-09-11 | open |
+| **O11** | Is a persona *skill* reachable through Antigravity's `invoke_subagent`, or does it need a registered definition at `.agents/agents/<name>.md` (O8)? Kiro, Junie, Kimi, Qwen and OpenCode rest on the same skill-as-subagent assumption and nobody has confirmed it on any of them either. **Mitigated, not answered:** D17 made Antigravity try-then-fall-back, so the phase completes either way and the artifact's `Mode:` line records which path ran — reading that line after one real run answers this. | 2026-09-11 | open (mitigated) |
 
 ---
 

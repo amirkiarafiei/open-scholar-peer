@@ -80,8 +80,10 @@ TOOLS: dict[str, ToolCaps] = {
         root=REPO_ROOT / "extensions" / ".agent",
         # Antigravity 2.0 ships an asynchronous subagent framework
         # (invoke_subagent, custom subagents under .agents/agents/<name>.md).
+        # Unverified whether a persona *skill* is reachable through it, so the
+        # Q&A banner asks it to try and degrade rather than insist. O11.
         supports_subagent=True,
-        qa_mode="subagent",
+        qa_mode="prefer-subagent",
         command_dir="workflows",  # antigravity calls them workflows
         command_ext="md",
         skill_dir="skills",
@@ -243,12 +245,36 @@ QA_COMMAND_BASENAME = "5-osp-qa"
 
 def adapt_qa_body_for_tool(body: str, qa_mode: str) -> str:
     """Inject a tool-specific banner into the Q&A command so the runtime knows
-    whether to use subagent delegation or self-reflection."""
+    whether to use subagent delegation or self-reflection.
+
+    Three modes, not two. `prefer-subagent` exists for tools where the vendor
+    documents a subagent framework but OSP has not been able to confirm that the
+    persona skill is reachable through it — the banner asks the agent to try
+    delegation and to fall back rather than fail. See BRAINSTORM D17 / O11.
+    """
     if qa_mode == "subagent":
         banner = (
             "> **Tool capability:** This tool supports subagents. The Query Agent "
             "MUST delegate each question to `osp-answer-generator-agent` as a "
             "subagent with a fresh, minimal context bundle. Do NOT use self-reflection.\n\n"
+        )
+    elif qa_mode == "prefer-subagent":
+        banner = (
+            "> **Tool capability:** This tool documents a subagent framework, and "
+            "subagent isolation is preferred here. Try it first: delegate each "
+            "question to `osp-answer-generator-agent` as a subagent with a fresh, "
+            "minimal context bundle.\n"
+            ">\n"
+            "> If delegation is unavailable in your session — the persona is not "
+            "reachable as a subagent, the call errors, or the capability is simply "
+            "absent — fall back to self-reflection with strict turn markers "
+            "(`=== Query Agent === ... === END === === Answer Generator === ...`) "
+            "in the main context window, and carry on. Do not stop the phase over "
+            "it.\n"
+            ">\n"
+            "> Either way, record which one you used in the `## Method` section of "
+            "each `05_qa_<slug>.md` (`Mode: subagent` or `Mode: self-reflection`), "
+            "so the artifact says how the answers were actually produced.\n\n"
         )
     else:
         banner = (

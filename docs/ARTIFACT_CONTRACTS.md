@@ -59,7 +59,7 @@ For every criterion in `session.json.qa_criteria[]`, the step produces `.brain/r
 # Q&A — <criterion label>
 
 ## Method
-<which subagent (or self-reflection mode) was used, what context bundle was passed, etc.>
+<`Mode: subagent` or `Mode: self-reflection` — which was actually used, what context bundle was passed, etc.>
 
 ## Output
 ### Q1
@@ -77,7 +77,7 @@ For every criterion in `session.json.qa_criteria[]`, the step produces `.brain/r
 <sources cited per answer>
 ```
 
-**Subagent vs self-reflection.** On every tool that supports subagents — all of them except Mistral Vibe and OpenHands — Q&A runs as: main thread holds Query Agent persona, spawns Answer Generator Agent as subagent for each question, receives back `(answer, citations, discrepancy)`. On the two that do not, the agent self-reflects with strict turn markers:
+**Subagent vs self-reflection.** Where subagents are available, Q&A runs as: main thread holds Query Agent persona, spawns Answer Generator Agent as subagent for each question, receives back `(answer, citations, discrepancy)`. Where they are not — always on Mistral Vibe and OpenHands, and on Antigravity if delegation turns out to be unreachable — the agent self-reflects with strict turn markers:
 
 ```
 === Query Agent (probing) ===

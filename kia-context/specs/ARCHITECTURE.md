@@ -143,8 +143,9 @@ answer its own questions; each question goes to a fresh, stateless Answer Genera
 other questions. That isolation is the point — it is what stops the verification being coloured by the
 reasoning that produced the question.
 
-12 of 14 tools support real subagents. The other two — Mistral Vibe and OpenHands — fall back to
-**self-reflection**: both personas in one context window, separated by hard turn markers
+12 of 14 tools support real subagents; Antigravity is one of them but tries-then-falls-back, because
+whether a persona skill is reachable through its `invoke_subagent` is unconfirmed (D17). The other two —
+Mistral Vibe and OpenHands — always use **self-reflection**: both personas in one context window, separated by hard turn markers
 (`=== Query Agent === … === Answer Generator === …`). This is a weaker substitute and is published as one
 (`docs/KNOWN_LIMITATIONS.md` §1). The banner that tells a tool which mode it is in is injected at sync
 time by `sync_adapters.py::adapt_qa_body_for_tool()` — the single semantic transform in the whole pipeline.
@@ -235,7 +236,7 @@ The transforms are:
 | Markdown → TOML | Gemini CLI commands are TOML with the body in a `prompt = """…"""` field. |
 | Rules → `GEMINI.md` / `AGENTS.md` / `QWEN.md` / `guidelines.md` | Each tool has its own always-on instruction filename, some at the tool root rather than in a rules directory. |
 | Rules → `.mdc` with `alwaysApply: true` | Cursor's format. |
-| Q&A banner injection | The only content-level branch: subagent vs self-reflection. |
+| Q&A banner injection | The only content-level branch, and the only one with three outcomes: `subagent`, `prefer-subagent` (try, then degrade), `self-reflection`. |
 
 Three guards keep this honest: `sync_adapters.py --check` regenerates into a temp tree and byte-compares
 (exit 1 on drift), `test_parity.py` asserts every tool has every canonical asset, and `test_install.sh`
