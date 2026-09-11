@@ -47,11 +47,13 @@ else
 fi
 
 if printf '%s' "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" | grep -qi 'utf-*8'; then
+  UTF8=1
   LINE="─"; ON="◉"; OFF="○"; CHK="▣"; BOX="□"; ARROW="›"; TICK="✓"; CROSS="✗"; DOT="·"
-  TL="╭"; TR="╮"; BL="╰"; BR="╯"; VT="│"
+  TL="╭"; TR="╮"; BL="╰"; BR="╯"; VT="│"; UPDN="↑/↓"
 else
+  UTF8=0
   LINE="-"; ON="(*)"; OFF="( )"; CHK="[x]"; BOX="[ ]"; ARROW=">"; TICK="+"; CROSS="x"; DOT="-"
-  TL="+"; TR="+"; BL="+"; BR="+"; VT="|"
+  TL="+"; TR="+"; BL="+"; BR="+"; VT="|"; UPDN="up/down"
 fi
 
 # Subagent isolation for /5-osp-qa, and how the MCP server gets wired.
@@ -92,7 +94,7 @@ bad()  { printf '  %s%s%s %s\n' "$RED" "$CROSS" "$R" "$*" >&2; }
 banner() {
   local w; w=$(term_cols)
   printf '\n'
-  if [ "$w" -ge 62 ]; then
+  if [ "$w" -ge 62 ] && [ "$UTF8" -eq 1 ]; then
     printf '%s' "$BLU"
     cat <<'BANNER'
    ██████╗ ███████╗██████╗
@@ -124,7 +126,7 @@ cleanup_all() {
 }
 on_interrupt() { show_cursor; printf '\n'; bad "Cancelled."; exit 130; }
 trap cleanup_all EXIT
-trap on_interrupt INT TERM
+trap on_interrupt INT TERM HUP
 
 # Reads one keypress from the terminal and echoes a symbolic name.
 read_key() {
@@ -240,7 +242,7 @@ menu_single() {
       drawn=$((drawn + 1)); i=$((i + 1))
     done
     printf '\n'; drawn=$((drawn + 1))
-    printf '   %s↑/↓ move %s enter select %s q cancel%s\n' "$DIM" "$DOT" "$DOT" "$R"
+    printf '   %s%s move %s enter select %s q cancel%s\n' "$DIM" "$UPDN" "$DOT" "$DOT" "$R"
     drawn=$((drawn + 1))
 
     key=$(read_key)
@@ -341,13 +343,13 @@ menu_tools() {
 
     if [ "$layout" -eq 0 ]; then
       printf '\n'; drawn=$((drawn + 1))
-      printf '     %s↑/↓ move %s space or enter toggle %s a all %s n none%s\n' \
-        "$DIM" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
+      printf '     %s%s move %s space or enter toggle %s a all %s n none %s tab jumps to Install%s\n' \
+        "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
       printf '     %spast the last tool is the Install button %s q cancel%s\n' \
         "$DIM" "$DOT" "$R"; drawn=$((drawn + 1))
     else
-      printf '     %s↑/↓ %s space toggle %s a all %s n none %s q cancel%s\n' \
-        "$DIM" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
+      printf '     %s%s %s space toggle %s a all %s tab Install %s q cancel%s\n' \
+        "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
     fi
 
     key=$(read_key)
@@ -357,7 +359,7 @@ menu_tools() {
       pgup)     cur=$((cur - win)); [ "$cur" -lt 0 ] && cur=0 ;;
       pgdn)     cur=$((cur + win)); [ "$cur" -gt "$n" ] && cur=$n ;;
       home)     cur=0 ;;
-      end)      cur=$n ;;
+      end | tab) cur=$n ;;
       a | A)    marks=""; i=0; while [ "$i" -lt "$n" ]; do marks="${marks}1"; i=$((i + 1)); done ;;
       n | N)    marks=""; i=0; while [ "$i" -lt "$n" ]; do marks="${marks}0"; i=$((i + 1)); done ;;
       space | left | right | h | l)
@@ -418,7 +420,7 @@ Open ScholarPeer installer
   bash install.sh -h | --help            this message
 
 Interactive keys:
-  up/down move  ·  space or enter toggle  ·  a all  ·  n none  ·  q cancel
+  up/down move  |  space or enter toggle  |  a all  |  n none  |  q cancel
   Arrow past the last tool to reach the Install button, then press enter.
 
 Tool slugs:
@@ -430,12 +432,13 @@ USAGE
 
 TARGET=""
 CLI_TOOLS=""
+TOOL_FLAG_SEEN=0
 while [ $# -gt 0 ]; do
   case "$1" in
     -h | --help) usage; exit 0 ;;
     --list)      list_slugs; exit 0 ;;
-    --tool)      CLI_TOOLS="$2"; shift 2 || { bad "--tool needs a value"; exit 2; } ;;
-    --tool=*)    CLI_TOOLS="${1#--tool=}"; shift ;;
+    --tool)      CLI_TOOLS="$2"; TOOL_FLAG_SEEN=1; shift 2 || { bad "--tool needs a value"; exit 2; } ;;
+    --tool=*)    CLI_TOOLS="${1#--tool=}"; TOOL_FLAG_SEEN=1; shift ;;
     --dir)       TARGET="$2"; shift 2 || { bad "--dir needs a value"; exit 2; } ;;
     --dir=*)     TARGET="${1#--dir=}"; shift ;;
     *) printf 'Unknown option: %s\n\n' "$1" >&2; usage >&2; exit 2 ;;
@@ -476,7 +479,7 @@ if [ "$IS_REMOTE" = true ]; then
     bad "git not found in PATH; it is needed to fetch Open ScholarPeer. Install git and re-run."
     exit 1
   fi
-  info "Remote install — fetching Open ScholarPeer"
+  info "Remote install - fetching Open ScholarPeer"
   TEMP_DIR=$(mktemp -d) || { bad "Could not create a temporary directory."; exit 1; }
   if ! git clone --depth 1 "$REPO_URL" "$TEMP_DIR" >/dev/null 2>&1; then
     bad "Failed to clone $REPO_URL. Check your network and retry."
@@ -484,7 +487,7 @@ if [ "$IS_REMOTE" = true ]; then
   fi
   SOURCE_DIR="$TEMP_DIR"
 else
-  info "Local checkout — installing from $SOURCE_DIR"
+  info "Local checkout - installing from $SOURCE_DIR"
 fi
 
 # --- Non-interactive path ----------------------------------------------------
@@ -494,7 +497,7 @@ HAVE_TTY=1
 { [ -r "$TTY" ] && [ -t 1 ]; } || HAVE_TTY=0
 
 SELECTED_IDX=""
-if [ -n "$CLI_TOOLS" ]; then
+if [ "$TOOL_FLAG_SEEN" -eq 1 ]; then
   OLD_IFS=$IFS; IFS=','
   for slug in $CLI_TOOLS; do
     IFS=$OLD_IFS
@@ -552,7 +555,7 @@ if [ -z "$SELECTED_IDX" ]; then
     if ! menu_single "Step 1 of 2 $DOT Where should Open ScholarPeer be installed?" 0 \
       "This directory   $INVOKED_FROM" \
       "Another path..."; then
-      printf '\n'; bad "Cancelled — nothing was installed."; exit 130
+      printf '\n'; bad "Cancelled - nothing was installed."; exit 130
     fi
     MENU_SUB=""
     if [ "$MENU_CHOICE" -eq 1 ]; then
@@ -569,7 +572,7 @@ if [ -z "$SELECTED_IDX" ]; then
 
   # Step 2 — which tools.
   if ! menu_tools "Into $TARGET"; then
-    printf '\n'; bad "Cancelled — nothing was installed."; exit 130
+    printf '\n'; bad "Cancelled - nothing was installed."; exit 130
   fi
   SELECTED_IDX="${MULTI_SELECTED[*]}"
 fi
@@ -599,7 +602,7 @@ for i in $SELECTED_IDX; do
     installed=$((installed + 1)); installed_names="$installed_names $name"
   else
     failed=$((failed + 1)); failed_names="$failed_names $name"
-    bad "$name — installer exited non-zero (see the output above)"
+    bad "$name - installer exited non-zero (see the output above)"
   fi
 done
 

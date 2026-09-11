@@ -26,7 +26,9 @@ osp_post_install() {
 
   for line in "$@"; do
     n=$((n + 1))
-    printf '  (%d) %b\n' "$n" "$line"
+    # %s, not %b: these are plain text, and %b would eat a backslash in a
+    # future action string (a \n, or a Windows path).
+    printf '  (%d) %s\n' "$n" "$line"
   done
 
   if [ -z "${OSP_DRIVEN:-}" ]; then
