@@ -67,6 +67,21 @@ A change to canonical content that has not been synced is not done, however corr
 
 ---
 
+## Releases
+
+| Tag | Date | Contains |
+|---|---|---|
+| `v1.0.0` | 2026-05-09 | First release — 5 tools, the seven-step protocol, the MCP server |
+| `v1.1.0` | 2026-05-10 | Hardening: config-merge robustness, drift detection, arXiv via the official package, per-call timeouts, `curl \| bash` fix |
+| `v1.2.0` | 2026-09-11 | M8–M10: the context harness, the keyboard-driven installer, Antigravity subagents with graceful fallback, and the `$HOME` sandbox fix for the smoke test |
+
+> **Release procedure** is in `AGENTS.md`. Step 4 — a manual end-to-end run on a real paper — cannot be
+> done by an agent; it needs a person driving a real tool. For `v1.2.0` it was **not** performed: the
+> automated gates (drift, parity, 14/14 installer smoke, syntax) all passed and the installer was driven
+> through a terminal emulator, but no review was run end to end on a paper. Treat that as outstanding.
+
+---
+
 ## Milestones
 
 | | Milestone | Done when | Depends on | Status |
