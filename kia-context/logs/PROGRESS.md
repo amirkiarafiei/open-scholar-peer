@@ -377,6 +377,35 @@ describes what actually happens, and names Kimi Code, which writes globally too 
 to read a vendor changelog. Nothing in the project re-checks the capability matrix against vendor docs, so
 the same silent expiry can happen to any of the other thirteen.
 
+### Review round — 2026-09-11
+
+The reviewing subagent found three defects **introduced by this milestone**, all in the one file the
+commit had touched as a "correctness fix" — a reminder that a rewrite justified as fixing an error is
+exactly where the next error hides:
+
+| | Defect | Fix |
+|---|---|---|
+| 1 | `KNOWN_LIMITATIONS.md` §1 said "use one of the subagent-capable tools **listed above**" — the same diff had replaced that list with "the other twelve". | The workaround names all twelve. |
+| 2 | The §4 rewrite said **three** tools write outside the project. Four do — `install_antigravity_cli.sh` merges `~/.gemini/antigravity-cli/mcp_config.json` as well as the project-local file. | §4 is now a table built from what the installers actually do, verified by grepping every `merge_mcp_config.py` call site. |
+| 3 | §4 claimed TOML was why a config is not auto-merged. It is not the dividing line: OpenCode and OpenHands emit JSON snippets and are not merged either. | The table's third row names all four snippet-only tools. |
+
+### The bigger finding — `$HOME` was never sandboxed
+
+Asked to run `scripts/test_install.sh`, the reviewer discovered it **merges throwaway `/tmp` paths into
+the developer's real global MCP configs on every run**. Six installers write under `$HOME`; the harness
+sandboxed only the project directory. When the sandbox is deleted, a dead `osp` entry pointing at a
+vanished `/tmp` path is left behind in `~/.gemini/antigravity/`, `~/.gemini/config/`,
+`~/.gemini/antigravity-cli/`, `~/.kimi/` and `~/.copilot/`.
+
+This is not new — `~/.copilot/mcp-config.json` on this machine still points at a `.scholar-peer/` path,
+a directory name retired in May (`43cd32b`), so it has been happening for months. But it was being made
+worse on every verification run, including three in this session, and "all 14 installer smoke tests pass"
+was being cited as evidence the work was safe.
+
+Fixed: `run_install_smoke()` now runs each installer with `HOME` pointed at a directory inside the
+sandbox. Verified by md5-summing all five real config files before and after a full run — unchanged,
+and all 14 still pass. Logged as O10, because nothing stops the next harness from repeating it.
+
 ---
 
 > **← Previous:** none.

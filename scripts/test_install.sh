@@ -38,9 +38,16 @@ run_install_smoke() {
   echo ""
   echo "==> ${tool_name}"
 
-  local sandbox repo_copy
+  local sandbox repo_copy fake_home
   sandbox=$(mktemp -d)
   repo_copy=$(mktemp -d)
+
+  # Six installers write MCP config under $HOME (Antigravity, Antigravity CLI,
+  # Kimi, Copilot, Codex, Vibe). Without redirecting HOME this smoke test merges
+  # throwaway /tmp paths into the developer's REAL global config on every run,
+  # leaving dead `osp` entries behind when the sandbox is deleted.
+  fake_home="$sandbox/.fake-home"
+  mkdir -p "$fake_home"
 
   # Copy the entire repo to a writable temp location so we can stub init_mcp.sh
   cp -r "$REPO_ROOT/." "$repo_copy/"
@@ -48,7 +55,7 @@ run_install_smoke() {
 
   # Run installer from sandbox (the installer's CWD becomes the user's project)
   pushd "$sandbox" >/dev/null
-  if ! bash "$repo_copy/scripts/$installer" </dev/null > /tmp/osp_install_${tool_name}.log 2>&1; then
+  if ! HOME="$fake_home" bash "$repo_copy/scripts/$installer" </dev/null > /tmp/osp_install_${tool_name}.log 2>&1; then
     echo -e "  ${RED}✗ installer exited non-zero. Tail of log:${NC}"
     tail -15 /tmp/osp_install_${tool_name}.log
     FAIL=1
