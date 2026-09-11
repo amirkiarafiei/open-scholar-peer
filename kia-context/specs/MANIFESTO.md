@@ -68,7 +68,7 @@ Every step writes a file the reviewer can open, and stops so they can read it.
 
 These may not be traded away for speed, cost, or output quality.
 
-> **Provenance of these rules.** Rules 1–5 and 8 are stated outright in `docs/IDEA.md`, `AGENTS.md`,
+> **Provenance of these rules.** Rules 1–5 and 8 are stated outright in `genesis/IDEA.md`, `AGENTS.md`,
 > `extensions/_shared/rules/osp-rules.md` or the skill files, and are quoted from there. Rules 6, 7 and 9
 > are the agent's reading of behaviour the system already enforces everywhere, written down here for the
 > first time on 2026-09-11 — **confirm them with the owner before treating them as settled law.**

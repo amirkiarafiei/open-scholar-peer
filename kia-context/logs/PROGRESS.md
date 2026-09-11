@@ -15,10 +15,13 @@ last_updated: "2026-09-11"
 
 # 📈 PROGRESS — What we are building
 
-> **M1–M7 were reconstructed from git history and `docs/PHASES.md` on 2026-09-11, not captured from the
-> work as it happened.** Treat them as approximate: the commits say what changed, rarely why, and the
-> acceptance criteria shown are the ones `docs/PHASES.md` recorded at the time, not invented afterwards.
-> **Everything from M8 onward was recorded live.**
+> **M1–M7 were reconstructed from git history and the retired `docs/PHASES.md` on 2026-09-11, not
+> captured from the work as it happened.** Treat them as approximate: the commits say what changed,
+> rarely why, and the acceptance criteria shown are the ones `PHASES.md` recorded at the time, not
+> invented afterwards. **Everything from M8 onward was recorded live.**
+>
+> `PHASES.md` was deleted the same day (`BRAINSTORM.md` D14) because this file supersedes it. To read
+> the original: `git show 027645b:docs/PHASES.md`.
 
 > **← Previous:** none. This is part one.
 > **Next →** none yet. When this file is split, the pointer goes here and in the new part.
@@ -85,7 +88,7 @@ A change to canonical content that has not been synced is not done, however corr
 (2026-09-11). Tags: `v1.0.0` 2026-05-09, `v1.1.0` 2026-05-10.*
 
 **M1 · Foundation** — 2026-04-23 → 2026-05-08. The paper was added, summarised, and turned into a design
-document (`docs/IDEA.md`), then into an implementation plan (`docs/PHASES.md`), the `.brain/` filesystem
+document (`genesis/IDEA.md`), then into an implementation plan (`PHASES.md`, since retired), the `.brain/` filesystem
 contract, the per-step artifact contracts, and a v2 `session.json` schema carrying venue and criteria.
 No code — specs and templates only, deliberately.
 
@@ -116,8 +119,8 @@ and the `.scholar-peer/` → `.open-scholar-peer/` rename.
 
 **Report — 2026-09-11 (written at reconstruction).** What exists today: 21 canonical files generating 282
 adapter files across 14 tools, a 15-tool MCP server, 14 installers. Drift check, parity test and syntax
-checks all pass. `docs/PHASES.md` marks every phase complete except the **manual live end-to-end run**,
-which its own exit criteria call a manual milestone; commit `b8aa4df` marks it done for v1, but no
+checks all pass. `PHASES.md` marked every phase complete except the **manual live end-to-end run**,
+which its own exit criteria called a manual milestone; commit `b8aa4df` marks it done for v1, but no
 artifact in the repository records the result. Treat "the full protocol has been driven end to end on a
 real paper" as asserted, not evidenced.
 
@@ -132,6 +135,8 @@ harness holds a true picture of the project so the next session does not start f
 
 - [x] **kiacontext installed and committed** — harness files, plus the pointer blocks in `AGENTS.md` and `CLAUDE.md`.
 - [x] **Harness filled from history and docs** — genesis, manifesto, architecture, progress, brainstorm written from `docs/`, the git log and the owner's statement of intent.
+- [x] **`docs/` narrowed to project documentation** — `IDEA.md` moved to `genesis/`, `PHASES.md` deleted, every reference updated (D14).
+- [x] **kiacontext skills tracked for cloners** — `skills/kia-context-*/` committed under `.claude/`, `.agents/`, `.opencode/`, `.hermes/`; the rest of each directory stays ignored (D15).
 - [ ] **Installer improvements** — *not yet defined.* The branch name is the only statement of intent so far; the specific changes need to come from the owner before this can be built or judged.
 
 ### Acceptance criteria
@@ -146,8 +151,9 @@ harness holds a true picture of the project so the next session does not start f
 
 ### Report — 2026-09-11
 
-Harness filled. `GENESIS.md`, `MANIFESTO.md`, `ARCHITECTURE.md` and this file written from `docs/IDEA.md`,
-`docs/PHASES.md`, `docs/paper/SUMMARY.md`, `docs/ARTIFACT_CONTRACTS.md`, `docs/KNOWN_LIMITATIONS.md`, the
+Harness filled. `GENESIS.md`, `MANIFESTO.md`, `ARCHITECTURE.md` and this file written from `genesis/IDEA.md`,
+`docs/PHASES.md` (both since retired — D14), `docs/paper/SUMMARY.md`, `docs/ARTIFACT_CONTRACTS.md`,
+`docs/KNOWN_LIMITATIONS.md`, the
 canonical prompt sources, 66 commits of history, and a statement of intent from the owner. `DESIGN.md` was
 deleted — the project has no interface, and the terminal output contract it might have held is documented
 in `ARCHITECTURE.md` §10 where it belongs. `SEED.md` was kept but not reconstructed: the original prompts
@@ -155,6 +161,15 @@ were never captured and inventing them would fabricate a historical record.
 
 Criteria 1–4 pass; criterion 5 is open because the installer scope has not been set. Four defects found
 while reading are logged as O1–O4 in `BRAINSTORM.md` — none is blocking, two are user-visible.
+
+**Second pass, same day.** `docs/` was narrowed to what a user or contributor needs: `IDEA.md` moved to
+`genesis/` (frozen, with a banner listing the five places it is now wrong) and `PHASES.md` deleted after
+its one unique decision was carried into D13. All 24 references across `README.md`, `AGENTS.md` and the
+harness were rewritten; the release procedure in `AGENTS.md` now updates this file instead of `PHASES.md`.
+The kiacontext skills were tracked for all four locally-installed tools — verified with `git check-ignore`
+that the OSP adapter copy under `/.agents/` stays ignored, and read `scripts/clean_adapter.sh` to confirm
+an OSP re-install will not delete them (it only matches `osp-*` patterns). Drift check and parity test
+re-run clean.
 
 ---
 

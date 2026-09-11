@@ -88,7 +88,6 @@ scripts/
   └── test_*.{py,sh}             Parity validator + installer smoke
 
 docs/
-  ├── PHASES.md                  Build plan, exit criteria
   ├── ARTIFACT_CONTRACTS.md      Per-step reads/writes contract
   ├── BRAIN_LAYOUT.md            .brain/ filesystem shape
   ├── CONTRIBUTING.md            Four contribution paths in detail
@@ -104,7 +103,7 @@ docs/
 2. `python3 scripts/test_parity.py` (must pass)
 3. `bash scripts/test_install.sh` (must pass)
 4. **Manual:** run `bash install.sh` in a fresh temp dir, drive `/0-osp-onboarding` and `/1-osp-summary` on `docs/paper/scholar_peer_arxiv.pdf` in your tool of choice. Verify `.brain/raw/01_structured_summary.md` has Method/Output/Provenance sections.
-5. Update `docs/PHASES.md` checkboxes.
+5. Update the active milestone in `kia-context/logs/PROGRESS.md` (deliverables + Report).
 6. `git tag` + `git push --tags`.
 
 ## Out of scope
@@ -118,7 +117,9 @@ docs/
 
 ## Pointers
 
-- Build plan and exit criteria → [docs/PHASES.md](docs/PHASES.md)
+- What we are building now → [kia-context/logs/PROGRESS.md](kia-context/logs/PROGRESS.md)
+- Why it is built this way → [kia-context/logs/BRAINSTORM.md](kia-context/logs/BRAINSTORM.md)
+- The rules that do not move → [kia-context/specs/MANIFESTO.md](kia-context/specs/MANIFESTO.md)
 - Per-step I/O contract → [docs/ARTIFACT_CONTRACTS.md](docs/ARTIFACT_CONTRACTS.md)
 - Brain filesystem → [docs/BRAIN_LAYOUT.md](docs/BRAIN_LAYOUT.md)
 - Adding a feature → [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)

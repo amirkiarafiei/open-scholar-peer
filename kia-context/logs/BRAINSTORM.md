@@ -48,16 +48,16 @@ and always say what was **rejected** — that is the part that stops it being re
 
 **Considered:** marketplace plugins per vendor / a hosted web app first / plain files copied in by a shell installer
 **Chose:** plain files, ReviewerOS-style installers
-**Because:** `docs/IDEA.md` §1 — *"Eliminate vendor lock-in and UI dependency… The system must live where the developers and researchers already work."*
+**Because:** `genesis/IDEA.md` §1 — *"Eliminate vendor lock-in and UI dependency… The system must live where the developers and researchers already work."*
 **Rejected marketplaces because:** a per-vendor package is exactly the lock-in the project exists to remove.
-**Rejected web-app-first because:** it rebuilds the proprietary interface being avoided. Designed in full (`IDEA.md` §8) and deferred to `src/backend` / `src/frontend`.
+**Rejected web-app-first because:** it rebuilds the proprietary interface being avoided. Designed in full (`genesis/IDEA.md` §8) and deferred to `src/backend` / `src/frontend`.
 **Rule that follows:** MANIFESTO rule 1.
 
 ### D2 · One canonical source, generated adapters — 2026-04-23 (design) / 2026-05-08 (built)
 
 **Considered:** maintain each tool's directory by hand / generate all of them from one source
 **Chose:** generate
-**Because:** `docs/IDEA.md` §3.4 names drift as the known risk of the plain-files model. Fourteen hand-maintained copies of an eight-step protocol diverge silently.
+**Because:** `genesis/IDEA.md` §3.4 names drift as the known risk of the plain-files model. Fourteen hand-maintained copies of an eight-step protocol diverge silently.
 **Rejected hand-maintenance because:** nothing errors when two adapters disagree; the user just gets a different review.
 **Rule that follows:** ARCHITECTURE §7, and the Golden Rule in `AGENTS.md`.
 
@@ -65,7 +65,7 @@ and always say what was **rejected** — that is the part that stops it being re
 
 **Considered:** rich tools (`fetch_literature` doing search + filter + dedup) / atomic stateless functions
 **Chose:** atomic
-**Because:** `docs/IDEA.md` §3.3 — *"MCP is NEVER used for agentic logic, orchestration, or multi-step heuristics."* Deciding what to search and when to stop is the reasoning the paper is about; moving it into a server hides it.
+**Because:** `genesis/IDEA.md` §3.3 — *"MCP is NEVER used for agentic logic, orchestration, or multi-step heuristics."* Deciding what to search and when to stop is the reasoning the paper is about; moving it into a server hides it.
 **Rejected rich tools because:** they make the interesting half of the method invisible and untunable.
 **Rule that follows:** MANIFESTO §7 (permanent no), ARCHITECTURE §9.
 
@@ -82,7 +82,7 @@ and always say what was **rejected** — that is the part that stops it being re
 
 **Considered:** subagents only (drop unsupported tools) / self-reflection everywhere (uniform) / subagents with a documented fallback
 **Chose:** the fallback, published as weaker
-**Because:** `docs/IDEA.md` §3.2 prefers real context isolation; dropping three tools would contradict D1.
+**Because:** `genesis/IDEA.md` §3.2 prefers real context isolation; dropping three tools would contradict D1.
 **Rejected uniform self-reflection because:** it would degrade the 11 tools that can do it properly.
 **Rejected silent fallback because:** presenting a weaker method as equivalent is the dishonesty MANIFESTO rule 7 exists to prevent.
 **Measured:** 11 of 14 tools support subagents.
@@ -141,6 +141,32 @@ and always say what was **rejected** — that is the part that stops it being re
 **Because:** `docs/` records *what* was built and `AGENTS.md` records *how to work on it*, but nothing recorded *why* — five months of decisions existed only in commit messages, and commit messages do not say what was rejected.
 **Rejected docs-only because:** `docs/PHASES.md` had already gone stale in exactly this way — every phase ticked at the top, every underlying deliverable checkbox left unticked.
 **Rule that follows:** none yet; this is process, not product.
+
+### D13 · Phase 1 stays sequential, not parallel — before 2026-07-31
+
+**Considered:** run Summary, Literature, Historian and Baseline Scout concurrently / keep them sequential
+**Chose:** sequential
+**Because:** simplicity and fidelity to the method. The paper's Phase 1 is drawn as two parallel tracks, so the parallel version is the more faithful reading of the diagram — but Historian consumes the Literature corpus and the Scout leans on it too, so only part of it is genuinely parallelisable.
+**Rejected parallel because:** the sequencing is also what gives the user a point to stop and read each artifact, which later became MANIFESTO rule 6.
+**Status:** deferred, not refused.
+**Source:** recorded only in `docs/PHASES.md` "Out of Scope"; carried here on 2026-09-11 when that file was retired, otherwise it would have been lost.
+
+### D14 · Retire `IDEA.md` and `PHASES.md` from `docs/` — 2026-09-11
+
+**Considered:** keep both in `docs/` / delete both outright / move the origin document into the harness and delete the build plan
+**Chose:** `docs/IDEA.md` → `kia-context/genesis/IDEA.md` (frozen); `docs/PHASES.md` deleted
+**Because:** `docs/` is for people using and contributing to the project — contracts, layout, limitations, troubleshooting. Those two were *input context* for building it, which is what the harness is for. `IDEA.md` is cited as provenance ~20 times across `kia-context/` and stays live so those citations remain checkable; `PHASES.md` is fully superseded by `logs/PROGRESS.md`.
+**Rejected deleting IDEA too because:** it would leave every provenance citation pointing at a file you can only recover with `git show`, which is the sort of friction that gets a citation ignored rather than followed.
+**Rejected keeping both because:** `PHASES.md` had already gone stale in the way D12 describes, and a second, competing progress tracker beside `PROGRESS.md` would go stale again.
+**Consequence:** the release procedure in `AGENTS.md` now updates `PROGRESS.md` instead of `PHASES.md` checkboxes.
+
+### D15 · Commit the kiacontext skills so cloners get them — 2026-09-11
+
+**Considered:** leave the per-tool skill installs local and gitignored (the repo's existing convention for root tool directories) / commit them
+**Chose:** commit `skills/kia-context-*/` under `.claude/`, `.agents/`, `.opencode/` and `.hermes/`
+**Because:** the harness is only useful if the agent working in a clone can actually run `/kia-context-sync`. Making every contributor install it separately means most will not, and the context files rot.
+**Rejected committing the whole of `/.agents/` because:** it also holds a locally-installed copy of the OSP Antigravity-CLI adapter, which duplicates `extensions/.agents/` and would drift against it silently. Only the kiacontext skills are tracked; the rest of each tool directory stays ignored.
+**Rule that follows:** none — this is repository hygiene, not product.
 
 ---
 

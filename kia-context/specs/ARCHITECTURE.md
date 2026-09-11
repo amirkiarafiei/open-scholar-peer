@@ -282,7 +282,7 @@ means they are strong conventions rather than hard gates — worth knowing when 
 
 Every tool is atomic and stateless. The server decides nothing: which queries to run, which results to
 keep, and when the corpus is sufficient are all the agent's judgement. This is a standing constraint from
-`docs/IDEA.md` §3.3, not an accident of scope.
+`genesis/IDEA.md` §3.3, not an accident of scope.
 
 Two operational details worth knowing. Every provider call goes through `_run()`, which pushes the
 synchronous call into a thread with `asyncio.wait_for` and a timeout (`OSP_CALL_TIMEOUT`, default 90s) —

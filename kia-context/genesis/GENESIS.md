@@ -15,7 +15,7 @@ last_updated: "2026-09-11"
 # 🌱 GENESIS — Why this project exists
 
 > **Written on 2026-09-11, five months after t=0.** The opening conversation was not captured. This file
-> was reconstructed from `docs/IDEA.md` (which self-describes as the project's "Master Seed Document"),
+> was reconstructed from `IDEA.md` (which self-describes as the project's "Master Seed Document"),
 > `docs/paper/SUMMARY.md`, the git history from 2026-04-23, and a statement of intent from the project
 > owner. Where a claim came from the owner rather than from a file in this repository, it says so.
 
@@ -79,7 +79,7 @@ to the method.
 
 ## 4. What success looked like at t=0
 
-From `docs/IDEA.md`, written at the start:
+From `IDEA.md`, written at the start:
 
 > *"Eliminate vendor lock-in and UI dependency. Users must be able to leverage this methodology using
 > their own API keys, local LLMs, or existing agentic environments without being forced into a specific
@@ -96,18 +96,18 @@ These were fixed before the first commit and explain most of what followed.
 
 | Constraint | Where it came from |
 |---|---|
-| **No marketplace plugins as the packaging model.** Plain files copied in by a shell installer. | `docs/IDEA.md` §1.1C — locked scope decision. Marketplaces are per-vendor, and a vendor-specific package is the lock-in the project exists to avoid. |
+| **No marketplace plugins as the packaging model.** Plain files copied in by a shell installer. | `IDEA.md` §1.1C — locked scope decision. Marketplaces are per-vendor, and a vendor-specific package is the lock-in the project exists to avoid. |
 | **Must run inside tools that already exist**, with no control over their internals — no access to temperature, sampling, or the model itself. | The delivery model. It is why the paper's hyperparameters are enforced by *file structure* rather than configuration. |
-| **MCP is for atomic, stateless functions only** — never orchestration or multi-step heuristics. | `docs/IDEA.md` §3.3. The cognitive work belongs to the agent; the server only fetches. |
-| **One manager agent that swaps persona**, rather than a fleet of hardcoded agents — with real subagents used wherever the host tool supports them. | `docs/IDEA.md` §3.1–3.2. |
-| **The `.brain/` state-directory pattern**, adopted from the prior `reviewer-os` project. | `docs/IDEA.md` §10.2. |
+| **MCP is for atomic, stateless functions only** — never orchestration or multi-step heuristics. | `IDEA.md` §3.3. The cognitive work belongs to the agent; the server only fetches. |
+| **One manager agent that swaps persona**, rather than a fleet of hardcoded agents — with real subagents used wherever the host tool supports them. | `IDEA.md` §3.1–3.2. |
+| **The `.brain/` state-directory pattern**, adopted from the prior `reviewer-os` project. | `IDEA.md` §10.2. |
 | **Manuscripts are confidential.** Working state is gitignored from the first commit. | `.gitignore`, commit `5d0688e`. |
 
 ## 6. What we deliberately did not do
 
 Cut on day one, and still cut:
 
-- **The web application.** `docs/IDEA.md` §8 specifies a full standalone app — DeepAgents JS backend, a
+- **The web application.** `IDEA.md` §8 specifies a full standalone app — DeepAgents JS backend, a
   forked Deep Agents UI frontend with a phase stepper. It was scoped, designed, and then explicitly
   deferred to `src/backend` / `src/frontend` in a later phase. Shipping it first would have rebuilt the
   proprietary web interface the project exists to avoid.
