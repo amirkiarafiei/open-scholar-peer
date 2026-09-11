@@ -34,7 +34,7 @@ last_updated: "2026-09-11"
 | [Circuit breakers](#circuit-breakers) | What happens when it does not |
 | [Milestones](#milestones) | The table |
 | [M8](#-milestone-m8-installer-improvements--context-harness) | Context harness (done) |
-| [M9](#-milestone-m9-installer-experience) | The active milestone |
+| [M9](#-milestone-m9-installer-experience) | Installer experience (done) |
 
 ---
 
@@ -78,7 +78,7 @@ A change to canonical content that has not been synced is not done, however corr
 | **M6** | Hardening | The install path survives real machines and real config files | M5 | ✅ Done 2026-05-10 · `v1.1.0` |
 | **M7** | Scale-out and UX | 5 tools → 14; phase orientation, resource warnings, configurable Q&A | M6 | ✅ Done 2026-07-31 |
 | **M8** | Context harness | The harness holds a true picture of the project | M7 | ✅ Done 2026-09-11 |
-| **M9** | Installer experience | Installing OSP is a guided, keyboard-driven flow instead of a numbered prompt, and the README says where to type the slash command | M8 | 🔵 Active |
+| **M9** | Installer experience | Installing OSP is a guided, keyboard-driven flow instead of a numbered prompt, and the README says where to type the slash command | M8 | ✅ Done 2026-09-11 |
 
 > **Numbering never restarts.** When this file is split, part two continues at the next M.
 
@@ -204,7 +204,7 @@ for short terminals).
 4. Selecting several tools installs all of them and reports a per-tool result; one failure does not abort the rest.
 5. `bash scripts/test_install.sh` still passes — it calls the per-tool scripts directly, which this milestone does not change.
 6. No `docs/` or harness reference to the installer is left stale.
-7. A reviewing subagent finds no correctness defect in the new script.
+7. A reviewing subagent finds no correctness defect in the new script. ✅ — 11 found, 11 fixed, verdict "ship it".
 
 **Depends on:** M8.
 
@@ -264,13 +264,34 @@ Findings 10 and 11 are inherited from the reference installers rather than intro
 
 ### What the review cleared
 
-Worth recording, because it is the expensive half to re-derive: the reviewer rendered every layout tier
-through a terminal emulator at rows 40/26/24/23/20/16/12/10/8/6 while driving Up/Down/space/`a`/`n`/
-Home/End/PgUp/PgDn/Enter/`q`, and found **no** defect in `drawn` line-count accounting (layout 0 = n+10,
-layout 1 = n+7, layout 2 = win+3, +1 with the scroll indicator), **no** off-by-one in the scroll window or
-`top` clamping, and **no** fault in the button-index (`cur == n`) handling — Enter on a tool row only ever
-toggles, Enter on the button installs only when something is selected. The cursor is never left hidden on
-any exit path, including Ctrl-C during the remote clone.
+Worth recording, because it is the expensive half to re-derive and nobody should pay for it twice.
+
+- **Redraw arithmetic** — every layout tier rendered through a terminal emulator at rows
+  40/26/24/23/20/16/12/10/8/6 while driving Up/Down/space/`a`/`n`/Home/End/PgUp/PgDn/Enter/`q`. No defect
+  in `drawn` line-count accounting: layout 0 = n+10, layout 1 = n+7, layout 2 = win+3 (+1 with the scroll
+  indicator); `draw_button`'s `+3` and `draw_button_inline`'s `+1` both correct.
+- **Scroll window** — no off-by-one. The last window renders indices n-win..n-1 correctly, and
+  home/end/pgup/pgdn/wrap-around all re-clamp on the next frame.
+- **Button focus** (`cur == n`) — Enter on a tool row only ever toggles and never installs; Enter on the
+  button installs only when something is selected; the window correctly freezes while the button has focus.
+- **Cursor restore** — `?25l`/`?25h` counts matched on normal exit, `q`, Ctrl-C, and Ctrl-C during the
+  remote clone. Bash does not run the EXIT trap inside the `$(read_key)` command substitution, so the
+  clone is not deleted on every keypress.
+- **Quoting and word splitting** — installs into a target with a space in its name work through both
+  `--dir` and the interactive prompt. `SELECTED_IDX` is digits-only, so the deliberate unquoted
+  `for i in $SELECTED_IDX` is safe. Every `printf` in both files audited programmatically: zero
+  format/argument mismatches, and no user-controlled string reaches a `printf` *format* argument.
+- **The `OSP_DRIVEN` contract** — honoured uniformly. Diffing all 14 installers against `027645b`, every
+  tool-specific `(1) …` line survives verbatim as the helper's first argument; the only thing removed is
+  the per-tool `(2) Run /open-scholar-peer` line the helper replaces. Nothing was dropped by the
+  mechanical rewrite.
+- **Early-exit cleanup** — the EXIT trap fires before `TEMP_DIR` exists, but the `:-` defaults make every
+  early exit safe. Only SIGHUP was uncovered, which is finding 9.
+
+**Verdict: ship it.** Quoting the reviewer: *"the redraw arithmetic is correct in all three tiers, the
+scroll window has no off-by-one, button focus is clean, the cursor survives every exit path, `curl | bash`
+genuinely works, spaces in paths survive both entry routes, bash 3.2 is respected."* It rated 1 and 2 the
+only real blockers; both were fixed before the verdict was written, and 7–11 have since been fixed too.
 
 Finding 1 is the one that mattered: it exists in both reference installers too, and bites hardest here
 because OSP has the longest list — layout 0 needs a 27-row terminal, so it is the tier most likely to be
