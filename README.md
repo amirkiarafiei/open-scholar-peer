@@ -20,21 +20,14 @@ OSP turns the paper's 7-agent pipeline into a portable set of Skills, Slash Comm
 curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main/install.sh | bash
 ```
 
-The installer is interactive — arrow keys to pick your AI tools, space to select,
-then enter on the **Install** button. Pick as many tools as you like in one run.
+Arrow keys to pick your AI tools, space to select, enter on the **Install** button.
+Pick as many tools as you like in one run.
 
-**2. Open your AI coding tool** in that same directory — run `claude`, open the
-folder in Cursor, start `gemini`, and so on.
-
-**3. Inside that tool's chat**, type:
+**2. Open your code agent** in that directory, and in its interactive chat run:
 
 ```text
 /open-scholar-peer
 ```
-
-> ⚠️ `/open-scholar-peer` is a **slash command for your AI agent**, not a shell
-> command. Typing it into your terminal will not work — it goes in the agent's
-> chat prompt, the same place you would type a question.
 
 The orchestrator reads your session state and tells you which step to run next.
 
@@ -96,8 +89,7 @@ The installer:
 Prefer no prompts? `bash install.sh --tool claude,cursor` installs directly, and
 `bash install.sh --help` lists every option and tool slug.
 
-Then open your AI tool in that directory and type these **in its chat prompt**
-(not in your shell):
+Then open your code agent in that directory, and in its interactive chat run:
 
 ```text
 /open-scholar-peer        ← guides towards steps
@@ -110,7 +102,7 @@ Then open your AI tool in that directory and type these **in its chat prompt**
 /6-osp-review
 ```
 
-Or just type `/open-scholar-peer` at any point — it reads your session state and tells you which command comes next.
+Or just run `/open-scholar-peer` at any point — it reads your session state and tells you which command comes next.
 
 ---
 

@@ -194,7 +194,7 @@ for short terminals).
 - [x] **Non-interactive path** — `--tool`, `--dir`, `--list`, `--help`.
 - [x] **Consolidated summary** — per-tool result plus one shared next-steps block.
 - [x] **Shared closing message** — `scripts/_post_install.sh`; the "where do I type this?" wording now lives in one file instead of 14, and per-tool scripts suppress it when `install.sh` is driving (`OSP_DRIVEN=1`).
-- [x] **README corrected** — "Then start using Slash Command:" replaced in both places, with an explicit warning that it is an agent slash command, not a shell command.
+- [x] **README corrected** — "Then start using Slash Command:" replaced in both places: open your code agent in the directory, and run the slash command in its interactive chat. Kept short at the owner's request — no explanatory warning block.
 
 ### Acceptance criteria
 
