@@ -250,6 +250,28 @@ It found six confirmed defects; all six are fixed:
 | 5 | `--dir` plus the interactive menu drew **two horizontal rules back to back**. | Step 1's separator moved inside the block it belongs to. |
 | 6 | `--tool claude,claude` **installed twice** and reported "2 tool(s)". | Duplicate indices skipped. |
 
+A second round covered the rest of the report — five more, all fixed:
+
+| | Defect | Fix |
+|---|---|---|
+| 7 | `--tool ""` fell through to the interactive menu instead of erroring. | The gate now tests whether the flag was *seen*, not whether its value is non-empty. |
+| 8 | `_post_install.sh` ran caller-supplied action text through `%b`, which would silently eat a backslash in any future action string (a `\n`, a Windows path). | `%s` for the text; `%b` kept only for the `echo -e`-style colour literals that need it. |
+| 9 | `TEMP_DIR` leaked a multi-MB clone into `/tmp` if the terminal was closed mid-fetch. | `HUP` added to the trap. |
+| 10 | `read_key` decoded `tab` and no menu handled it — the obvious "jump to Install" affordance was produced and dropped. | `tab` jumps to the button, and the help line says so. |
+| 11 | The banner and the `↑/↓` in three help lines were hard-coded UTF-8, bypassing the locale gate, so they were mojibake under `LANG=C`. | Banner gated on the UTF-8 flag, `$UPDN` added, and the em dashes in printed strings replaced. The menu is now pure ASCII under `LANG=C` — verified by grepping the rendered screen for non-ASCII bytes. |
+
+Findings 10 and 11 are inherited from the reference installers rather than introduced here.
+
+### What the review cleared
+
+Worth recording, because it is the expensive half to re-derive: the reviewer rendered every layout tier
+through a terminal emulator at rows 40/26/24/23/20/16/12/10/8/6 while driving Up/Down/space/`a`/`n`/
+Home/End/PgUp/PgDn/Enter/`q`, and found **no** defect in `drawn` line-count accounting (layout 0 = n+10,
+layout 1 = n+7, layout 2 = win+3, +1 with the scroll indicator), **no** off-by-one in the scroll window or
+`top` clamping, and **no** fault in the button-index (`cur == n`) handling — Enter on a tool row only ever
+toggles, Enter on the button installs only when something is selected. The cursor is never left hidden on
+any exit path, including Ctrl-C during the remote clone.
+
 Finding 1 is the one that mattered: it exists in both reference installers too, and bites hardest here
 because OSP has the longest list — layout 0 needs a 27-row terminal, so it is the tier most likely to be
 resized out from under. Worth reporting upstream to `subagent-cli-skills` and `kia-context`.
