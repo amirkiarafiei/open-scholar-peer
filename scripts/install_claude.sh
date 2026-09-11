@@ -25,7 +25,6 @@ echo -e "  ${GREEN}✅ Adapter copied → ./.claude/${NC}"
 # 4. Merge MCP entries into ./.mcp.json
 python3 "$SCRIPTS_DIR/merge_mcp_config.py" "./.mcp.json" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
-echo -e "\n${GREEN}Done!${NC}\n"
-echo -e "Next:"
-echo -e "  (1) Run ${CYAN}/open-scholar-peer${NC} in Claude Code"
-echo    "      The orchestrator reads your session state and guides you from there."
+# Closing message — shared wording lives in _post_install.sh
+. "$SCRIPTS_DIR/_post_install.sh"
+osp_post_install "Claude Code"

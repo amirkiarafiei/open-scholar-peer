@@ -44,7 +44,6 @@ mkdir -p "$(dirname "$CLI_MCP_CONFIG_GLOBAL")"
 python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$CLI_MCP_CONFIG_GLOBAL" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$CLI_MCP_CONFIG_LOCAL" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
-echo -e "\n${GREEN}Done!${NC}\n"
-echo -e "Next:"
-echo -e "  (1) Run ${CYAN}/open-scholar-peer${NC} in Antigravity CLI"
-echo    "      The orchestrator reads your session state and guides you from there."
+# Closing message — shared wording lives in _post_install.sh
+. "$SCRIPTS_DIR/_post_install.sh"
+osp_post_install "Antigravity CLI"

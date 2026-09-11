@@ -14,16 +14,29 @@ OSP turns the paper's 7-agent pipeline into a portable set of Skills, Slash Comm
 
 ## 🚀 Quickstart
 
-In CLI:
+**1. In your terminal**, from the directory holding the paper you want to review:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main/install.sh | bash
 ```
 
-Then start using Slash Command:
-```bash
+The installer is interactive — arrow keys to pick your AI tools, space to select,
+then enter on the **Install** button. Pick as many tools as you like in one run.
+
+**2. Open your AI coding tool** in that same directory — run `claude`, open the
+folder in Cursor, start `gemini`, and so on.
+
+**3. Inside that tool's chat**, type:
+
+```text
 /open-scholar-peer
 ```
+
+> ⚠️ `/open-scholar-peer` is a **slash command for your AI agent**, not a shell
+> command. Typing it into your terminal will not work — it goes in the agent's
+> chat prompt, the same place you would type a question.
+
+The orchestrator reads your session state and tells you which step to run next.
 
 ## How it works
 
@@ -74,12 +87,17 @@ bash install.sh   # interactive — pick your AI tool
 ```
 
 The installer:
-1. Copies the right adapter files into your project (`.claude/`, `.cursor/`, etc.).
-2. Initializes `.brain/` (gitignored — your working state).
-3. Sets up a self-contained Python venv at `.open-scholar-peer/mcp/` (gitignored — the MCP server).
-4. Wires the MCP server into your AI tool's config.
+1. Asks where to install, and which AI tools you use — pick one or several.
+2. Copies the right adapter files into your project (`.claude/`, `.cursor/`, etc.).
+3. Initializes `.brain/` (gitignored — your working state).
+4. Sets up a self-contained Python venv at `.open-scholar-peer/mcp/` (gitignored — the MCP server).
+5. Wires the MCP server into each tool's config.
 
-Then in your AI tool:
+Prefer no prompts? `bash install.sh --tool claude,cursor` installs directly, and
+`bash install.sh --help` lists every option and tool slug.
+
+Then open your AI tool in that directory and type these **in its chat prompt**
+(not in your shell):
 
 ```text
 /open-scholar-peer        ← guides towards steps
@@ -92,7 +110,7 @@ Then in your AI tool:
 /6-osp-review
 ```
 
-Or just run `/open-scholar-peer` at any time — it reads your session state and tells you which command comes next.
+Or just type `/open-scholar-peer` at any point — it reads your session state and tells you which command comes next.
 
 ---
 

@@ -64,7 +64,6 @@ echo -e "\n  ${YELLOW}ℹ️  Vibe documents independent agent profiles but no g
 echo "     delegation — /5-osp-qa falls back to self-reflection mode (see"
 echo "     docs/KNOWN_LIMITATIONS.md)."
 
-echo -e "\n${GREEN}Done!${NC}\n"
-echo -e "Next:"
-echo    "  (1) Paste the MCP snippet into your Vibe config.toml"
-echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."
+# Closing message — shared wording lives in _post_install.sh
+. "$SCRIPTS_DIR/_post_install.sh"
+osp_post_install "Mistral Vibe" "Paste the MCP snippet into your Vibe config.toml"

@@ -62,7 +62,6 @@ echo "         $SNIPPET_PATH"
 echo -e "\n  ${YELLOW}ℹ️  OpenHands subagent support is partial — /5-osp-qa falls back${NC}"
 echo "     to self-reflection mode (see docs/KNOWN_LIMITATIONS.md)."
 
-echo -e "\n${GREEN}Done!${NC}\n"
-echo -e "Next:"
-echo    "  (1) Register the MCP servers in OpenHands → Settings → MCP"
-echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."
+# Closing message — shared wording lives in _post_install.sh
+. "$SCRIPTS_DIR/_post_install.sh"
+osp_post_install "OpenHands" "Register the MCP servers in OpenHands → Settings → MCP"

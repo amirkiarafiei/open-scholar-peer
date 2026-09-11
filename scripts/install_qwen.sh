@@ -38,7 +38,6 @@ fi
 # 5. Qwen MCP config — merge into ./.qwen/settings.json (Qwen's local MCP config)
 python3 "$SCRIPTS_DIR/merge_mcp_config.py" "./.qwen/settings.json" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
-echo -e "\n${GREEN}Done!${NC}\n"
-echo -e "Next:"
-echo    "  (1) Restart your Qwen Code session  (picks up the new MCP servers)"
-echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."
+# Closing message — shared wording lives in _post_install.sh
+. "$SCRIPTS_DIR/_post_install.sh"
+osp_post_install "Qwen Code" "Restart your Qwen Code session  (picks up the new MCP servers)"

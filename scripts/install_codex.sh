@@ -56,7 +56,6 @@ echo ""
 echo "     (b) Or paste the snippet manually into ~/.codex/config.toml:"
 echo "         $SNIPPET_PATH"
 
-echo -e "\n${GREEN}Done!${NC}\n"
-echo -e "Next:"
-echo    "  (1) Wire the MCP server (codex mcp add osp ... or paste snippet)"
-echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."
+# Closing message — shared wording lives in _post_install.sh
+. "$SCRIPTS_DIR/_post_install.sh"
+osp_post_install "Codex CLI" "Wire the MCP server (codex mcp add osp ... or paste snippet)"
