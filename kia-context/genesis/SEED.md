@@ -7,53 +7,57 @@ description: >
 authority: background
 writes: agent, at t=0 — effectively never again
 status: frozen
-covers: "the first session, {{YYYY-MM-DD}}"
-last_updated: "{{YYYY-MM-DD}}"
+covers: "the first session, 2026-04-23 — not recovered"
+last_updated: "2026-09-11"
 ---
 
 # 🌰 SEED — The first prompts
 
-> **The layout below is a sample, not a requirement.** Keep it, drop it, reorder it, or replace it
-> entirely with whatever this project actually needs — you are not filling in a form, and an empty
-> section is worse than a missing one. The one thing that must **not** change is the frontmatter above:
-> those six fields are what make this file part of kiacontext.
+## The prompts were not captured
 
-**Contents** · [The prompts](#the-prompts) · [What we already knew going in](#what-we-already-knew-going-in) · [What we did not know yet](#what-we-did-not-know-yet)
+This harness was installed on 2026-09-11, five months after the project started on 2026-04-23. The
+conversations that opened it were not recorded anywhere in this repository, and the owner confirmed they
+are not available.
 
-> **How to fill this file.** Ask the human for the first prompts they sent when the project started, and
-> put them here. Fix typos and cut the noise, but do not rewrite them into something smarter than they
-> were — the value is in seeing what was actually asked. Then leave the file alone forever.
->
-> **Strip anything secret first.** First prompts often carry a client name, a token, a
-> production URL or a customer document. Remove them here; this file gets read by people who were not in
-> the room.
->
-> Delete this block once the file is real.
+**They have not been reconstructed, and must not be.** An invented first prompt is a fabricated
+historical record — it would read exactly like a real one and there would be no way to tell. An empty
+section here is honest; a plausible one would not be.
 
----
+**If they still exist somewhere** — a chat history, a notes file, an email — paste them in and delete this
+block. Otherwise leave the file as it is, or delete it.
 
-## The prompts
+## The closest surviving artifact
 
-### Prompt 1 — {{YYYY-MM-DD}}
+`docs/IDEA.md` is the nearest thing. It was committed on 2026-04-27 (`74e54a6`, "docs: add IDEA") and
+subtitles itself **"Master Seed Document"**. It is not a prompt — it is already a worked-up design
+document, written after the thinking had happened — but it is the earliest record of intent in the
+repository, and it carries the locked scope decisions verbatim:
 
-```
-{{The first thing that was asked, cleaned up.}}
-```
+> *"The Core Philosophy: Eliminate vendor lock-in and UI dependency. Users must be able to leverage this
+> methodology using their own API keys, local LLMs, or existing agentic environments without being forced
+> into a specific subscription or proprietary web interface. The system must live where the developers
+> and researchers already work."*
 
-### Prompt 2 — {{YYYY-MM-DD}}
-
-```
-{{The second.}}
-```
-
----
+Read it as the project's opening statement of intent, with the caveat that it is a second draft of one,
+not the first thing that was typed.
 
 ## What we already knew going in
 
-> Two or three lines. Constraints, deadlines, a customer, a prior system — whatever was true before the
-> first prompt was typed. Often this is the part that explains the prompts.
+Reconstructed from `docs/IDEA.md` and the first five commits, not from the original session:
+
+- The method was already chosen. The paper (`docs/paper/scholar_peer_arxiv.pdf`) was committed on
+  2026-04-23 in the second commit of the repository, before any design document — so the work began from
+  a specific published protocol, not from a general wish to automate reviewing.
+- `reviewer-os` was the reference implementation to imitate structurally. The `.brain/` pattern and the
+  installer-copies-plain-files model both come from it.
+- The 14-tool target did not exist yet. `docs/IDEA.md` §1.1B locks the list at **five** tools — Cursor,
+  Claude Code, Antigravity, Copilot, Gemini CLI. Nine more were added later.
 
 ## What we did not know yet
 
-> Two or three lines. The open questions at the start. Reading these later is the fastest way to see how
-> far the understanding moved.
+- How Cursor's MCP configuration worked. `docs/IDEA.md` §10.3 lists it as the one *"open verification
+  item"* and says to keep the adapter marked experimental until confirmed.
+- Whether the paper's hyperparameters could be honoured at all inside a host tool. They could not, in the
+  end — see D4 in `BRAINSTORM.md`.
+- That the install path, not the protocol, would absorb most of the debugging effort. Roughly half of
+  M6's commits are installer and config-merge fixes against real machines.
