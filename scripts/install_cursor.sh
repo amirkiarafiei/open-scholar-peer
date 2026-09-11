@@ -25,7 +25,6 @@ echo -e "  ${GREEN}✅ Adapter copied → ./.cursor/${NC}"
 # 4. Merge MCP entries into ./.cursor/mcp.json
 python3 "$SCRIPTS_DIR/merge_mcp_config.py" "./.cursor/mcp.json" "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER"
 
-echo -e "\n${GREEN}Done!${NC}\n"
-echo -e "Next:"
-echo    "  (1) Reload the Cursor window  (Cmd/Ctrl+Shift+P → \"Reload Window\")"
-echo -e "  (2) Run ${CYAN}/open-scholar-peer${NC} — the orchestrator guides you from there."
+# Closing message — shared wording lives in _post_install.sh
+. "$SCRIPTS_DIR/_post_install.sh"
+osp_post_install "Cursor" "Reload the Cursor window  (Cmd/Ctrl+Shift+P → \"Reload Window\")"

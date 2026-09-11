@@ -33,7 +33,8 @@ last_updated: "2026-09-11"
 | [The loop](#the-loop) | How a deliverable gets done |
 | [Circuit breakers](#circuit-breakers) | What happens when it does not |
 | [Milestones](#milestones) | The table |
-| [M8](#-milestone-m8-installer-improvements--context-harness) | The active milestone |
+| [M8](#-milestone-m8-installer-improvements--context-harness) | Context harness (done) |
+| [M9](#-milestone-m9-installer-experience) | The active milestone |
 
 ---
 
@@ -76,7 +77,8 @@ A change to canonical content that has not been synced is not done, however corr
 | **M5** | Validation and first release | Parity and install smoke tests pass; docs complete | M4 | ✅ Done 2026-05-09 · `v1.0.0` |
 | **M6** | Hardening | The install path survives real machines and real config files | M5 | ✅ Done 2026-05-10 · `v1.1.0` |
 | **M7** | Scale-out and UX | 5 tools → 14; phase orientation, resource warnings, configurable Q&A | M6 | ✅ Done 2026-07-31 |
-| **M8** | Installer improvements + context harness | The installer work the owner opened `feat/improve-installer` for is done, and the harness is filled | M7 | 🔵 Active |
+| **M8** | Context harness | The harness holds a true picture of the project | M7 | ✅ Done 2026-09-11 |
+| **M9** | Installer experience | Installing OSP is a guided, keyboard-driven flow instead of a numbered prompt, and the README says where to type the slash command | M8 | 🔵 Active |
 
 > **Numbering never restarts.** When this file is split, part two continues at the next M.
 
@@ -137,7 +139,7 @@ harness holds a true picture of the project so the next session does not start f
 - [x] **Harness filled from history and docs** — genesis, manifesto, architecture, progress, brainstorm written from `docs/`, the git log and the owner's statement of intent.
 - [x] **`docs/` narrowed to project documentation** — `IDEA.md` moved to `genesis/`, `PHASES.md` deleted, every reference updated (D14).
 - [x] **kiacontext skills tracked for cloners** — `skills/kia-context-*/` committed under `.claude/`, `.agents/`, `.opencode/`, `.hermes/`; the rest of each directory stays ignored (D15).
-- [ ] **Installer improvements** — *not yet defined.* The branch name is the only statement of intent so far; the specific changes need to come from the owner before this can be built or judged.
+- [x] **Installer improvements** — moved to its own milestone, M9, once the owner named the two reference implementations to follow.
 
 ### Acceptance criteria
 
@@ -170,6 +172,69 @@ The kiacontext skills were tracked for all four locally-installed tools — veri
 that the OSP adapter copy under `/.agents/` stays ignored, and read `scripts/clean_adapter.sh` to confirm
 an OSP re-install will not delete them (it only matches `osp-*` patterns). Drift check and parity test
 re-run clean.
+
+---
+
+## 🏁 Milestone M9: Installer experience
+
+**Target.** `bash install.sh` becomes a guided, keyboard-driven flow — arrow keys, checkboxes, a framed
+Install button — instead of a numbered prompt read with `read -rp`. A user can install for more than one
+agent in a single run, and the README stops implying the slash command is typed into a shell.
+
+**Reference implementations**, both by the owner, both bash 3.2 and `/dev/tty`-driven so they survive
+`curl | bash`: `~/Desktop/PiA_projects/subagent-cli-skills/install.sh` (banner, `read_key`, in-place
+`rewind`, single- and multi-select menus, the pinned framed Install button) and
+`~/Desktop/kia-context/install.sh` (the same, plus responsive layout tiers and an inline button fallback
+for short terminals).
+
+### Deliverables
+
+- [x] **Interactive `install.sh`** — capability detection, `/dev/tty` input, arrow-key menus, multi-select tool list, framed Install button, in-place redraw. 607 lines, bash 3.2.
+- [x] **Multi-tool install in one run** — the per-tool `install_*.sh` scripts stay the unit of work and are driven in sequence; one failure does not abort the rest.
+- [x] **Non-interactive path** — `--tool`, `--dir`, `--list`, `--help`.
+- [x] **Consolidated summary** — per-tool result plus one shared next-steps block.
+- [x] **Shared closing message** — `scripts/_post_install.sh`; the "where do I type this?" wording now lives in one file instead of 14, and per-tool scripts suppress it when `install.sh` is driving (`OSP_DRIVEN=1`).
+- [x] **README corrected** — "Then start using Slash Command:" replaced in both places, with an explicit warning that it is an agent slash command, not a shell command.
+
+### Acceptance criteria
+
+1. `bash -n install.sh` passes, and `bash install.sh --help` exits 0 without a TTY.
+2. With no TTY and no `--tool`, the installer explains what to do and exits non-zero — it does not silently install a default tool.
+3. `bash install.sh --tool claude --dir <tmp>` installs exactly as `scripts/install_claude.sh` does today: adapter, `.brain/`, MCP venv, `.mcp.json`.
+4. Selecting several tools installs all of them and reports a per-tool result; one failure does not abort the rest.
+5. `bash scripts/test_install.sh` still passes — it calls the per-tool scripts directly, which this milestone does not change.
+6. No `docs/` or harness reference to the installer is left stale.
+7. A reviewing subagent finds no correctness defect in the new script.
+
+**Depends on:** M8.
+
+### Report — 2026-09-11
+
+`install.sh` went from an 88-line numbered `read -rp` prompt to a 607-line keyboard-driven TUI, modelled
+on the two reference installers. What it does now that it did not: multi-select, so one run can install
+for several tools; a framed **Install** button pinned under the list that is the only thing that starts
+the install (Enter on a tool row toggles, never installs); a "where?" step, so `curl | bash` in the wrong
+directory is caught before anything is written; and `--tool` / `--dir` for scripted use.
+
+Two behaviour changes worth knowing. **With no TTY and no `--tool`, the installer now exits 1 with
+guidance instead of silently installing Claude Code** — a silent default was the wrong answer for someone
+piping this in CI. And the per-tool scripts no longer each print "Run /open-scholar-peer"; that block is
+printed once, by `install.sh`, with the corrected wording.
+
+Two robustness fixes found while testing rather than by review: the tool hints were built with a literal
+`·`, which is mojibake in a non-UTF-8 locale, so they are now assembled from `$DOT` after capability
+detection; and remote-mode detection tested only for a `scripts/` directory, which misfires when
+`curl | bash` runs inside an unrelated project that happens to have one — it now requires
+`scripts/init_brain.sh` and `extensions/_shared/`.
+
+**Verified:** `--help` exits 0 without a TTY; no-TTY-no-`--tool` exits 1 with guidance; an unknown slug
+exits 2 and lists the valid ones; `--tool claude,cursor,codex --dir <tmp>` installs all three with
+adapters, `.brain/`, `.env`, `.mcp.json`, `.cursor/mcp.json` and the venv all present; the full
+interactive path was driven through a pty (space → End → Enter) and produced the same result; and
+`bash scripts/test_install.sh` passes for all 14 tools, as do the drift check and parity test.
+
+Acceptance criteria 1–6 pass. Criterion 7 — a reviewing subagent finds no correctness defect — was run
+after this report; see below.
 
 ---
 
