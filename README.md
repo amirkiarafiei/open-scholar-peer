@@ -185,14 +185,23 @@ scripts/
 
 ## Documentation
 
-- **[`docs/PHASES.md`](docs/PHASES.md)** — Build plan and execution checklist.
-- **[`docs/IDEA.md`](docs/IDEA.md)** — Design philosophy.
 - **[`docs/BRAIN_LAYOUT.md`](docs/BRAIN_LAYOUT.md)** — `.brain/` filesystem contract.
 - **[`docs/ARTIFACT_CONTRACTS.md`](docs/ARTIFACT_CONTRACTS.md)** — Per-step I/O contract.
 - **[`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md)** — What to expect, what won't work, workarounds.
 - **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)** — Common issues, by symptom.
 - **[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)** — How to extend OSP (commands, skills, MCP providers).
 - **[`docs/paper/SUMMARY.md`](docs/paper/SUMMARY.md)** — Paper essence (architecture and protocol).
+
+### Why it is the way it is
+
+`kia-context/` is the project's own memory — why decisions were made, what was rejected, and what must
+stay true. Start at [`kia-context/INDEX.md`](kia-context/INDEX.md).
+
+- **[`kia-context/specs/MANIFESTO.md`](kia-context/specs/MANIFESTO.md)** — The product boundary and the rules that do not move.
+- **[`kia-context/specs/ARCHITECTURE.md`](kia-context/specs/ARCHITECTURE.md)** — How the protocol, the state machine and the 14-tool sync pipeline actually work.
+- **[`kia-context/logs/BRAINSTORM.md`](kia-context/logs/BRAINSTORM.md)** — Decisions and the alternatives they beat.
+- **[`kia-context/logs/PROGRESS.md`](kia-context/logs/PROGRESS.md)** — Milestones, and what is being built now.
+- **[`kia-context/genesis/`](kia-context/genesis/)** — Why the project exists, and the original design document.
 
 ---
 

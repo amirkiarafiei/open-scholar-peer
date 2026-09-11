@@ -1,3 +1,39 @@
+---
+description: >
+  The original design document, written at the start of the project and self-subtitled "Master Seed
+  Document". Frozen historical source, kept because `GENESIS.md`, `MANIFESTO.md`, `ARCHITECTURE.md` and
+  `BRAINSTORM.md` cite it by section as provenance. Read it to see what was intended at t=0 — not to
+  find out how anything works today.
+  NOT here: anything current. Where this file and the rest of the harness disagree, this file is the
+  historical record and the other one is the truth.
+authority: background
+writes: nobody — frozen on 2026-09-11
+status: frozen
+covers: "t=0 intent, 2026-04-23 to 2026-05-08"
+last_updated: "2026-09-11"
+---
+
+> ## ⚠️ Frozen historical document — moved here 2026-09-11
+>
+> This lived at `docs/IDEA.md` until 2026-09-11, when `docs/` was narrowed to project documentation
+> (contracts, layout, limitations, troubleshooting) and this was recognised as the project's *origin*
+> document rather than its documentation. See `logs/BRAINSTORM.md` D14.
+>
+> **It is not maintained and parts of it are already wrong.** Known drift:
+>
+> | §  | Says | Actually |
+> |---|---|---|
+> | 1.1B | Five supported tools | Fourteen |
+> | 3.3 | MarkItDown MCP is part of the stack | Optional; used only for PDF → Markdown at onboarding |
+> | 8 | Standalone web app on DeepAgents JS | Designed, never started. Deferred — `genesis/GENESIS.md` §6 |
+> | 9.5 / 10.3 | Cursor MCP config is an "open verification item" | Resolved; `.cursor/mcp.json`, auto-merged |
+> | 10.1 | Capability report for 4 tools | Superseded by the matrix in `scripts/sync_adapters.py` |
+>
+> What is still load-bearing from this file has been carried into `genesis/GENESIS.md`,
+> `specs/MANIFESTO.md`, `specs/ARCHITECTURE.md` and `logs/BRAINSTORM.md` (D1, D2, D3, D5). The locked
+> scope decisions in §1.1 still hold; treat everything else as a snapshot of what was believed in
+> April 2026.
+
 # IDEA: ScholarPeer Open-Source Implementation (Master Seed Document)
 
 ## 1. Executive Summary & Core Vision

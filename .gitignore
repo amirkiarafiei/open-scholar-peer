@@ -1,14 +1,38 @@
 # External references — kept locally for inspiration but not part of OSP
 reviewer-os/
 
-# Leftover unrelated tooling at repo root.
-# (NOT to be confused with the OSP Antigravity adapter at extensions/.agents/, which IS tracked.)
-/.agents/
-
 # Per-project runtime artifacts (created by installers in *user* projects, never in this dev repo)
 .brain/
 .scholar-peer/
-.claude/
+
+# Locally-installed AI tool directories at the repo root.
+#
+# These are each developer's own install and are NOT the OSP adapters — those live in
+# extensions/.{claude,agents,...}/ and ARE tracked. /.agents/ in particular holds a local copy of the
+# OSP Antigravity-CLI adapter that would silently drift against extensions/.agents/.
+#
+# Exception: the kiacontext skills ARE tracked, so anyone cloning this repo gets /kia-context-init,
+# /kia-context-sync and /kia-context-help in their own agent. See kia-context/logs/BRAINSTORM.md D15.
+# (Directory excludes cannot be undone by a deeper negation, hence the /* + re-include pattern.)
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/kia-context-*/
+
+/.agents/*
+!/.agents/skills/
+/.agents/skills/*
+!/.agents/skills/kia-context-*/
+
+.opencode/*
+!.opencode/skills/
+.opencode/skills/*
+!.opencode/skills/kia-context-*/
+
+.hermes/*
+!.hermes/skills/
+.hermes/skills/*
+!.hermes/skills/kia-context-*/
 
 # Python
 __pycache__/

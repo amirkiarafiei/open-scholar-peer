@@ -66,7 +66,8 @@ Four levels, split by **authority**, not by topic.
 | File | What it is |
 |---|---|
 | `SEED.md` | **The original prompts were never captured and have not been reconstructed.** The file explains that, and points at the closest surviving artifact. |
-| `GENESIS.md` | Why the project exists. Reconstructed on 2026-09-11 from `docs/IDEA.md`, the git history and the owner's statement of intent. |
+| `GENESIS.md` | Why the project exists. Reconstructed on 2026-09-11 from `IDEA.md`, the git history and the owner's statement of intent. |
+| `IDEA.md` | The original design document, self-subtitled "Master Seed Document". **Frozen** — lived at `docs/IDEA.md` until 2026-09-11 (D14). Cited by section as provenance from `GENESIS.md`, `MANIFESTO.md`, `ARCHITECTURE.md` and `BRAINSTORM.md`, which is why it is kept rather than deleted. Its own banner lists the five places it is now wrong. |
 
 ### `kia-context/specs/` — the law · read-only unless explicitly refactoring
 
@@ -81,7 +82,7 @@ Four levels, split by **authority**, not by topic.
 | File | What it is |
 |---|---|
 | `PROGRESS.md` | Milestones M1–M8. M1–M7 reconstructed from git; M8 is active and live. |
-| `BRAINSTORM.md` | Decisions D1–D12 and open questions O1–O7. D1–D11 reconstructed; D12 onward live. |
+| `BRAINSTORM.md` | Decisions D1–D15 and open questions O1–O7. D1–D11 reconstructed; D12 onward live. |
 
 ---
 
@@ -91,16 +92,25 @@ This project had a full `docs/` tree five months before the harness existed, and
 maintained — unusually for this section. Treat it as the human-facing layer, and `kia-context/` as the
 *why* layer beneath it. Where the two disagree, that is a finding to raise, not a file to ignore.
 
+**`docs/` is for people using or contributing to the project** — contracts, layout, limitations,
+troubleshooting, the paper. Documents that were *input context* for building it belong in this harness
+instead; see *Retired* below.
+
 | File | What it is |
 |---|---|
-| `PHASES.md` | The original build plan and execution checklist. **Partly stale** — the top-level tracker is ticked, the per-deliverable checkboxes below it were never filled in. |
 | `ARTIFACT_CONTRACTS.md` | The per-step `reads:` / `writes:` contract. Load-bearing: update it whenever a command's frontmatter changes. |
 | `BRAIN_LAYOUT.md` | The `.brain/` filesystem shape in a user's project. |
 | `KNOWN_LIMITATIONS.md` | Eight caveats users will hit, with workarounds. Honest and current. |
 | `TROUBLESHOOTING.md` | Common issues by symptom. |
 | `CONTRIBUTING.md` | The four contribution paths, in detail. |
-| `IDEA.md` | The original design document, self-subtitled "Master Seed Document". Historical: its locked scope decisions still hold, but its five-tool list does not. |
 | `paper/` | The source paper and a summary of its method and hyperparameters. |
+
+### Retired from `docs/` on 2026-09-11 (`logs/BRAINSTORM.md` D14)
+
+| Was | Now |
+|---|---|
+| `docs/IDEA.md` | Moved to `genesis/IDEA.md`, frozen. Still cited as provenance, so it stays readable in place. |
+| `docs/PHASES.md` | **Deleted.** Superseded by `logs/PROGRESS.md`. Read the original with `git show 027645b:docs/PHASES.md`. Its one unique surviving decision — why Phase 1 is sequential — was carried into `BRAINSTORM.md` D13 before deletion. |
 
 `AGENTS.md` at the repo root is the developer-facing init doc for agents working on OSP itself, and
 carries the Golden Rule. Not part of this harness, but read it before editing anything under
@@ -117,7 +127,8 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 | What are we building right now? | `logs/PROGRESS.md` |
 | Why was it done this way? What was rejected? | `logs/BRAINSTORM.md` |
 | Where did this project come from? | `genesis/GENESIS.md` |
-| What did we originally ask for? | `genesis/SEED.md` — not recovered; read `docs/IDEA.md` instead |
+| What did we originally ask for? | `genesis/SEED.md` — not recovered; read `genesis/IDEA.md` instead |
+| What was the original build plan? | `logs/PROGRESS.md`. The old `docs/PHASES.md` is deleted — `git show 027645b:docs/PHASES.md` |
 | What does step N of the review actually read and write? | `docs/ARTIFACT_CONTRACTS.md` |
 | Why does it not do X? | `docs/KNOWN_LIMITATIONS.md`, then `logs/BRAINSTORM.md` |
 | How do I add a command, skill, tool or provider? | `docs/CONTRIBUTING.md` |
@@ -130,7 +141,7 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 | Prefix | Means | Lives in | Currently |
 |---|---|---|---|
 | `M` | Milestone | `PROGRESS.md` | M1–M8, M8 active |
-| `D` | Decision | `BRAINSTORM.md` | D1–D12 |
+| `D` | Decision | `BRAINSTORM.md` | D1–D15 |
 | `O` | Open question | `BRAINSTORM.md` | O1–O7, all open |
 | rule *n* | A manifesto rule | `MANIFESTO.md` | rules 1–9 |
 
@@ -162,6 +173,7 @@ exists in source code**, only in Markdown: `grep -rn "MANIFESTO" extensions scri
 | `kia-context/logs/BRAINSTORM.md` | `AGENTS.md`, `CLAUDE.md`, `INDEX.md`, `GENESIS.md`, `SEED.md`, `MANIFESTO.md`, `ARCHITECTURE.md`, `PROGRESS.md` — and its **`D` numbers are cited from 1 file** (`SEED.md` cites D4) |
 | `kia-context/genesis/GENESIS.md` | `AGENTS.md`, `CLAUDE.md`, `INDEX.md`, `SEED.md`, `PROGRESS.md` |
 | `kia-context/genesis/SEED.md` | `AGENTS.md`, `CLAUDE.md`, `INDEX.md`, `PROGRESS.md` |
+| `kia-context/genesis/IDEA.md` | `INDEX.md`, `GENESIS.md`, `SEED.md`, `MANIFESTO.md`, `ARCHITECTURE.md`, `BRAINSTORM.md`, `PROGRESS.md` — **cited by section number ~20 times**. Moving it again means rewriting all of them. |
 
 > **One stale reference, left deliberately.** `AGENTS.md` and `CLAUDE.md` both list `DESIGN.md` as part of
 > `specs/` (twice each), in text the kiacontext installer generated. `DESIGN.md` was deleted on
