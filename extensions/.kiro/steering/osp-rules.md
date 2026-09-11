@@ -23,7 +23,7 @@ These rules apply automatically in any project where Open ScholarPeer is install
 ## Subagent vs self-reflection
 
 - **Prefer subagents** for the Q&A engine on tools that support them — every supported tool except the two named below.
-- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) on tools without (or with only partial) subagent support: Mistral Vibe, OpenHands.
+- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) where subagents are unavailable — always on Mistral Vibe and OpenHands, and on any tool where the delegation call does not work. Finishing the phase in the weaker mode beats stopping it; note which mode was used in the artifact.
 - Self-reflection is a documented weaker substitute. See `KNOWN_LIMITATIONS.md`.
 
 ## User orientation (required on every phase invocation)

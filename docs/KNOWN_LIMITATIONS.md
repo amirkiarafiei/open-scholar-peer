@@ -8,9 +8,9 @@ These are limitations users should know about going in. None block normal operat
 
 **What:** The Multi-Aspect Q&A Engine (`/5-osp-qa`) is designed around true subagent isolation: the Query Agent (main thread) delegates each question to a fresh Answer Generator subagent so the verification cannot be biased by the question's reasoning trace.
 
-**Limitation:** Two of the supported tools — **Mistral Vibe** and **OpenHands** — either do not support subagents or have only profile-style independence (no documented subagent delegation). On these, the Q&A engine falls back to **self-reflection mode**: both Query and Answer Generator personas run in the same context window, separated by strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`).
+**Limitation:** Two of the supported tools — **Mistral Vibe** and **OpenHands** — either do not support subagents or have only profile-style independence (no documented subagent delegation). On these, the Q&A engine always uses **self-reflection mode**: both Query and Answer Generator personas run in the same context window, separated by strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`).
 
-*Antigravity used to be on this list. Antigravity 2.0 ships an asynchronous subagent framework, so it moved to full subagent isolation in 2026-09.*
+**Antigravity sits between the two.** Antigravity 2.0 documents an asynchronous subagent framework, so OSP asks it to delegate — but whether a persona *skill* is reachable through `invoke_subagent` has not been confirmed on a real run. The Q&A command therefore tells it to try delegation and, if that is unavailable, to fall back to self-reflection and finish the phase rather than stop. Check the `Mode:` line in each `.brain/raw/05_qa_<slug>.md` to see which it actually used.
 
 **Impact:** Reviews on the Q&A axis from these two tools are likely lower in independent-verification depth than reviews from the other twelve. The other downstream phases (literature, historian, baseline scout, reviewer) are unaffected.
 

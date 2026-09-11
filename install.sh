@@ -61,7 +61,7 @@ fi
 TOOL_HINTS=(
   "subagents $DOT .mcp.json auto"
   "subagents $DOT .cursor/mcp.json auto"
-  "subagents $DOT global config auto"
+  "subagents* $DOT global config auto"
   "subagents $DOT .gemini/settings.json auto"
   "subagents $DOT ~/.copilot auto"
   "subagents $DOT codex mcp add (TOML)"
@@ -280,7 +280,7 @@ menu_tools() {
     # top of the menu permanently.
     rows=$(term_rows)
     layout=0
-    [ $(( 12 + n )) -ge "$rows" ] && layout=1
+    [ $(( 13 + n )) -ge "$rows" ] && layout=1
     [ $((  9 + n )) -ge "$rows" ] && layout=2
     win=$n
     if [ "$layout" -eq 2 ]; then
@@ -343,6 +343,8 @@ menu_tools() {
 
     if [ "$layout" -eq 0 ]; then
       printf '\n'; drawn=$((drawn + 1))
+      printf '     %s* Antigravity falls back to self-reflection if delegation is unavailable%s\n' \
+        "$DIM" "$R"; drawn=$((drawn + 1))
       printf '     %s%s move %s space or enter toggle %s a all %s n none %s tab jumps to Install%s\n' \
         "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
       printf '     %spast the last tool is the Install button %s q cancel%s\n' \
