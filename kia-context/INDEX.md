@@ -81,8 +81,8 @@ Four levels, split by **authority**, not by topic.
 
 | File | What it is |
 |---|---|
-| `PROGRESS.md` | Milestones M1–M8. M1–M7 reconstructed from git; M8 is active and live. |
-| `BRAINSTORM.md` | Decisions D1–D15 and open questions O1–O7. D1–D11 reconstructed; D12 onward live. |
+| `PROGRESS.md` | Milestones M1–M10, all closed. M1–M7 reconstructed from git; M8 onward live. |
+| `BRAINSTORM.md` | Decisions D1–D16 and open questions O1–O11, all open. D1–D11 reconstructed; D12 onward live. |
 
 ---
 
@@ -140,9 +140,9 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 
 | Prefix | Means | Lives in | Currently |
 |---|---|---|---|
-| `M` | Milestone | `PROGRESS.md` | M1–M8, M8 active |
-| `D` | Decision | `BRAINSTORM.md` | D1–D15 |
-| `O` | Open question | `BRAINSTORM.md` | O1–O7, all open |
+| `M` | Milestone | `PROGRESS.md` | M1–M10, none currently active |
+| `D` | Decision | `BRAINSTORM.md` | D1–D16 |
+| `O` | Open question | `BRAINSTORM.md` | O1–O11, all open |
 | rule *n* | A manifesto rule | `MANIFESTO.md` | rules 1–9 |
 
 These are cited from other documents. **A renumber breaks every citation and nothing errors.** Append;
