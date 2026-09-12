@@ -12,7 +12,7 @@ authority: blueprint
 writes: agent, when explicitly refactoring
 status: active
 covers: the system as it is today
-last_updated: "2026-09-11"
+last_updated: "2026-09-12"
 ---
 
 # 🏗️ ARCHITECTURE — How this project is built
@@ -283,8 +283,9 @@ means they are strong conventions rather than hard gates — worth knowing when 
 *Measured: `grep -c '^@mcp.tool()' mcp-server/osp_mcp.py` → 15.*
 
 Every tool is atomic and stateless. The server decides nothing: which queries to run, which results to
-keep, and when the corpus is sufficient are all the agent's judgement. This is a standing constraint from
-`genesis/IDEA.md` §3.3, not an accident of scope.
+keep, and when the corpus is sufficient are all the agent's judgement. This is a standing constraint set
+at t=0 — the design explicitly forbade a tool like `fetch_literature` — not an accident of scope. See
+`logs/BRAINSTORM.md` D3.
 
 Two operational details worth knowing. Every provider call goes through `_run()`, which pushes the
 synchronous call into a thread with `asyncio.wait_for` and a timeout (`OSP_CALL_TIMEOUT`, default 90s) —

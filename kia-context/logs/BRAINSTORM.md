@@ -10,7 +10,7 @@ authority: background
 writes: agent, whenever a decision is made
 status: active
 covers: "Extensions phase, 2026-04-23 onward — D1 onward, O1 onward"
-last_updated: "2026-09-11"
+last_updated: "2026-09-12"
 ---
 
 # 🧠 BRAINSTORM — Why we chose what we chose
@@ -48,16 +48,16 @@ and always say what was **rejected** — that is the part that stops it being re
 
 **Considered:** marketplace plugins per vendor / a hosted web app first / plain files copied in by a shell installer
 **Chose:** plain files, ReviewerOS-style installers
-**Because:** `genesis/IDEA.md` §1 — *"Eliminate vendor lock-in and UI dependency… The system must live where the developers and researchers already work."*
+**Because:** the design document's stated core philosophy — *"Eliminate vendor lock-in and UI dependency… The system must live where the developers and researchers already work."*
 **Rejected marketplaces because:** a per-vendor package is exactly the lock-in the project exists to remove.
-**Rejected web-app-first because:** it rebuilds the proprietary interface being avoided. Designed in full (`genesis/IDEA.md` §8) and deferred to `src/backend` / `src/frontend`.
+**Rejected web-app-first because:** it rebuilds the proprietary interface being avoided. It was designed in full — DeepAgents JS backend, a forked Deep Agents UI with a phase stepper — and deferred to `src/backend` / `src/frontend`.
 **Rule that follows:** MANIFESTO rule 1.
 
 ### D2 · One canonical source, generated adapters — 2026-04-23 (design) / 2026-05-08 (built)
 
 **Considered:** maintain each tool's directory by hand / generate all of them from one source
 **Chose:** generate
-**Because:** `genesis/IDEA.md` §3.4 names drift as the known risk of the plain-files model. Fourteen hand-maintained copies of an eight-step protocol diverge silently.
+**Because:** drift was named at t=0 as the known risk of the plain-files model, with the mitigation written down as a source hierarchy: canonical content lives once, tool adapters are generated from it, installers only copy already-synced folders. Fourteen hand-maintained copies of an eight-step protocol diverge silently.
 **Rejected hand-maintenance because:** nothing errors when two adapters disagree; the user just gets a different review.
 **Rule that follows:** ARCHITECTURE §7, and the Golden Rule in `AGENTS.md`.
 
@@ -65,7 +65,7 @@ and always say what was **rejected** — that is the part that stops it being re
 
 **Considered:** rich tools (`fetch_literature` doing search + filter + dedup) / atomic stateless functions
 **Chose:** atomic
-**Because:** `genesis/IDEA.md` §3.3 — *"MCP is NEVER used for agentic logic, orchestration, or multi-step heuristics."* Deciding what to search and when to stop is the reasoning the paper is about; moving it into a server hides it.
+**Because:** the design document put it in capitals — *"MCP is NEVER used for agentic logic, orchestration, or multi-step heuristics."* Deciding what to search and when to stop is the reasoning the paper is about; moving it into a server hides it.
 **Rejected rich tools because:** they make the interesting half of the method invisible and untunable.
 **Rule that follows:** MANIFESTO §7 (permanent no), ARCHITECTURE §9.
 
@@ -82,7 +82,7 @@ and always say what was **rejected** — that is the part that stops it being re
 
 **Considered:** subagents only (drop unsupported tools) / self-reflection everywhere (uniform) / subagents with a documented fallback
 **Chose:** the fallback, published as weaker
-**Because:** `genesis/IDEA.md` §3.2 prefers real context isolation; dropping three tools would contradict D1.
+**Because:** the design preferred real context isolation wherever a host tool offers it — an isolated context window per delegated task, rather than one agent holding every role; dropping three tools would contradict D1.
 **Rejected uniform self-reflection because:** it would degrade the 11 tools that can do it properly.
 **Rejected silent fallback because:** presenting a weaker method as equivalent is the dishonesty MANIFESTO rule 7 exists to prevent.
 **Measured:** 11 of 14 tools support subagents.
@@ -158,6 +158,7 @@ because it was true on 2026-05-08; read D16 for the current shape.
 
 **Considered:** keep both in `docs/` / delete both outright / move the origin document into the harness and delete the build plan
 **Chose:** `docs/IDEA.md` → `kia-context/genesis/IDEA.md` (frozen); `docs/PHASES.md` deleted
+**Partly reversed by D18 (2026-09-12):** moving the whole file into the harness was wrong — `kia-context/` holds the harness's own files, not imported documents. Its content was absorbed and the file deleted. The `PHASES.md` half stands.
 **Because:** `docs/` is for people using and contributing to the project — contracts, layout, limitations, troubleshooting. Those two were *input context* for building it, which is what the harness is for. `IDEA.md` is cited as provenance ~20 times across `kia-context/` and stays live so those citations remain checkable; `PHASES.md` is fully superseded by `logs/PROGRESS.md`.
 **Rejected deleting IDEA too because:** it would leave every provenance citation pointing at a file you can only recover with `git show`, which is the sort of friction that gets a citation ignored rather than followed.
 **Rejected keeping both because:** `PHASES.md` had already gone stale in the way D12 describes, and a second, competing progress tracker beside `PROGRESS.md` would go stale again.
@@ -191,6 +192,16 @@ because it was true on 2026-05-08; read D16 for the current shape.
 **Consequence:** `adapt_qa_body_for_tool()` now has three modes, not two. The banner asks Antigravity to try delegation, fall back to turn markers if it is unavailable, finish the phase either way, and record `Mode:` in the artifact so the run says which happened.
 **Also:** the owner asked for no "MUST"/"do NOT" in this banner. The eleven confirmed-subagent tools keep the absolute wording — there the capability is known, and the absolute is what stops the Query Agent answering its own questions.
 **Rule that follows:** none new. MANIFESTO rule 8 (fail loudly, never degrade in silence) is satisfied by the `Mode:` line: the degradation is recorded in the artifact, not hidden.
+
+### D18 · `kia-context/` holds only harness files, never imported documents — 2026-09-12
+
+**Considered:** keep `genesis/IDEA.md` as a frozen import (D14) / absorb its content into the harness files and delete it / delete it outright and let the citations point at git
+**Chose:** absorb, then delete
+**Because:** the owner ruled it directly — *"You are not allowed to add docs such as IDEA.md or things like that to kia-context. You can only integrate their CONTENT and not the WHOLE FILE."* The harness is seven files with defined authority; a 339-line design document parked in `genesis/` is a second, unversioned source of truth sitting next to them, and D14 had already had to bolt a banner on it listing five places it was stale. A file that needs a staleness banner does not belong in the folder whose whole purpose is being true.
+**Rejected keeping it because:** D14's justification — "cited ~20 times, so it stays live" — had the dependency backwards. The citations were the problem, not the reason. A claim that only holds because a frozen document is still on disk is a claim that is not actually written down.
+**Rejected deleting outright because:** several citations were pointer-only (*"§3.4 names drift as the known risk"*) and would have left the harness asserting things with nothing behind them.
+**How:** every pointer-only citation was rewritten to state the substance inline, so each claim now stands on its own. The document stays readable in history at `git show c93d344:docs/IDEA.md`, referenced once from `GENESIS.md` and once from `SEED.md` rather than twenty times.
+**Rule that follows:** `kia-context/` contains `INDEX.md` and the six harness files, and nothing else. Content from elsewhere is integrated, never parked.
 
 ---
 
