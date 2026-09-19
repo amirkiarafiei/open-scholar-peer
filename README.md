@@ -20,9 +20,6 @@ OSP turns the paper's 7-agent pipeline into a portable set of Skills, Slash Comm
 curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main/install.sh | bash
 ```
 
-Arrow keys to pick your AI tools, space to select, enter on the **Install** button.
-Pick as many tools as you like in one run.
-
 **2. Open your code agent** in that directory, and in its interactive chat run:
 
 ```text
@@ -78,13 +75,6 @@ git clone https://github.com/amirkiarafiei/open-scholar-peer
 cd open-scholar-peer
 bash install.sh   # interactive — pick your AI tool
 ```
-
-The installer:
-1. Asks where to install, and which AI tools you use — pick one or several.
-2. Copies the right adapter files into your project (`.claude/`, `.cursor/`, etc.).
-3. Initializes `.brain/` (gitignored — your working state).
-4. Sets up a self-contained Python venv at `.open-scholar-peer/mcp/` (gitignored — the MCP server).
-5. Wires the MCP server into each tool's config.
 
 Prefer no prompts? `bash install.sh --tool claude,cursor` installs directly, and
 `bash install.sh --help` lists every option and tool slug.
@@ -160,36 +150,6 @@ Anonymous Semantic Scholar limits are tight. Get a free key at https://www.seman
 | [Antigravity CLI](https://antigravity.google/cli/) | ✓ | ✓ (`.agents/mcp_config.json` + `~/.gemini/antigravity-cli/`) |
 
 See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for self-reflection caveats and per-tool MCP wiring details.
-
----
-
-## Architecture at a glance
-
-```
-extensions/
-├── _shared/           ← Single source of truth (humans edit here)
-│   ├── commands/      ← 8 slash commands
-│   ├── skills/        ← 8 personas (orchestrator + 7 paper agents)
-│   ├── rules/         ← always-on instructions
-│   └── defaults/      ← templates that enforce structure (k=3 rounds, N=qa_pairs_per_criterion)
-└── .{claude,cursor,gemini,agent,agents,github,junie,kiro,
-       codex,kimi,qwen,vibe,opencode,openhands}/   ← Auto-generated per-tool adapters (14 tools)
-
-mcp-server/
-├── osp_mcp.py         ← Consolidated FastMCP server
-└── providers/         ← arxiv, semantic_scholar, google_scholar (extensible)
-
-scripts/
-├── sync_adapters.py   ← Regenerates per-tool adapters from _shared/
-├── install_*.sh       ← Per-tool installers
-├── init_mcp.sh        ← Sets up .open-scholar-peer/mcp/ with venv
-└── test_*.{py,sh}     ← Parity + install smoke tests
-
-.brain/                ← Per-project state (gitignored)
-└── raw/, review/, input/, session.json
-
-.open-scholar-peer/mcp/     ← Per-project MCP runtime (gitignored)
-```
 
 ---
 
