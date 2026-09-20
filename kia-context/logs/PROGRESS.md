@@ -1057,6 +1057,41 @@ It is now a test, not a sentence.
 
 ---
 
+### Installer follow-up — 2026-09-21, after the owner used it
+
+Three commits of refinement on M13's picker, from the owner watching it run. Recorded here rather than
+as a milestone because it is one feature being finished, not new scope.
+
+**What changed** (`503a574`, `0fbb826`): the agent picker now comes **before** the database picker; the
+database picker opens with **arXiv and Semantic Scholar** ticked rather than all six; keys are behind a
+single **yes/no question** instead of a prompt per database, defaulting to No and asked only when a
+selected database takes a key that is not already set; and the closing "what to do next" text became a
+framed panel with all-caps headings and indented values, chosen from five rendered designs.
+
+Whichever picker runs last carries the Install button, so its label is computed per frame — "Continue"
+while a key question still follows, "Install" when it does not.
+
+**The review found nine defects, and one was mine twice over** (`c2c86b9`). Renaming a help line from
+"tab jumps to Install" to "tab jumps to the button" took it from 77 to **80 visible columns**. Below 80
+it wraps to two terminal rows while `drawn` counts one, so every rewind falls a line short and the menu
+walks down the screen — **the M9 defect, in the width dimension instead of the height one**. Measured:
+the parent was clean to 77 columns; the new commit broke at 79, 78 and 77. The line is 60 columns now.
+
+That is the second time a width assumption has bitten this file, and it is why **O19 stays open**: both
+menus are still bounded by a pre-existing 77-column footnote, and nothing measures width the way the
+redraw loop measures height.
+
+Also fixed: the agent button still promised "Install" and then asked for keys on the `--sources` path;
+the panel reported "api keys none set" immediately after the user typed one, because it read `$var`
+while `collect_keys` writes `OSP_KEY_$var`; the panel assumed 78 columns and shredded below that;
+`${#plain}` measured characters rather than display columns, so a CJK path pushed the border out; a
+failed tool was listed as installed four lines under its own failure notice; and truncation was silent.
+
+**Verified:** 251 offline checks, 14/14 installer smoke tests, the help line measured at every column
+from 76 to 100, and the panel uniform at both 60 and 100 columns.
+
+---
+
 ## 🏁 Milestone M14: Tell the agent how to choose a source, not which ones exist
 
 **Target.** The retrieval prompts name five search tools by name. Since M13 the user chooses which
