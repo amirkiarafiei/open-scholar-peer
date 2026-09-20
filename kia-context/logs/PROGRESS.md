@@ -10,7 +10,7 @@ authority: state
 writes: agent, every session
 status: active
 covers: "Extensions phase, 2026-04-23 onward — M1 onward"
-last_updated: "2026-09-12"
+last_updated: "2026-09-20"
 ---
 
 # 📈 PROGRESS — What we are building
@@ -36,6 +36,10 @@ last_updated: "2026-09-12"
 | [M8](#-milestone-m8-installer-improvements--context-harness) | Context harness (done) |
 | [M9](#-milestone-m9-installer-experience) | Installer experience (done) |
 | [M10](#-milestone-m10-antigravity-gains-subagents) | Antigravity subagents (done) |
+| [M11](#-milestone-m11-repair-the-three-existing-providers) | Provider bug fixes |
+| [M12](#-milestone-m12-read-the-paper-not-just-its-title) | Full-text access |
+| [M13](#-milestone-m13-more-open-sources-and-let-the-user-pick-them) | New sources + installer picker |
+| [Reference](#-reference-links-and-measurements-for-m11m13) | Every URL and number M11–M13 needs |
 
 ---
 
@@ -96,6 +100,9 @@ A change to canonical content that has not been synced is not done, however corr
 | **M8** | Context harness | The harness holds a true picture of the project | M7 | ✅ Done 2026-09-11 |
 | **M9** | Installer experience | Installing OSP is a guided, keyboard-driven flow instead of a numbered prompt, and the README says where to type the slash command | M8 | ✅ Done 2026-09-11 |
 | **M10** | Antigravity gains subagents | Antigravity is treated like every other subagent-capable tool — no self-reflection fallback, and nothing anywhere still claims it cannot delegate | M9 | ✅ Done 2026-09-11 |
+| **M11** | Repair the three existing providers | Every retrieval bug from the 2026-09-19 audit is fixed, each proved with a before/after measurement | M10 | ⬜ Not started |
+| **M12** | Read the paper, not just its title | The agent can get full text for arXiv papers and for open-access biomedical papers | M11 | ⬜ Not started |
+| **M13** | More open sources, and let the user pick them | Zenodo and OpenAlex work, and the installer lets the user choose databases and optionally enter keys | M12 | ⬜ Not started |
 
 > **Numbering never restarts.** When this file is split, part two continues at the next M.
 
@@ -421,6 +428,145 @@ was being cited as evidence the work was safe.
 Fixed: `run_install_smoke()` now runs each installer with `HOME` pointed at a directory inside the
 sandbox. Verified by md5-summing all five real config files before and after a full run — unchanged,
 and all 14 still pass. Logged as O10, because nothing stops the next harness from repeating it.
+
+## 🏁 Milestone M11: Repair the three existing providers
+
+**Branch:** `feat/richer-search` (created 2026-09-19 from `750a658`).
+
+**Target.** Search actually returns what it is asked for. Today three of the four bugs below silently
+return wrong or thin results, and the fourth reports a block as "no papers found". All four were measured,
+not guessed. Decisions: `BRAINSTORM.md` D19.
+
+### Deliverables
+
+- [ ] **B1 — arXiv date filter.** `mcp-server/providers/arxiv.py`, `search()`. It fetches `max_results+10` by relevance, then filters by date in Python, so a narrow window returns almost nothing. Replace with arXiv's native range inside `search_query`: `submittedDate:[YYYYMMDDTTTT TO YYYYMMDDTTTT]`. **Measured 2026-09-19:** `search("large language model", max_results=5, date_from="2026-01-01")` → **1 result**. Native range, same window → **5/5, all inside it**.
+- [ ] **B2 — arXiv category filter does nothing.** Same file, `search()` builds `f"({query}) ({cat_filter})"` with no operator, so arXiv ORs the two. Insert `AND`. **Measured 2026-09-19:** `(transformer) (cat:cs.CL)` → **3 of 25** hits actually in `cs.CL`, 7 unrelated categories including `quant-ph`. `(transformer) AND (cat:cs.CL)` → **16 of 25**, 4 related categories.
+- [ ] **B3 — arXiv rate etiquette.** `arxiv.Client()` is constructed inside both `search()` and `get_details()`. `_last_request_dt` is per-instance, so back-to-back calls fire with no gap. The Literature skill tells the agent to call providers *simultaneously*. Use one module-level client. arXiv Terms of Use: *"no more than one request every three seconds… a single connection at a time"*, applying *"to all of the machines under your control as a whole"*.
+- [ ] **B4 — stop the S2 auto-pagination.** `mcp-server/providers/semantic_scholar.py`. `PaginatedResults.__iter__` is `yield from self._items; while self._has_next_page(): yield from self._get_next_page()` — it pages to exhaustion. Our list comprehensions iterate the whole object. `search_paper` uses `max_results=1000`; citations/references get the constructor default **10000**. So one `limit=10` search can be ~100 HTTP requests and one `limit=50` citations call ~200. Fix with `itertools.islice(results, limit)`. **This is the worst one**: a Semantic Scholar API key is rate-limited to **1 request per second**, so 100 requests takes ~100 s and blows the 90 s `OSP_CALL_TIMEOUT`. A key currently makes OSP *slower*, not faster.
+- [ ] **B5 — pass `fields=`.** Same file. With `fields=None` the package requests **76** `Paper.FIELDS`, including `embedding` plus 21 nested `citations.*` and 21 nested `references.*` fields (each with their own abstracts). `_paper_to_dict` returns **10** keys. S2 caps a response at 10 MB, so `get_paper` 400s on a heavily-cited paper. Pass an explicit field list per tool.
+- [ ] **B6 — keep the fields we already pay for.** Still in `_paper_to_dict`: the package already fetches `tldr`, `openAccessPdf`, `isOpenAccess`, `publicationDate`, `fieldsOfStudy` and we throw all five away. `tldr` is an auto-written one-line summary — useful to the Literature agent for triage. `openAccessPdf` is the input to M12.
+- [ ] **B7 — expose the S2 search filters.** `search_paper()` accepts 13 parameters; `semantic_scholar.py` passes **one** (`limit`). Surface at least `year`, `publication_date_or_year` (the temporal round), `open_access_pdf`, `min_citation_count`, `fields_of_study`, `venue`, `sort`. Also add **`match_title=True`** as its own tool — it hits `/paper/search/match` and returns the closest title match with a `matchScore`. That is the right way to resolve a bibliography line to an ID, i.e. deduplication.
+- [ ] **B8 — fix the snippet tool.** `search_snippets()` reads `getattr(s, "snippetId")`, which does not exist on `Snippet` → always `null`. It also calls `_slim_paper(s.paper)`, but `SnippetPaper` only has `corpus_id`, `title`, `authors`, `open_access_info` — so `paperId`/`year`/`citationCount` come back null and `authors` is a list of **plain strings**, which `_slim_paper` maps to `{"name": null, "authorId": null}` for every author. **Note:** `Snippet.text` *does* work — it is a documented shortcut for `snippet.text`. Only the id and the paper block are broken. Snippet `limit` can be up to **1000**; we cap at 20.
+- [ ] **B9 — Google Scholar must fail loudly.** `mcp-server/providers/google_scholar.py`, `_parse_results()`. A CAPTCHA/block page contains no `gs_ri` divs, so it returns `[]` — **byte-identical to a genuine zero-hit search**. Verified 2026-09-19. The agent then writes "no papers found" when the truth is "we were blocked". This breaks MANIFESTO rule 8 and means the Literature skill never records the provider as unavailable in Provenance. **The owner asked for several approaches to be tested first, the best chosen, and only then applied** — see the deliverable below.
+- [ ] **B10 — choose the Google Scholar approach by test, not by guess.** Try at least: (a) detect the block page by marker (`gs_captcha_ccl`, `/sorry/index`, "unusual traffic"); (b) rotate the User-Agent across several real browser strings; (c) retry with backoff; (d) optional proxy via an env var. The competitor already does all four in `paper_search_mcp/academic_platforms/google_scholar.py` — `_is_captcha_page()`, UA rotation, `max_retries`/`retry_delay`, `GOOGLE_SCHOLAR_PROXY_URL`. **MIT licence, so borrowing is allowed with attribution.** Whatever wins, a block must raise a distinct error, never `[]`.
+- [ ] **B11 — pin the dependencies.** `mcp-server/requirements.txt` says `arxiv>=2.1.0` and `semanticscholar>=0.7.0`. A fresh install on 2026-09-19 pulls **arxiv 4.0.1** and **semanticscholar 0.12.0** — two major versions up. arxiv 4.x removed `Search.results`, `Result.download_pdf` and the `arxiv.arxiv` shim; our `Client().results(search)` survives by luck. Pin ranges, e.g. `arxiv>=3.0,<5`.
+
+### Acceptance criteria
+
+1. B1: a 12-month window returns a full page of in-window papers, not one. Show the before/after count.
+2. B2: with `categories=["cs.CL"]`, at least 80% of results have `primary_category == "cs.CL"`. Show before/after.
+3. B4: one tool call makes **one** page request unless the caller asks for more. Prove it by counting HTTP calls.
+4. B5: `get_semantic_scholar_paper` on a paper with >1000 citations returns without a 10 MB error.
+5. B8: every author in a snippet result has a real name; `snippetId` is either correct or removed from the output.
+6. B9/B10: a simulated block page produces an **error**, not `[]`. A real empty search still produces `[]`.
+7. `sync_adapters.py --check`, `test_parity.py` and `test_install.sh` still pass.
+8. No tool gains agentic logic — every fix stays atomic and stateless (MANIFESTO §7, D3).
+
+**Depends on:** M10.
+
+---
+
+## 🏁 Milestone M12: Read the paper, not just its title
+
+**Target.** Every OSP tool today returns metadata only. The Baseline Scout and the Q&A engine cannot check
+*"does the cited paper actually report that number?"* from an abstract. This milestone gives the agent the
+actual text, for the two sources where it is free and legal. Decisions: `BRAINSTORM.md` D20.
+
+> **Correction to the 2026-09-19 review.** It said OSP "has no full-text access". That was wrong, and the
+> owner caught it. arXiv gives full text to anyone — a free PDF and the LaTeX source. The gap is in our
+> code: we store `pdf_url` and never open it.
+
+### Deliverables
+
+- [ ] **F1 — arXiv download/read tools.** `arxiv` 4.0.1 **removed** `Result.download_pdf` and `download_source`; `Result` now exposes only `get_short_id()` and `source_url`. So fetch by plain HTTP from the URLs we already serialize. Two routes, and the second is the better one: **PDF** (`pdf_url`) always exists but needs a PDF reader and comes out messy for two-column text and maths; **LaTeX source** (`source_url`) is the real text, clean, equations intact, but arrives as `.tar.gz` and must be unpacked.
+- [ ] **F2 — make it easy for an agent to use** (owner's explicit request). Prefer a tool that takes an arXiv ID and returns text directly, over one that returns a file path. **A read tool must not write to disk** — the competitor's `download_*` tools persist to `./downloads`, which would break our stateless rule (D3). Returning text keeps it atomic.
+- [ ] **F3 — Europe PMC provider.** Open-access biomedical, **no key at all**, and it serves **full text over REST as XML — no PDF parsing**. This is the cheapest full-text path that exists. Verified 2026-09-19: a keyword search returned HTTP 200 with **2,304 hits**, and each record carried `fullTextUrlList` and an `isOpenAccess` flag.
+- [ ] **F4 — find the current Europe PMC docs before coding** (owner's request). Start at `https://europepmc.org/RestfulWebService`. Working endpoint shape confirmed on 2026-09-19: `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=<q>&format=json&pageSize=<n>&resultType=core`. `resultType=core` is what returns the abstract and `fullTextUrlList`.
+- [ ] **F5 — why Europe PMC matters here.** About **5 or 6 of the owner's ~30 reviewed papers are health or biology** (the Frontiers paper, `Sage/digital-health-mental-fatigue`, `MDPI/information_urinary_infection`, `MDPI/information_explain_mental_health`). arXiv covers almost none of that. This is a measured gap, not a hypothetical one.
+- [ ] **F6 — test the tools against the live API** before declaring the milestone done (owner's request).
+
+### Acceptance criteria
+
+1. Given an arXiv ID, a tool returns readable body text, not a link and not a file path.
+2. Nothing is written to disk by any read tool.
+3. Given a biomedical query, Europe PMC returns results with abstracts, and open-access ones expose a full-text route.
+4. Both new tools carry the same rich docstrings the existing 15 have — that is what the agent reads to choose.
+5. Provider failures return a structured error, never an empty list (the M11 B9 rule applies to new providers too).
+
+**Depends on:** M11 (B5/B6 supply `openAccessPdf`, which this uses).
+
+---
+
+## 🏁 Milestone M13: More open sources, and let the user pick them
+
+**Target.** Add the two remaining agreed sources, and give the installer a way to choose databases —
+because OpenAlex is the first source after Semantic Scholar that wants a key, and the user should see that
+before installing. Decisions: `BRAINSTORM.md` D19 and D21.
+
+### Deliverables
+
+- [ ] **S1 — Zenodo provider.** Open, no key. Verified 2026-09-19: `https://zenodo.org/api/records?q=<q>&size=<n>&type=software` returned HTTP 200 and **12,570** software records for a test query. Docs: `https://developers.zenodo.org/`.
+- [ ] **S2 — use Zenodo for the right question.** It does not find papers. It finds code, datasets and software releases. Give it its own job: *"did the authors release their code and data?"* — a reproducibility criterion on most venue review forms that the agent currently cannot check at all. Do **not** put it in the literature rounds.
+- [ ] **S3 — OpenAlex provider.** ~**327,426,920** works (live `meta.count`, 2026-09-19). Its unique value is **`is_retracted`** — **135,702** flagged works. Nothing else we have can tell the agent that a cited paper was retracted, and recommending "accept" on a paper leaning on retracted work is exactly the failure that catches. Also gives `referenced_works`, `topics`, ROR-linked institutions, `best_oa_location`, `fwci`.
+- [ ] **S4 — OpenAlex key handling.** OpenAlex moved to free API keys on **2026-02-13**. Keyless still answers but is capped at **100 credits/day**, and a list call costs **10** — about **10 searches a day**, which is unusable. A free key gives **100,000/day at 100 req/s**. So OpenAlex is *optional-key* in the same sense as Semantic Scholar, and must be labelled that way in the installer. One gotcha: **OpenAlex returns abstracts as an inverted index** and they must be reconstructed into text.
+- [ ] **S5 — installer database picker** (owner's design). Extend the M9 TUI so the user explicitly selects which paper-search databases to enable. Show a readable table with, per database: **free / key required / optional key**, and **which domain it covers**. Keep the existing keyboard model — arrows, space to toggle, the framed Install button.
+- [ ] **S6 — optional key entry during install.** After selecting, offer to type each key right there, with a clear skip. If skipped, tell the user the `.env` file exists and they can add keys later. Never require a key to finish the install.
+- [ ] **S7 — the table content** (as agreed 2026-09-19): arXiv — free, preprints, CS/physics/maths. Semantic Scholar — optional key (speed only), all fields. Google Scholar — free, broad, best-effort scraping. Europe PMC — free, biomedical, full text. Zenodo — free, code/data/software. OpenAlex — optional key, all fields, retraction flags.
+
+### Acceptance criteria
+
+1. Zenodo and OpenAlex tools work against the live APIs and return structured errors on failure.
+2. OpenAlex abstracts come back as readable text, not an inverted index.
+3. The installer table states the key status and domain of every database correctly.
+4. An install with no keys entered completes and works; the user is told where `.env` is.
+5. Tool count stays manageable — see O12 on tool-list growth.
+
+**Depends on:** M12.
+
+---
+
+## 📎 Reference: links and measurements for M11–M13
+
+Kept here on purpose, so an implementation session that has lost the conversation still has every source.
+
+**Semantic Scholar** — `https://api.semanticscholar.org/api-docs/graph` · `https://api.semanticscholar.org/api-docs/recommendations` · `https://www.semanticscholar.org/product/api/tutorial`
+Rate limits as documented: *"1000 requests per second shared among all unauthenticated users"*; *"The introductory rate limit for an API key is 1 RPS on all endpoints"* — no per-endpoint difference.
+Known upstream bug: in `semanticscholar` 0.12.0, `get_paper_citations`, `get_paper_references`, `get_author_papers` and `get_paper_authors` call `PaginatedResults.create(...)` **without** `headers=self.auth_header`, so those four run anonymously even when a key is set. Only `search_paper` and `search_author` pass it.
+
+**arXiv** — `https://info.arxiv.org/help/api/index.html` · `https://info.arxiv.org/help/arxiv_identifier_for_services.html` · `https://info.arxiv.org/help/bulk_data.html` · `https://info.arxiv.org/help/bulk_data_s3.html` · `https://info.arxiv.org/help/rss.html`
+Rate limits live in `tou.html`, not in `index.html` or `basics.html`.
+`ir.html` is **Institutional Repository Interoperability** — not search semantics. It does not say what it looks like it says.
+Already correct, do not "fix": `get_arxiv_paper_details` uses `id_list`, which the manual explicitly prefers *"to properly handle article versions"*; versioned (`2305.14314v2`) and old-style (`cs.CL/0306050`) IDs both work.
+
+**OpenAlex** — the full set the owner supplied on 2026-09-20, written out so none is lost to abbreviation:
+`https://help.openalex.org/api/`
+`https://help.openalex.org/api/llm-quick-reference/`
+`https://help.openalex.org/api/filtering/`
+`https://help.openalex.org/api/searching/`
+`https://help.openalex.org/api/semantic-search/`
+`https://help.openalex.org/api/sorting/`
+`https://help.openalex.org/api/grouping/`
+`https://help.openalex.org/api/paging/`
+`https://help.openalex.org/api/selecting-fields/`
+`https://help.openalex.org/api/get-single-entities/`
+`https://help.openalex.org/api/autocomplete/`
+`https://help.openalex.org/api/endpoints/`
+`https://help.openalex.org/api/deprecations/`
+API root used in testing: `https://api.openalex.org/works?search=<q>&per-page=<n>`. Client option: `pyalex`, or plain `requests`.
+
+**Europe PMC** — `https://europepmc.org/RestfulWebService` · tested endpoint `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=<q>&format=json&pageSize=<n>&resultType=core`
+
+**Zenodo** — `https://developers.zenodo.org/` · tested endpoint `https://zenodo.org/api/records?q=<q>&size=<n>&type=software`
+
+**bioRxiv / medRxiv (researched, deferred — see D19)** — `https://api.biorxiv.org/` · `https://api.medrxiv.org/`
+No keyword, title, abstract or author search exists. Query options are date interval, DOI, cursor, **subject category**, and funder ROR. Records **do** include `abstract`, plus `jatsxml` (a free full-text XML link) and `published` (the journal DOI once a preprint is published). Volume measured 2026-09-19: bioRxiv one month unfiltered = **5,906** papers (~60 calls at 100/page); with `?category=bioinformatics` = **631** (~7 calls). There is a `/details/<server>/<N>d/json` recent-days endpoint. **Neither API documents a rate limit.**
+
+**Competitor — `https://github.com/openags/paper-search-mcp`** · MIT, 2,661 stars, last push 2026-08-17. Borrowing is allowed with attribution.
+Worth borrowing: `academic_platforms/google_scholar.py` (CAPTCHA detection, UA rotation, retries, proxy env var) and `academic_platforms/unpaywall.py` (DOI → legal OA PDF).
+**Do not borrow:** `download_scihub` or the Sci-Hub step in `download_with_fallback` — MIT licensing does not cure copyright. Also do not copy its write-to-disk `download_*`/`read_*` pattern; it breaks our stateless rule.
+Where we are already ahead: it has **no** citation-graph traversal at all — no references, citations, recommendations, author tools or snippet search. Do not regress that.
+
+**Dead or excluded** — DBLP: dead on 2026-09-19, four probes hit an Anubis proof-of-work bot wall including with the competitor's own User-Agent; the `dblp.py` on `feat/all-databases` will not work. ACM DL: no public API, needs a subscription. IEEE Xplore: paid key, metadata only — both break MANIFESTO rule 1. Crossref, PubMed, bioRxiv/medRxiv: redundant against what we already have. CORE: flaky, returned HTTP 500 on a second probe.
 
 ---
 

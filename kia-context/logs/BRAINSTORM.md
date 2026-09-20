@@ -10,7 +10,7 @@ authority: background
 writes: agent, whenever a decision is made
 status: active
 covers: "Extensions phase, 2026-04-23 onward — D1 onward, O1 onward"
-last_updated: "2026-09-12"
+last_updated: "2026-09-20"
 ---
 
 # 🧠 BRAINSTORM — Why we chose what we chose
@@ -203,6 +203,37 @@ because it was true on 2026-05-08; read D16 for the current shape.
 **How:** every pointer-only citation was rewritten to state the substance inline, so each claim now stands on its own. The document stays readable in history at `git show c93d344:docs/IDEA.md`, referenced once from `GENESIS.md` and once from `SEED.md` rather than twenty times.
 **Rule that follows:** `kia-context/` contains `INDEX.md` and the six harness files, and nothing else. Content from elsewhere is integrated, never parked.
 
+### D19 · Which open databases to add, and which to refuse — 2026-09-19
+
+**Considered:** stay on arXiv + Semantic Scholar + Google Scholar / add every open source (OpenAlex, PubMed, bioRxiv, medRxiv, IACR, PMC, DBLP, Zenodo, ACM DL, IEEE Xplore) / add a chosen few by role
+**Chose:** add **Europe PMC**, **Zenodo** and **OpenAlex**. Defer bioRxiv/medRxiv. Refuse DBLP, ACM DL, IEEE Xplore, Crossref, PubMed, CORE, IACR.
+**Because:** the owner's framing was the strong argument — *"we can say we support every open DB that is necessary"*, and every source above except OpenAlex needs no key at all. That is a real product claim and it fits MANIFESTO rule 1. Each admitted source also has a job nothing else does: Europe PMC = full text over REST with no PDF parsing; Zenodo = code/data release checking; OpenAlex = retraction flags.
+**Measured, and it decided things:** of the owner's ~30 reviewed papers, about **5 or 6 are health or biology** (Frontiers, `Sage/digital-health-mental-fatigue`, `MDPI/information_urinary_infection`, `MDPI/information_explain_mental_health`). arXiv covers almost none of that, so the biomedical gap is real rather than hypothetical.
+**Rejected DBLP because:** it is dead. Four probes on 2026-09-19 hit an Anubis proof-of-work bot wall, including with a normal browser User-Agent and with the competitor's own. Not transient.
+**Rejected ACM DL and IEEE Xplore because:** subscription or paid key. They break MANIFESTO rule 1 outright.
+**Rejected Crossref, PubMed, bioRxiv/medRxiv, CORE, IACR because:** redundant, flaky, or too narrow. Detail in `logs/PROGRESS.md` under *Reference*.
+**Deferred bioRxiv/medRxiv, and this one changed twice.** First read: unusable, no keyword search. The owner pushed back with the API docs, and he was right to — reading them properly showed a **subject-category filter**, **abstracts inside every record**, a **recent-days endpoint**, a **`jatsxml` full-text link** and a **`published` field** giving the journal DOI. Corrected position: they are **a feed, not a search engine**. You cannot ask "find papers about X"; you can ask "give me every bioinformatics preprint from July". Volume measured: one month unfiltered **5,906** papers (~60 calls), with `category=bioinformatics` **631** (~7 calls). Making them useful needs a plain `contains` filter in the tool — which is a filter, not orchestration, so it would **not** break D3. Left out of M11–M13 only because Semantic Scholar already indexes both **with** real keyword search; their unique value is freshness and free full text. Revisit under O13.
+**Rule that follows:** none new. MANIFESTO rule 1 already covers the no-subscription test.
+
+### D20 · Full text comes from arXiv and Europe PMC, and is never written to disk — 2026-09-19
+
+**Considered:** stay metadata-only / Unpaywall + a PDF parser for everything / arXiv's own files plus Europe PMC's REST full text
+**Chose:** arXiv (PDF or LaTeX source) plus Europe PMC (XML over REST). Unpaywall deferred.
+**Because:** metadata is not enough for the Baseline Scout or the Q&A engine — *"does the cited paper actually report that number?"* cannot be answered from an abstract. Europe PMC serves full text over a plain REST call with **no key and no PDF to parse**, which is the cheapest path that exists. arXiv's text is free to anyone.
+**Corrected a wrong claim:** the 2026-09-19 review said OSP "has no full-text access". Wrong, and the owner caught it. arXiv always had free full text; the gap was our code storing `pdf_url` and never opening it.
+**Rejected Unpaywall-first because:** it only pays off once a PDF reader exists, and it needs an email parameter. It is the right answer later for non-arXiv, non-biomedical papers.
+**Constraint that follows:** a read tool **returns text and writes nothing**. The competitor persists to `./downloads`; that would break the stateless rule in D3. Returning text keeps the tool atomic.
+**Note for implementation:** `arxiv` 4.0.1 removed `Result.download_pdf` and `download_source`, so fetch by plain HTTP from `pdf_url` / `source_url`. LaTeX source is cleaner than PDF for maths and two-column layouts, but arrives as `.tar.gz`.
+
+### D21 · The installer asks which databases to use, and offers to take keys — 2026-09-19
+
+**Considered:** enable every provider always / an env-var opt-in / let the user choose during install
+**Chose:** choose during install, as an extension of the M9 TUI
+**Because:** OpenAlex is the first source after Semantic Scholar that wants a key, so the user has to be told *before* installing which sources are free, which need a key, which take an optional key, and what domain each covers. The owner asked for this as a readable table the user clicks through, in the same keyboard model as the M9 picker.
+**Also chose:** offer to type each key during the install, with a clear skip. If skipped, point at `.env`. **A key is never required to finish installing** — that would breach MANIFESTO rule 1.
+**Rejected always-on because:** every extra provider costs the agent a longer tool list on every request, and a user reviewing CS papers has no use for biomedical sources.
+**Scheduled as:** M13 S5–S7.
+
 ---
 
 ## Open questions
@@ -222,6 +253,9 @@ because it was true on 2026-05-08; read D16 for the current shape.
 | **O9** | A tool's capability can expire without anyone noticing — Antigravity's did, and OSP shipped the weaker Q&A path for months (D16). Nothing re-checks the capability matrix against vendor docs. Is that worth automating, or is it inherently a human job? | 2026-09-11 | open |
 | **O10** | `scripts/test_install.sh` merged throwaway `/tmp` paths into the developer's real global MCP configs on every run, for six installers, since the smoke test was written. Fixed by redirecting `HOME` — but nothing stops the next test harness from doing the same. Should running any `install_*.sh` outside a sandbox be made harder? | 2026-09-11 | open |
 | **O11** | Is a persona *skill* reachable through Antigravity's `invoke_subagent`, or does it need a registered definition at `.agents/agents/<name>.md` (O8)? Kiro, Junie, Kimi, Qwen and OpenCode rest on the same skill-as-subagent assumption and nobody has confirmed it on any of them either. **Mitigated, not answered:** D17 made Antigravity try-then-fall-back, so the phase completes either way and the artifact's `Mode:` line records which path ran — reading that line after one real run answers this. | 2026-09-11 | open (mitigated) |
+| **O12** | Every provider adds tools, and the whole list ships in every agent request. We are at 15 tools; M12 and M13 could take it past 25. At what point does the list start hurting tool choice more than the extra source helps? Nobody has measured it. | 2026-09-19 | open |
+| **O13** | bioRxiv/medRxiv deferred in D19. They are a feed, not a search engine, but they carry free full text (`jatsxml`), same-day freshness and a preprint-to-journal link (`published`). Worth adding as an explicit "recent preprints" tool once M12 exists? Also: **neither API documents a rate limit**, and a category-filtered month is ~7 calls. | 2026-09-19 | open |
+| **O14** | There is still **no deduplication** across providers. The same paper already returns from arXiv, Semantic Scholar and Google Scholar in three different shapes, and M12/M13 add more sources. `refactor/migrate-mcp-to-scripts` already has a normalised cross-provider record shape that would fix it. Should that land before or with M13? | 2026-09-19 | open |
 
 ---
 

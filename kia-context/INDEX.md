@@ -9,7 +9,7 @@ authority: map
 writes: agent, when files move
 status: active
 covers: the whole harness
-last_updated: "2026-09-12"
+last_updated: "2026-09-20"
 harness: kiacontext v0.2
 ---
 
@@ -84,8 +84,8 @@ Four levels, split by **authority**, not by topic.
 
 | File | What it is |
 |---|---|
-| `PROGRESS.md` | Milestones M1–M10, all closed. M1–M7 reconstructed from git; M8 onward live. |
-| `BRAINSTORM.md` | Decisions D1–D18 and open questions O1–O11, all open. D1–D11 reconstructed; D12 onward live. |
+| `PROGRESS.md` | Milestones M1–M13. M1–M10 closed; **M11–M13 planned, not started**. M1–M7 reconstructed from git; M8 onward live. Ends with a **Reference** section holding every API URL and measurement M11–M13 needs, so an implementation session that lost the conversation still has its sources. |
+| `BRAINSTORM.md` | Decisions D1–D21 and open questions O1–O14, all open. D1–D11 reconstructed; D12 onward live. |
 
 ---
 
@@ -132,6 +132,8 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 | Where did this project come from? | `genesis/GENESIS.md` |
 | What did we originally ask for? | `genesis/SEED.md` — not recovered; it points at the closest surviving artifact |
 | What was the original build plan? | `logs/PROGRESS.md`. The old `docs/PHASES.md` is deleted — `git show 027645b:docs/PHASES.md` |
+| Which paper databases do we use, and why not the others? | `logs/BRAINSTORM.md` D19 |
+| Where are the API docs for a provider? | `logs/PROGRESS.md`, the **Reference** section at the end |
 | What does step N of the review actually read and write? | `docs/ARTIFACT_CONTRACTS.md` |
 | Why does it not do X? | `docs/KNOWN_LIMITATIONS.md`, then `logs/BRAINSTORM.md` |
 | How do I add a command, skill, tool or provider? | `docs/CONTRIBUTING.md` |
@@ -143,9 +145,9 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 
 | Prefix | Means | Lives in | Currently |
 |---|---|---|---|
-| `M` | Milestone | `PROGRESS.md` | M1–M10, none currently active |
-| `D` | Decision | `BRAINSTORM.md` | D1–D18 |
-| `O` | Open question | `BRAINSTORM.md` | O1–O11, all open |
+| `M` | Milestone | `PROGRESS.md` | M1–M13; M11 is next up |
+| `D` | Decision | `BRAINSTORM.md` | D1–D21 |
+| `O` | Open question | `BRAINSTORM.md` | O1–O14, all open |
 | rule *n* | A manifesto rule | `MANIFESTO.md` | rules 1–9 |
 
 These are cited from other documents. **A renumber breaks every citation and nothing errors.** Append;
