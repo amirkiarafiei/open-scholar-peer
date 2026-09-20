@@ -30,6 +30,7 @@ from mcp.server.fastmcp import FastMCP
 from providers import arxiv as arxiv_provider
 from providers import semantic_scholar as ss_provider
 from providers import google_scholar as gs_provider
+from providers import europe_pmc as epmc_provider
 
 
 def _err(tool: str, exc: Exception) -> dict[str, Any]:
@@ -48,6 +49,12 @@ def _err(tool: str, exc: Exception) -> dict[str, Any]:
         reason = "rate_limited"
     elif isinstance(exc, arxiv_provider.ArxivBusy):
         reason = "busy"
+    elif isinstance(exc, (arxiv_provider.ArxivNotFound,
+                          epmc_provider.EuropePmcNotFound)):
+        reason = "not_found"
+    elif isinstance(exc, (arxiv_provider.ArxivFullTextError,
+                          epmc_provider.EuropePmcError)):
+        reason = "unavailable"
     elif isinstance(exc, TimeoutError):
         reason = "timeout"
     elif isinstance(exc, ValueError):
@@ -145,6 +152,8 @@ async def get_arxiv_paper_details(arxiv_id: str) -> dict[str, Any]:
     Returns:
         Dict with keys: arxiv_id, title, authors, summary, published, updated,
         link, pdf_url, primary_category, categories, comment, doi, journal_ref.
+        This is metadata only — for the body, the methods, the tables and the
+        numbers, use read_arxiv_paper.
         Returns {"error": "..."} on failure.
     """
     log.info("get_arxiv_paper_details(arxiv_id=%r)", arxiv_id)
@@ -152,6 +161,147 @@ async def get_arxiv_paper_details(arxiv_id: str) -> dict[str, Any]:
         return await _run(arxiv_provider.get_details, arxiv_id)
     except Exception as e:
         return _err("get_arxiv_paper_details", e)
+
+
+@mcp.tool()
+async def read_arxiv_paper(
+    arxiv_id: str, max_chars: int = 50000, offset: int = 0
+) -> dict[str, Any]:
+    """Read the FULL TEXT of an arXiv paper, not just its abstract.
+
+    Use this when the abstract is not enough: to check whether a cited paper
+    really reports the number the paper under review attributes to it, to read
+    an experimental setup, or to find what a method section actually says.
+
+    It returns the LaTeX source: the author's own text, with equations, table
+    cells and section headings intact. For reading NUMBERS this beats a PDF
+    conversion, which flattens a table into loose columns and can align a
+    value to the wrong row.
+
+    What it cannot do: **citations do not resolve.** The source carries
+    `\citep{key}` markers, not the printed numbers, and the reference list is
+    not in it. To turn a citation into a paper, use
+    get_semantic_scholar_paper_references on the same paper. The title and
+    author list ARE included. Nothing is written to disk.
+
+    Long papers run past 100,000 characters, so the text comes in windows.
+    Read the first, and while `next_offset` is not null call again with
+    `offset` set to it. Windows end at a paragraph break, never mid-number.
+
+    If the paper was submitted as a PDF with no source, this returns an error
+    naming the PDF URL. The markitdown MCP server registered alongside this
+    one reads it with convert_to_markdown — which is also the better route
+    when you want the printed reference list.
+
+    Args:
+        arxiv_id: "2305.14314", "hep-th/9901001", or "1706.03762v5".
+        max_chars: Characters per window (100-200000, default 50000).
+        offset: Where to start reading (default 0).
+
+    Returns:
+        Dict with keys: arxiv_id, format, text, offset, returned_chars,
+        next_offset (None at the end), total_chars, truncated, source,
+        bibliography.
+        Returns {"error": "...", "reason": "..."} on failure.
+    """
+    log.info("read_arxiv_paper(arxiv_id=%r, max_chars=%d, offset=%d)",
+             arxiv_id, max_chars, offset)
+    try:
+        return await _run(arxiv_provider.read_paper, arxiv_id, max_chars, offset)
+    except Exception as e:
+        return _err("read_arxiv_paper", e)
+
+
+# ---------- Europe PMC ------------------------------------------------------
+
+@mcp.tool()
+async def search_europe_pmc(
+    query: str,
+    limit: int = 10,
+    open_access_only: bool = True,
+    sort: str | None = None,
+) -> list[dict[str, Any]]:
+    """Search Europe PMC — biomedical, health and life-science literature.
+
+    Use this whenever the paper under review touches medicine, biology, public
+    health, psychology or clinical work. arXiv covers almost none of that, and
+    Europe PMC is the source that does. No API key is needed.
+
+    Its other job is full text: for open-access articles it hands over the
+    whole article as text through get_europe_pmc_full_text. Keep
+    `open_access_only` true when you intend to read the paper — records
+    without a `pmcid` have no full-text route, and they are the majority.
+
+    Query syntax accepts field tags, for example:
+      AUTH:"Smith"            author
+      TITLE:"fatigue"         title
+      PUB_YEAR:2024           year
+      JOURNAL:"Lancet"        journal
+      DOI:"10.1234/abc"       a specific DOI
+
+    Args:
+        query: Free-form query, or one using the field tags above.
+        limit: Maximum results (1-100, default 10).
+        open_access_only: Restrict to articles whose full text is readable
+            here (default true).
+        sort: e.g. "CITED desc" or "P_PDATE_D desc". Relevance if unset.
+
+    Returns:
+        List of dicts with keys: id, source, pmid, pmcid, doi, title, authors,
+        journal, year, abstract, citedByCount, isOpenAccess, inEPMC,
+        hasFullTextXML, fullTextUrls.
+        Pass `pmcid` to get_europe_pmc_full_text to read the article, when
+        `hasFullTextXML` is true. When it is false the `pmcid` is usually
+        null and there is nothing to read here — use `fullTextUrls`.
+        Returns [{"error": "...", "reason": "..."}] on failure.
+    """
+    log.info("search_europe_pmc(query=%r, limit=%d, oa=%s)",
+             query, limit, open_access_only)
+    try:
+        return await _run(epmc_provider.search, query, limit,
+                          open_access_only, sort)
+    except Exception as e:
+        return [_err("search_europe_pmc", e)]
+
+
+@mcp.tool()
+async def get_europe_pmc_full_text(
+    pmcid: str, max_chars: int = 50000, offset: int = 0
+) -> dict[str, Any]:
+    """Read the FULL TEXT of an open-access Europe PMC article.
+
+    The cheapest full text there is: Europe PMC serves the whole article over
+    a plain request, so there is no PDF to parse and no key to hold. Section
+    headings are kept, and funding, competing-interest and data-availability
+    statements survive — useful for a reproducibility check. Nothing is
+    written to disk.
+
+    **Table contents are NOT included — only the caption.** A number reported
+    only inside a table will not be here; follow `fullTextUrls` for it. The
+    reference list is replaced by a count.
+
+    Get the `pmcid` from search_europe_pmc. Records where `hasFullTextXML` is
+    false are not readable here — use the links in `fullTextUrls` instead.
+
+    Long articles come in windows. While `next_offset` is not null, call again
+    with `offset` set to it. Windows end at a paragraph break.
+
+    Args:
+        pmcid: The PMC identifier, e.g. "PMC12798607". A bare number works.
+        max_chars: Characters per window (100-200000, default 50000).
+        offset: Where to start reading (default 0).
+
+    Returns:
+        Dict with keys: pmcid, text, offset, returned_chars, next_offset
+        (None at the end), total_chars, truncated, source.
+        Returns {"error": "...", "reason": "..."} on failure.
+    """
+    log.info("get_europe_pmc_full_text(pmcid=%r, max_chars=%d, offset=%d)",
+             pmcid, max_chars, offset)
+    try:
+        return await _run(epmc_provider.get_full_text, pmcid, max_chars, offset)
+    except Exception as e:
+        return _err("get_europe_pmc_full_text", e)
 
 
 # ---------- Semantic Scholar -----------------------------------------------
@@ -174,6 +324,9 @@ async def search_semantic_scholar(
     Semantic Scholar provides high-quality citation-graph data, abstracts, and
     venue metadata. Use for established publications; for very recent pre-prints,
     prefer search_arxiv. Returns citation counts and author IDs for follow-up.
+
+    It returns no full text. For biomedical work you may need to read rather
+    than skim, search_europe_pmc does.
 
     Filters (all optional) let you narrow a round without post-filtering:
       year="2024"            → one year
@@ -443,10 +596,13 @@ async def search_semantic_scholar_snippets(
 ) -> list[dict[str, Any]]:
     """Search for text snippets from paper abstracts/bodies matching a query.
 
-    Unlike search_semantic_scholar (which matches metadata), this returns actual
-    ~500-word excerpts from the paper text. Use when you need to verify that a
-    paper actually discusses a specific concept, or to find papers containing
-    specific technical claims.
+    Unlike search_semantic_scholar (which matches metadata), this returns
+    actual ~500-word excerpts from paper text.
+
+    Use it to DISCOVER which papers contain a claim, when you do not yet know
+    which paper to read. It searches the whole corpus and CANNOT be limited to
+    one paper. To check what a specific paper says, read that paper:
+    read_arxiv_paper or get_europe_pmc_full_text.
 
     Args:
         query: Free-form query describing the content to find.

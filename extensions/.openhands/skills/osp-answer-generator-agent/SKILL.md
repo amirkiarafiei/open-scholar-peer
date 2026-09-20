@@ -26,7 +26,12 @@ The Query Agent passes:
    - `01_structured_summary.md` (claims/method/evidence)
    - `03_domain_narrative.md` (relevant eras and precedents)
    - `04_missing_baselines.md` (relevant adversarial findings)
-4. **Available tools:** `osp-mcp.search_arxiv`, `search_semantic_scholar`, `search_google_scholar`, native Web Search (where applicable).
+4. **Available tools:** `osp-mcp.search_arxiv`, `search_semantic_scholar`,
+   `search_google_scholar`, `search_europe_pmc`, native Web Search (where
+   applicable). To settle a question about what a cited paper actually says,
+   read it: `osp-mcp.read_arxiv_paper(arxiv_id)` or
+   `osp-mcp.get_europe_pmc_full_text(pmcid)`. Not every database is installed
+   in every project — use what you can see.
 
 ## Verification protocol
 
@@ -35,7 +40,8 @@ For each question:
 1. **Self-answer first** based on the context bundle (the structured summary).
 2. **Cross-check against external context** — the domain narrative, retrieved literature, missing baselines.
 3. **If the question depends on novelty or comparison to prior work, run a fresh search** to verify the claim is current (the literature corpus may not cover everything the question requires).
-4. **Flag discrepancies** with `[DISCREPANCY]` followed by a brief explanation. A discrepancy is any case where the paper's claim is contradicted, weakened, or pre-empted by external context.
+4. **If the question turns on what a specific paper actually says or reports, open that paper.** An abstract will not settle whether a cited work reports a particular number. Use `osp-mcp.read_arxiv_paper(arxiv_id)` or `osp-mcp.get_europe_pmc_full_text(pmcid)`. No id? `match_semantic_scholar_title` gives you `externalIds.ArXiv`. No route at all? Say the claim could not be checked, rather than checking the abstract and calling it done.
+5. **Flag discrepancies** with `[DISCREPANCY]` followed by a brief explanation. A discrepancy is any case where the paper's claim is contradicted, weakened, or pre-empted by external context.
 
 ## Output format (subagent return value or post-marker turn)
 
@@ -45,7 +51,8 @@ For each question:
 
 **Verification:**
 - Self-answer based on `01_structured_summary.md`: <one line>
-- External cross-check: <which artifact or new search>
+- External cross-check: <which artifact, which new search, or which paper read
+  in full — give the arXiv id or PMCID and the section, if you read one>
 - Result: <consistent | [DISCREPANCY]: <explanation>>
 
 **Citations:**

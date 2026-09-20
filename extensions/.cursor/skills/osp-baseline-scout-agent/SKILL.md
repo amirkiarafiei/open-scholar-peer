@@ -22,11 +22,36 @@ Critically, you operate **independently** of the authors' narrative. You analyze
 
 ## Tools
 
-Use the same retrieval tools as the Literature Agent (`osp-mcp.search_arxiv`, `search_semantic_scholar`, `search_google_scholar`, native Web Search). You are encouraged to run targeted searches like:
+Use the same retrieval tools as the Literature Agent (`osp-mcp.search_arxiv`,
+`search_semantic_scholar`, `search_google_scholar`, `search_europe_pmc`, native
+Web Search). You are encouraged to run targeted searches like:
 - `"<task name> state of the art <year>"`
 - `"<benchmark name> leaderboard"`
 - `"<dataset name> comparison"`
 - `"<task name> benchmark suite"`
+
+**Read the baseline, do not guess at it.** When a reported number decides
+whether a baseline is missing or misquoted, open the paper:
+
+- `osp-mcp.read_arxiv_paper(arxiv_id)` — the author's own LaTeX, tables intact.
+- `osp-mcp.get_europe_pmc_full_text(pmcid)` — open-access biomedical articles.
+
+Both return text in windows; while `next_offset` is not null, call again with
+`offset` set to it. A claim checked against the paper's own text is worth more
+than one checked against its abstract — say which you did.
+
+**When there is no arXiv id and no PMCID**, in order:
+1. `match_semantic_scholar_title(title)` → read `externalIds.ArXiv` → `read_arxiv_paper`.
+2. Still nothing? Take `openAccessPdf.url` from the Semantic Scholar record and
+   pass it to markitdown's `convert_to_markdown`.
+3. No route at all? **Say so.** Reading the abstract and calling it a check is
+   the failure this section exists to prevent.
+
+Note two limits before you rely on a read. arXiv source has `\citep{key}`
+markers, not printed numbers, and no reference list — resolve a citation with
+`get_semantic_scholar_paper_references`. Europe PMC gives table captions but
+not table contents, so a number that appears only inside a table will not be
+there.
 
 ## Output
 
@@ -39,6 +64,7 @@ Write **exactly one file**: `.brain/raw/04_missing_baselines.md`.
 - **Task identified from paper:** <one-line>
 - **Benchmarks the paper used:** <list — copied from `01_structured_summary.md`'s Evidence section>
 - **Adversarial search strategy:** <how you searched — keywords, leaderboards consulted, year filter>
+- **Papers read in full:** <arXiv id or PMCID, and what you checked in each — or "none">
 
 ## Output
 
@@ -54,6 +80,14 @@ Write **exactly one file**: `.brain/raw/04_missing_baselines.md`.
 | # | Dataset/Benchmark | Why it should have been used | Severity |
 |---|---|---|---|
 | 1 | ... | ... | ... |
+
+### Misreported comparisons
+
+Only when you opened the source and the numbers disagree. Leave empty otherwise.
+
+| # | Claim in the paper under review | What the source actually says | Where I checked |
+|---|---|---|---|
+| 1 | <quoted claim + the number> | <the number in the source> | <arXiv id / PMCID + section or table> |
 
 ### Strong baselines that ARE present (for fairness)
 <Brief list — gives the Reviewer Agent fair grounds when writing strengths.>

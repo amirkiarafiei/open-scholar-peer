@@ -428,6 +428,378 @@ def test_semantic_scholar_wiring() -> None:
 
 
 # ---------------------------------------------------------------------------
+# arXiv full text — archive handling (M12 F1/F2)
+# ---------------------------------------------------------------------------
+
+def _make_tarball(files: dict[str, bytes]) -> bytes:
+    """Build a .tar.gz in memory, so the extractor is tested on a real one."""
+    import io, tarfile
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+        for name, data in files.items():
+            info = tarfile.TarInfo(name=name)
+            info.size = len(data)
+            tf.addfile(info, io.BytesIO(data))
+    return buf.getvalue()
+
+
+def test_arxiv_fulltext() -> None:
+    from providers import arxiv as ax
+
+    # \title and \author sit in the preamble. Dropping the preamble wholesale
+    # handed the agent a paper with no title and no authors — only a bare
+    # \maketitle. Nested braces rule out a regex: \thanks{} is routine.
+    withmeta = b"""\\documentclass{article}
+\\title{A Paper About {Nested} Braces}
+\\author{Ada Lovelace\\thanks{Equal contribution.} \\and Alan Turing}
+\\usepackage{noise}
+\\begin{document}
+\\maketitle
+Body text here.
+\\end{document}
+"""
+    meta = ax.latex_from_archive(_make_tarball({"ms.tex": withmeta}))
+    check_true("the title survives the preamble being dropped",
+               "A Paper About {Nested} Braces" in meta)
+    check_true("so does the author list", "Ada Lovelace" in meta)
+    check_true("including everything after a nested command",
+               "Alan Turing" in meta)
+    check_false("but the package noise does not", "usepackage" in meta)
+    check_true("and the body is still there", "Body text here." in meta)
+
+    check("a balanced argument is read whole, nested braces and all",
+          ax._braced("\\title{a {b} c} rest", "title"), "a {b} c")
+    check("a missing command gives None",
+          ax._braced("\\author{x}", "title"), None)
+
+    main = b"""\\documentclass{article}
+\\begin{document}
+\\title{A Paper}
+% this comment must not survive
+Intro text. 50\\% of cases.
+\\input{body}
+\\begin{thebibliography}{9}
+\\bibitem{x} Some Reference, 1999.
+\\end{thebibliography}
+\\end{document}
+"""
+    body = b"Body section text.\n\\label{sec:body}\nMore body.\n"
+    raw = _make_tarball({"ms.tex": main, "body.tex": body,
+                         "fig1.png": b"\x89PNG not tex", "notes.txt": b"ignore me"})
+
+    text = ax.latex_from_archive(raw)
+    check_false("preamble is dropped", "\\documentclass" in text)
+    check_false("comments are stripped", "must not survive" in text)
+    check_true("an escaped percent survives", "50\\%" in text)
+    check_true("the main file's text is present", "Intro text." in text)
+    check_true("an \\input child is spliced in", "Body section text." in text)
+    check_true("later child text is present", "More body." in text)
+    # \ref survives, so stripping \label left every cross-reference pointing
+    # at nothing — 21 \ref against 0 \label on a real paper.
+    check_true("\\label is KEPT, because \\ref survives", "\\label" in text)
+    check_false("the bibliography is dropped", "Some Reference" in text)
+    check_false("non-tex members are ignored", "ignore me" in text)
+
+    # A .tex the main file never includes must still be returned. It used to
+    # be appended after \end{document}, which _body_only then cut off, so it
+    # vanished without a word. Real papers have these: Attention Is All You
+    # Need lost about 5,000 characters this way.
+    orphan_raw = _make_tarball({
+        "ms.tex": b"\\documentclass{article}\n\\begin{document}\nMAIN BODY\n"
+                  b"\\input{used}\n\\end{document}\n",
+        "used.tex": b"USED CHILD\n",
+        "orphan.tex": b"ORPHAN CONTENT\n",
+    })
+    got = ax.latex_from_archive(orphan_raw)
+    check_true("an included child is spliced in", "USED CHILD" in got)
+    check_true("a file the main document never includes is kept",
+               "ORPHAN CONTENT" in got)
+    check_true("and it is labelled as not part of the main flow",
+               "not included by the main file" in got)
+    check_false("the preamble is still dropped", "\\documentclass" in got)
+
+    # Mutually recursive includes must terminate.
+    loop_raw = _make_tarball({
+        "a.tex": b"\\documentclass{x}\n\\begin{document}\nAAA\n\\input{b}\n\\end{document}\n",
+        "b.tex": b"BBB\n\\input{a}\n",
+    })
+    looped = ax.latex_from_archive(loop_raw)
+    check_true("mutual \\input recursion terminates", "AAA" in looped and "BBB" in looped)
+    check_true("and does not blow up in size", len(looped) < 2000)
+
+    # Every call must finish inside OSP_CALL_TIMEOUT, or the agent sees a bare
+    # "timed out" instead of an error naming the cause.
+    worst = ax._LOCK_WAIT + ax._MIN_GAP + ax._DOWNLOAD_BUDGET
+    check_true(f"read_arxiv_paper worst case ({worst}s) fits inside 90s", worst < 90)
+
+    # A single-file submission is a bare gzipped .tex, not a tarball.
+    import gzip
+    single = gzip.compress(b"\\documentclass{article}\n\\begin{document}\nOnly file.\n\\end{document}\n")
+    check_true("a single gzipped .tex is handled",
+               "Only file." in ax.latex_from_archive(single))
+
+    # A hostile archive: one .tex that unpacks to far more than the per-file
+    # limit. It must be refused WITHOUT being read into memory, and the
+    # message must say why — "probably PDF-only" would send the reader to a
+    # PDF that does not exist.
+    bomb = _make_tarball({"ms.tex": b"A" * (ax._MAX_MEMBER_BYTES + 1024)})
+    try:
+        ax.latex_from_archive(bomb)
+        FAIL.append("an over-sized .tex was accepted")
+    except ax.ArxivFullTextError as e:
+        check_true("an over-sized .tex is refused for the right reason",
+                   "per-file limit" in str(e))
+        check_false("and is not blamed on the paper being PDF-only",
+                    "PDF-only" in str(e))
+
+    # Partial is acceptable; silently partial is not.
+    partial = _make_tarball({
+        "ms.tex": b"\\documentclass{a}\\begin{document}GOOD\\end{document}",
+        "huge.tex": b"B" * (ax._MAX_MEMBER_BYTES + 1024),
+    })
+    got = ax.latex_from_archive(partial)
+    check_true("a partly-read archive still returns what it could",
+               "GOOD" in got)
+    check_true("and says so at the top", "INCOMPLETE" in got)
+
+    # Nothing may be written to disk, whatever a member is called.
+    import os
+    traversal = _make_tarball({
+        "../../tmp/osp_escape_test.tex":
+            b"\\documentclass{a}\\begin{document}X\\end{document}",
+    })
+    ax.latex_from_archive(traversal)
+    check_false("a ../ member name writes nothing to disk",
+                os.path.exists("/tmp/osp_escape_test.tex"))
+
+    # Paging re-downloaded the whole tarball for every window — six fetches
+    # for a long paper, each paying the three-second gap. The cache is read
+    # from worker threads, so it has a lock of its own.
+    import threading as _t
+    ax._cache_put("A", "text-A")
+    ax._cache_put("B", "text-B")
+    check("a cached entry comes back", ax._cache_get("A"), "text-A")
+    check("an unknown key gives None", ax._cache_get("ZZZ"), None)
+
+    bleed = []
+
+    def _hammer(key):
+        for _ in range(200):
+            got = ax._cache_get(key)
+            if got is not None and got != f"text-{key}":
+                bleed.append((key, got))
+            ax._cache_put(key, f"text-{key}")
+
+    threads = [_t.Thread(target=_hammer, args=(k,)) for k in "ABC"]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    check("concurrent readers never see another paper's text", bleed, [])
+    check_true("the cache stays bounded",
+               len(ax._TEXT_CACHE) <= ax._TEXT_CACHE_MAX)
+
+    # A PDF-only submission has no .tex at all and must say so, not return "".
+    pdf_only = _make_tarball({"paper.pdf": b"%PDF-1.4 fake"})
+    try:
+        ax.latex_from_archive(pdf_only)
+        FAIL.append("a PDF-only archive returned text instead of raising")
+    except ax.ArxivFullTextError as e:
+        check_true("PDF-only archive raises and mentions the PDF fallback",
+                   "PDF-only" in str(e) or "pdf" in str(e).lower())
+
+
+# ---------------------------------------------------------------------------
+# Europe PMC — JATS to text, and the open-access clause (M12 F3/F4)
+# ---------------------------------------------------------------------------
+
+JATS_EXTRA = """<article>
+<body>
+  <sec><title>Empty Section</title></sec>
+  <sec><title>Real</title><p>Has content.</p></sec>
+  <sec><title>References</title>
+    <ref-list><ref><mixed-citation>A 1999</mixed-citation></ref>
+              <ref><mixed-citation>B 2001</mixed-citation></ref></ref-list>
+  </sec>
+  <fig><label>Figure 2.</label><caption><p>A picture</p></caption></fig>
+</body></article>"""
+
+JATS = """<article>
+<front><article-meta>
+  <title-group><article-title>Fatigue and EEG</article-title></title-group>
+  <abstract><p>We study fatigue.</p></abstract>
+</article-meta></front>
+<body>
+  <sec><title>Introduction</title>
+    <p>Fatigue is common.</p>
+    <sec><title>Background</title><p>Nested prose.</p></sec>
+  </sec>
+  <sec><title>Results</title>
+    <p>Accuracy was <italic>92%</italic> overall.</p>
+    <table-wrap><label>1</label><caption><p>Scores</p></caption></table-wrap>
+  </sec>
+</body>
+<back><ref-list><ref><mixed-citation>Smith 1999</mixed-citation></ref></ref-list></back>
+</article>"""
+
+
+def test_europe_pmc() -> None:
+    from providers import europe_pmc as ep
+
+    check("open_access_only off leaves the query alone",
+          ep.build_query("fatigue"), "fatigue")
+    # OPEN_ACCESS:Y alone is not enough — only IN_EPMC records have fullTextXML.
+    check("open_access_only adds both clauses",
+          ep.build_query("fatigue", True),
+          "(fatigue) AND OPEN_ACCESS:Y AND IN_EPMC:Y")
+
+    text = ep.jats_to_text(JATS)
+    check_true("article title becomes a heading", "# Fatigue and EEG" in text)
+    check_true("abstract is included", "We study fatigue." in text)
+    check_true("section titles become headings", "Introduction" in text)
+    check_true("nested section prose survives", "Nested prose." in text)
+    check_true("inline markup is flattened, not dropped", "92%" in text)
+    check_true("tables appear as a labelled placeholder", "[Table 1" in text)
+    check_false("the bibliography is dropped", "Smith 1999" in text)
+    check_false("no XML tags leak into the text", "<p>" in text)
+
+    check_true(f"europe pmc transfer budget ({ep._BUDGET}s) fits inside 90s",
+               ep._BUDGET < 90)
+
+    # Heading levels: the article title is h1, so its top sections are h2.
+    check_true("top-level sections sit one level under the title",
+               "\n## Introduction" in text)
+    check_true("nested sections go one level deeper",
+               "\n### Background" in text)
+
+    # xml.etree expands internal entities, so a small file can become huge in
+    # memory. Europe PMC never declares them, so refusing costs nothing.
+    bomb = ('<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol">]>'
+            '<article><body><p>&lol;</p></body></article>')
+    try:
+        ep.jats_to_text(bomb)
+        FAIL.append("a document declaring XML entities was accepted")
+    except ep.EuropePmcError:
+        PASS.append("a document declaring XML entities is refused")
+
+    # But a plain DOCTYPE is normal JATS and must NOT be refused. Blocking it
+    # broke real articles, which is why this check exists.
+    doctyped = ('<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) '
+                'Journal Archiving and Interchange DTD v1.4//EN" '
+                '"JATS-archivearticle1-4.dtd">'
+                '<article><body><sec><title>Intro</title>'
+                '<p>Real text.</p></sec></body></article>')
+    try:
+        check_true("a plain DOCTYPE is accepted, not refused",
+                   "Real text." in ep.jats_to_text(doctyped))
+    except ep.EuropePmcError as e:
+        FAIL.append(f"a normal JATS DOCTYPE was refused: {e}")
+
+    # Namespaced JATS must still parse — tags arrive as {uri}tag.
+    nsdoc = ('<article xmlns:xlink="http://www.w3.org/1999/xlink"><body>'
+             '<sec><title>Intro</title><p>Hello <xref>[1]</xref> world.</p>'
+             '</sec></body></article>')
+    got = ep.jats_to_text(nsdoc)
+    check_true("namespaced JATS still yields text", "Hello [1] world." in got)
+
+    # Deep nesting must not exhaust the stack and kill the server.
+    deep = ("<article><body>" + "<sec><title>S</title>" * 300
+            + "<p>bottom</p>" + "</sec>" * 300 + "</body></article>")
+    try:
+        check_true("400 levels of nesting does not blow the stack",
+                   "bottom" in ep.jats_to_text(deep))
+    except RecursionError:
+        FAIL.append("deeply nested XML raised RecursionError")
+
+    extra = ep.jats_to_text(JATS_EXTRA)
+    # A heading with nothing under it reads as "this section is empty", which
+    # is worse than no heading at all.
+    check_false("a section with no content emits no heading",
+                "Empty Section" in extra)
+    check_true("a section with content keeps its heading", "## Real" in extra)
+    # The bibliography is dropped, but its absence must not look like the
+    # article having none.
+    check_true("a dropped reference list is reported with a count",
+               "[Reference list omitted — 2 entries]" in extra)
+    check_true("the References heading survives, carrying that count",
+               "## References" in extra)
+    # JATS <label> already says "Figure", so prefixing it again stuttered.
+    check_true("a figure placeholder is not stuttered",
+               "[Figure 2: A picture]" in extra)
+    check_false("really not stuttered", "Figure Figure" in extra)
+
+    # The abstract's own <title> child duplicated the heading above it.
+    check("the abstract heading appears exactly once",
+          ep.jats_to_text(JATS).count("# Abstract"), 1)
+
+    # A wrong identifier is about the article, not the provider. Europe PMC
+    # answers 500 for these, which read as an outage and would have the agent
+    # stop using the provider for the rest of the review.
+    for bad, want in [("not-an-id", ValueError), ("", ValueError),
+                      ("PMC-12", ValueError)]:
+        try:
+            ep.get_full_text(bad)
+            FAIL.append(f"get_full_text({bad!r}) did not raise")
+        except want:
+            PASS.append(f"get_full_text({bad!r}) raises {want.__name__}")
+        except Exception as e:
+            FAIL.append(f"get_full_text({bad!r}) raised {type(e).__name__}")
+    check_true("a missing article is EuropePmcNotFound, not a generic error",
+               issubclass(ep.EuropePmcNotFound, ep.EuropePmcError))
+
+    try:
+        ep.jats_to_text("<article><not-closed>")
+        FAIL.append("malformed XML did not raise")
+    except ep.EuropePmcError:
+        PASS.append("malformed XML raises rather than returning empty text")
+
+
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Windowing — shared by both full-text providers
+# ---------------------------------------------------------------------------
+
+def test_window() -> None:
+    from providers import window
+
+    body = "\n\n".join(f"Paragraph {i} with some words in it." for i in range(40))
+
+    w = window(body, 200, 0)
+    check_true("the window never exceeds max_chars", w["returned_chars"] <= 200)
+    cut = w["returned_chars"]
+    check_true("the cut lands on whitespace, never inside a word",
+               body[cut - 1].isspace() or body[cut].isspace())
+    check_true("truncated is set while text remains", w["truncated"])
+    check("next_offset chains from returned_chars",
+          w["next_offset"], w["offset"] + w["returned_chars"])
+
+    # Following next_offset must reproduce the document exactly — no gap at a
+    # boundary, nothing delivered twice.
+    joined, offset, guard = "", 0, 0
+    while offset is not None and guard < 200:
+        guard += 1
+        part = window(body, 200, offset)
+        joined += part["text"]
+        offset = part["next_offset"]
+    check("following next_offset reassembles the text exactly", joined, body)
+
+    last = window(body, 200, len(body))
+    check("an offset at the end returns nothing", last["returned_chars"], 0)
+    check("and stops the loop", last["next_offset"], None)
+    check_false("and is not marked truncated", last["truncated"])
+
+    past = window(body, 200, len(body) + 10_000)
+    check("an offset past the end also returns nothing", past["returned_chars"], 0)
+    check("a negative offset is clamped to the start",
+          window(body, 200, -50)["offset"], 0)
+    check_true("max_chars is clamped up to the floor",
+               window(body, 1, 0)["returned_chars"] > 1)
+
+    short = window("tiny", 5000, 0)
+    check("a short document comes back whole", short["text"], "tiny")
+    check_false("and is not truncated", short["truncated"])
+
 
 TESTS = [
     ("google_scholar", test_google_scholar),
@@ -435,6 +807,9 @@ TESTS = [
     ("semantic_scholar fields", test_semantic_scholar_fields),
     ("semantic_scholar filter wiring", test_semantic_scholar_wiring),
     ("review regressions", test_review_regressions),
+    ("arxiv full text", test_arxiv_fulltext),
+    ("europe pmc", test_europe_pmc),
+    ("windowing", test_window),
 ]
 
 

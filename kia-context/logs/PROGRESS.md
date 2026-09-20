@@ -616,12 +616,12 @@ actual text, for the two sources where it is free and legal. Decisions: `BRAINST
 
 ### Deliverables
 
-- [ ] **F1 — arXiv download/read tools.** `arxiv` 4.0.1 **removed** `Result.download_pdf` and `download_source`; `Result` now exposes only `get_short_id()` and `source_url`. So fetch by plain HTTP from the URLs we already serialize. Two routes, and the second is the better one: **PDF** (`pdf_url`) always exists but needs a PDF reader and comes out messy for two-column text and maths; **LaTeX source** (`source_url`) is the real text, clean, equations intact, but arrives as `.tar.gz` and must be unpacked.
-- [ ] **F2 — make it easy for an agent to use** (owner's explicit request). Prefer a tool that takes an arXiv ID and returns text directly, over one that returns a file path. **A read tool must not write to disk** — the competitor's `download_*` tools persist to `./downloads`, which would break our stateless rule (D3). Returning text keeps it atomic.
-- [ ] **F3 — Europe PMC provider.** Open-access biomedical, **no key at all**, and it serves **full text over REST as XML — no PDF parsing**. This is the cheapest full-text path that exists. Verified 2026-09-19: a keyword search returned HTTP 200 with **2,304 hits**, and each record carried `fullTextUrlList` and an `isOpenAccess` flag.
-- [ ] **F4 — find the current Europe PMC docs before coding** (owner's request). Start at `https://europepmc.org/RestfulWebService`. Working endpoint shape confirmed on 2026-09-19: `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=<q>&format=json&pageSize=<n>&resultType=core`. `resultType=core` is what returns the abstract and `fullTextUrlList`.
-- [ ] **F5 — why Europe PMC matters here.** About **5 or 6 of the owner's ~30 reviewed papers are health or biology** (the Frontiers paper, `Sage/digital-health-mental-fatigue`, `MDPI/information_urinary_infection`, `MDPI/information_explain_mental_health`). arXiv covers almost none of that. This is a measured gap, not a hypothetical one.
-- [ ] **F6 — test the tools against the live API** before declaring the milestone done (owner's request).
+- [x] **F1 — arXiv download/read tools.** `arxiv` 4.0.1 **removed** `Result.download_pdf` and `download_source`; `Result` now exposes only `get_short_id()` and `source_url`. So fetch by plain HTTP from the URLs we already serialize. Two routes, and the second is the better one: **PDF** (`pdf_url`) always exists but needs a PDF reader and comes out messy for two-column text and maths; **LaTeX source** (`source_url`) is the real text, clean, equations intact, but arrives as `.tar.gz` and must be unpacked.
+- [x] **F2 — make it easy for an agent to use** (owner's explicit request). Prefer a tool that takes an arXiv ID and returns text directly, over one that returns a file path. **A read tool must not write to disk** — the competitor's `download_*` tools persist to `./downloads`, which would break our stateless rule (D3). Returning text keeps it atomic.
+- [x] **F3 — Europe PMC provider.** Open-access biomedical, **no key at all**, and it serves **full text over REST as XML — no PDF parsing**. This is the cheapest full-text path that exists. Verified 2026-09-19: a keyword search returned HTTP 200 with **2,304 hits**, and each record carried `fullTextUrlList` and an `isOpenAccess` flag.
+- [x] **F4 — find the current Europe PMC docs before coding** (owner's request). Start at `https://europepmc.org/RestfulWebService`. Working endpoint shape confirmed on 2026-09-19: `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=<q>&format=json&pageSize=<n>&resultType=core`. `resultType=core` is what returns the abstract and `fullTextUrlList`.
+- [x] **F5 — why Europe PMC matters here.** About **5 or 6 of the owner's ~30 reviewed papers are health or biology** (the Frontiers paper, `Sage/digital-health-mental-fatigue`, `MDPI/information_urinary_infection`, `MDPI/information_explain_mental_health`). arXiv covers almost none of that. This is a measured gap, not a hypothetical one.
+- [x] **F6 — test the tools against the live API** before declaring the milestone done (owner's request).
 
 ### Acceptance criteria
 
@@ -632,6 +632,127 @@ actual text, for the two sources where it is free and legal. Decisions: `BRAINST
 5. Provider failures return a structured error, never an empty list (the M11 B9 rule applies to new providers too).
 
 **Depends on:** M11 (B5/B6 supply `openAccessPdf`, which this uses).
+
+---
+
+### Report — 2026-09-20
+
+Three tools, 16 to 19. Nothing new in `requirements.txt`: the arXiv reader needs only `tarfile`,
+`gzip` and `io` from the standard library, and Europe PMC needs `requests`, which was already there.
+
+| Tool | What it returns | Measured 2026-09-20 |
+|---|---|---|
+| `read_arxiv_paper` | the author's LaTeX source, preamble and bibliography removed | `1706.03762` → **42,834 chars** |
+| `search_europe_pmc` | biomedical records with abstracts and a full-text route | abstract on **3 of 3**, full text on **3 of 3** with `open_access_only` |
+| `get_europe_pmc_full_text` | the whole article as text | `PMC12798607` → **54,966 chars**, no tags left |
+
+**F1 — the PDF question answered without a PDF library.** The plan assumed full text might need a PDF
+parser. It does not. `scripts/merge_mcp_config.py` already registers **two** MCP servers on every
+install — `osp` and `markitdown` — and markitdown returns the complete text of an arXiv PDF, tables
+included (checked on `arxiv.org/pdf/1706.03762`). So OSP adds no PDF dependency at all. It serves the
+LaTeX source, which is cleaner than anything scraped out of a two-column PDF, and for the minority of
+submissions that carry no source it returns an error naming the PDF URL and the reader the user already
+has.
+
+**F2 — text, not a file path.** Both tools return the text itself and write nothing to disk, which is
+D20's rule and the reason the competitor's `download_*` pattern was not copied. The archive is unpacked
+in memory. Long papers come back in windows: read the first, and if `truncated` is true call again with
+`offset` set to `offset + returned_chars`. Verified that the second window continues where the first
+stopped rather than overlapping.
+
+Two details that decide whether the output is usable at all:
+
+- **The preamble is dropped.** Without that, the first 400 characters of every paper are `\usepackage`
+  lines. `\input` and `\include` children are spliced in reading order, so *Attention Is All You Need* —
+  ten separate `.tex` files — comes back as one document that starts at the abstract.
+- **Files the main document never includes are kept.** They were being appended after
+  `\end{document}`, which the trimmer then cut, so they disappeared without a word. *Attention Is All
+  You Need* was losing about 5,000 characters that way — 36,093 before the fix, 41,067 after.
+- **`OPEN_ACCESS:Y AND IN_EPMC:Y` is not optional** on a Europe PMC search you intend to read.
+  Without it the top hits have no `pmcid` at all and there is nothing to fetch — measured: the first
+  result of the plain query had neither.
+
+### Found before the reviewers: every download could outlive its own tool call
+
+`OSP_CALL_TIMEOUT` is 90 seconds. `read_arxiv_paper` could spend 25 waiting for the arXiv connection,
+3 on the rate gap and 60 on the request: **88 seconds**, which leaves the agent a bare "timed out"
+instead of an error it can act on. Worse, `requests`' `timeout` applies to each socket operation, not to
+the transfer, so a slow trickle had no bound at all. Both streaming loops now carry a wall-clock
+deadline — 45 s for arXiv, 55 s for Europe PMC — giving worst cases of 73 s and 55 s, each pinned by a
+test. Europe PMC's search was also calling `resp.json()` straight off the stream, walking around the
+size cap it had just set; it now reads through the cap.
+
+### The prompts
+
+Adding a tool nobody is told about changes nothing, so five canonical files under `extensions/_shared/`
+name the new sources: the Literature skill (Europe PMC joins the rounds for biomedical papers), the
+Baseline Scout (**read the baseline, do not guess at it** — its whole job is checking claimed numbers),
+the Answer Generator, `defaults/round_strategy_template.md` and `commands/2-osp-literature.md`. The
+round template now also has a line for tools that returned an error, with the reason.
+
+The prompts say plainly that not every database is installed in every project, because M13 makes that
+true.
+
+**Verified:** 104 offline checks, every live check for both new providers, `sync_adapters.py --check`,
+`test_parity.py`, and the tool list in `mcp-server/README.md` cross-checked against the source so a
+phantom tool cannot survive again.
+
+### Review round — 2026-09-20
+
+Two subagents: one on resource safety and adversarial input, one on whether an agent would use these
+tools correctly and whether the text it gets back is usable. The second found the things that mattered,
+and several of them were not bugs in the code but bugs in what the code promised.
+
+| | Defect | Fix |
+|---|---|---|
+| 1 | **Citations do not resolve, and the docstring implied they would.** arXiv source carries `\citep{key}` markers; the paper's printed numbers exist nowhere in it, and no reference list ships — `1706.03762` has no `.bbl` and no `.bib` at all. The tool was sold as the way to check "does reference [12] report 92%?", which is the one thing it cannot do alone. | The docstring says so and points at `get_semantic_scholar_paper_references`. The return carries a `bibliography` field saying the same. |
+| 2 | **The title and the author list were being thrown away.** `\title` and `\author` live in the preamble, which was dropped whole, so the agent got a paper it could not identify and a bare `\maketitle` that means nothing. | Both are carried over. Parsed with balanced braces, because `\thanks{}` nesting defeats a regex. |
+| 3 | **`\label` was stripped while `\ref` survived** — 21 live cross-references pointing at nothing, on one paper. | Labels kept. They cost about thirty characters each. |
+| 4 | **A mistyped PMCID looked like an outage.** Europe PMC answers **HTTP 500**, not 404, for an unusable identifier — confirmed on `PMC99999999`, `PMCNONE` and `PMC0`. That was reported as `reason: unavailable`, which by our own definition means "record the provider as unavailable and carry on without it". One typo would have retired Europe PMC for the rest of the review. | Format is validated before the request, and a 500 on a full-text path becomes `EuropePmcNotFound` → `reason: not_found`. |
+| 5 | **Windows cut mid-number.** At one boundary the text split `$1.2\cdot10^` / `{21}$`. The dangerous version is a cut between `26.3` and `0`, which leaves a plausible, wrong number. | A shared `providers.window()` snaps the end back to a paragraph break, then a line break, then a space, and returns `next_offset` so nobody does the arithmetic. Round-trip reassembly is asserted byte-for-byte, live and offline. |
+| 6 | **Four defects in the Europe PMC rendering**: the abstract heading appeared twice; `<label>` already says "Table", so placeholders read `[Table Table 1: …]`; and dropping the reference list left a bare `## References` heading, which reads as "this article has no bibliography". | The renderer was rewritten: a section with no content emits no heading, and a dropped reference list becomes `[Reference list omitted — 49 entries]`. |
+| 7 | **Table contents are not included, only captions** — and the docstring called that "labelled placeholders". For a tool whose headline use is checking a reported number, and where the number is usually in a table, that is far too soft. | Said plainly, with the advice to follow `fullTextUrls` for it. |
+| 8 | **`search_semantic_scholar_snippets` was a magnet for the wrong job.** Its docstring said "use when you need to verify that a paper actually discusses a specific concept" — but it searches the whole corpus and cannot be scoped to one paper. | Rewritten to say it is for *discovering* which paper to read, and to name the read tools for checking a specific one. |
+
+**Found while fixing, and worse than the reported bug:** a `.tex` file the main document never
+includes was appended after `\end{document}`, which the trimmer then cut. It disappeared without a
+word. *Attention Is All You Need* was losing about 5,000 characters this way.
+
+**Two of my own tests were wrong and one hid a real bug.** The window snap guard read
+`len(chunk) > 200`, which is false when `max_chars` is exactly 200 — so the snapping never ran for
+small windows and the cut landed mid-word. The test that caught it had itself been asserting the wrong
+thing.
+
+### The prompts had the words but not the slots
+
+The most useful finding was not about code. Both skills gained good prose about reading the paper, but
+the **numbered procedure and the output template** — the parts an agent actually executes — were
+untouched, and an agent fills the template it is given. The Baseline Scout had nowhere to record that
+it had read anything, and its brief mentioned catching a **misquoted** number with no table to put one
+in. `commands/4-osp-baseline-scout.md` still listed `osp-mcp.search_*`, a glob that excludes both new
+tools, and `commands/2-osp-literature.md` still said "3 databases".
+
+Fixed: a **Papers read in full** field and a **Misreported comparisons** table in the Baseline Scout, a
+read step in the Answer Generator's verification protocol and its output template, corrected tool lists
+and effort estimates in both commands, and a rewritten tools block in
+`defaults/round_strategy_template.md` that separates *called*, *not installed*, *out of scope* and
+*failed* instead of collapsing them into one line. A fallback route was added for the common case:
+no arXiv id → `match_semantic_scholar_title` → `externalIds.ArXiv` → read; still nothing → the
+open-access PDF through markitdown; no route at all → **say so** rather than reading the abstract and
+calling it a check.
+
+Fixed in passing: `commands/4-osp-baseline-scout.md` had steps 6 and 7 as the same line twice — one of
+the four instances recorded in **O1**.
+
+**Safety, checked by running rather than reading.** A tarball whose `.tex` unpacks to 200 MB is refused
+without being read into memory; 5,000 members stop at the cap; a member named `../../tmp/...` writes
+nothing, verified against the filesystem. An XML entity bomb is refused. 400 levels of nesting do not
+exhaust the stack. Paging no longer re-downloads the paper for every window — a 2-entry cache, with its
+own lock, because providers run in worker threads.
+
+**Verified:** 156 offline checks, every live check for both providers, exact round-trip reassembly of a
+43,180-character paper, `sync_adapters.py --check`, `test_parity.py`, and the README tool list
+cross-checked against the source.
 
 ---
 

@@ -251,6 +251,14 @@ because it was true on 2026-05-08; read D16 for the current shape.
 **Cost, stated plainly:** a transient 429 that one retry would have cleared now fails. That is the right trade — a fast honest failure beats a six-minute stall nobody sees the end of.
 **Note for whoever reads the package source:** catching `ConnectionRefusedError` is not enough. tenacity wraps it in `RetryError` even with retrying off, so the exception chain has to be walked.
 
+### D24 · No PDF library — the reader is already installed — 2026-09-20
+
+**Considered:** add `pypdf` and parse PDFs ourselves / serve LaTeX only and fail on PDF-only papers / serve LaTeX and hand PDFs to the markitdown server the installer already registers
+**Chose:** the third.
+**Because:** `scripts/merge_mcp_config.py` registers **two** MCP servers on every install — `osp` and `markitdown` (`uvx markitdown-mcp`) — and markitdown returns the full text of an arXiv PDF, tables included. Checked on `arxiv.org/pdf/1706.03762` on 2026-09-20. A PDF dependency would have duplicated something every user already has.
+**And the two routes are not ranked, they are complementary.** LaTeX keeps table structure: `ByteNet \citep{...} & 23.75 & & & &\\` has explicit blank cells, so a value stays attached to its row. markitdown's conversion of the same table flattens into loose columns, and naive alignment attributes 39.2 to the wrong system. Maths survives as `$O(n^2 \cdot d)$` rather than `O(n2 · d)`. But markitdown keeps the **printed reference numbers, the author list and the affiliations**, none of which exist in the source. So: LaTeX for numbers and method text, markitdown for the bibliography.
+**Constraint that follows:** the arXiv reader must say what it cannot do. Its source has `\citep{key}` markers and no reference list, so a citation cannot be resolved from it — the docstring names `get_semantic_scholar_paper_references` for that.
+
 ---
 
 ## Open questions
@@ -274,6 +282,8 @@ because it was true on 2026-05-08; read D16 for the current shape.
 | **O13** | bioRxiv/medRxiv deferred in D19. They are a feed, not a search engine, but they carry free full text (`jatsxml`), same-day freshness and a preprint-to-journal link (`published`). Worth adding as an explicit "recent preprints" tool once M12 exists? Also: **neither API documents a rate limit**, and a category-filtered month is ~7 calls. | 2026-09-19 | open |
 | **O14** | There is still **no deduplication** across providers. The same paper already returns from arXiv, Semantic Scholar and Google Scholar in three different shapes, and M12/M13 add more sources. `refactor/migrate-mcp-to-scripts` already has a normalised cross-provider record shape that would fix it. Should that land before or with M13? | 2026-09-19 | open |
 | **O15** | `mcp-server/requirements.txt` had no upper bound on `mcp`, so a fresh install resolved to **mcp 2.2.0**, which deleted `mcp.server.fastmcp` and renamed `FastMCP` to `MCPServer`. The server could not import at all — reproduced in an empty virtualenv on 2026-09-20 and fixed by pinning `mcp<2.0`. Migrating to `MCPServer` is the real answer and has not been done. Until it is, that ceiling is load-bearing. Related: B11 predicted exactly this for `arxiv` and nobody thought to check `mcp`, which is O9 wearing different clothes. | 2026-09-20 | open |
+| **O16** | Full text is read in windows, and a window boundary is chosen by text alone — snapped back to the nearest paragraph break. That stops a number being cut in half, but it still cuts sections in half. Returning whole sections was considered and rejected because a Methods section routinely exceeds any sensible `max_chars`, so a character cap is still needed as a backstop. Is there a better unit than either? | 2026-09-20 | open |
+| **O17** | `read_arxiv_paper` keeps a two-entry cache of parsed paper text so that paging does not re-download the tarball for every window. That is process state, justified the same way as the shared HTTP client under D3 — it changes when an answer arrives, never what it is. But it is the first cache in the server, and nobody has decided whether that is a pattern or an exception. | 2026-09-20 | open |
 
 ---
 

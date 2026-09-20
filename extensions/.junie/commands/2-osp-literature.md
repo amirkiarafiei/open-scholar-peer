@@ -20,7 +20,9 @@ Invoke the `osp-literature-review-agent` skill.
 
 ## Resource notice
 
-⚠️ Each invocation makes ~8-12 API calls across 3 databases (arXiv, Semantic Scholar, Google Scholar). Expect 1-3 minutes per round.
+⚠️ Each invocation makes ~8-12 API calls across the databases this project has
+installed (arXiv, Semantic Scholar, Google Scholar, and Europe PMC for
+biomedical work). Expect 1-3 minutes per round.
 
 ## Round definitions
 
@@ -42,7 +44,7 @@ Invoke the `osp-literature-review-agent` skill.
 3. Run the **next pending round only**:
    - Activate the `osp-literature-review-agent` skill for that round.
    - The skill searches using **all available retrieval tools** (`search_arxiv`, `search_semantic_scholar`,
-     `search_google_scholar`, native Web Search) with **different query formulations**.
+     `search_google_scholar`, `search_europe_pmc`, native Web Search) with **different query formulations**.
    - Write the round file (`02a`, `02b`, or `02c`) using the template at `defaults/round_strategy_template.md`.
 
 4. Update `session.json`:

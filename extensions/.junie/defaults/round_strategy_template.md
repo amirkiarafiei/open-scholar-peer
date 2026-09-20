@@ -4,11 +4,16 @@
 
 - **Strategy:** `{{strategy_slug}}` (one of: `sub-domain-anchor`, `method-anchor`, `temporal-expansion`)
 - **Goal of this round:** {{strategy_goal}}
-- **Tools used (must use all available):**
-  - `osp-mcp.search_arxiv`
-  - `osp-mcp.search_semantic_scholar`
-  - `osp-mcp.search_google_scholar`
-  - native Web Search (where available)
+- **Tools used:** every retrieval tool you actually called this round. Call each
+  one this project offers, with one exception: `osp-mcp.search_europe_pmc` is
+  worth a call only when the paper touches medicine, biology, public health or
+  psychology. Firing it on a CS paper pollutes the corpus.
+  - `<tool>` — `<why it was in scope this round>`
+- **Tools not called:** `<tool>` — `not installed in this project` | `out of scope: <reason>`
+- **Tools that failed:** `<tool>` — `<the reason from the error record>`.
+  An `error` key means the provider failed and you did not get to look. An
+  empty list means it looked and found nothing. Never report the first as the
+  second.
 - **Query formulation rules for this round:**
   - Round 1 (sub-domain-anchor): use the paper's stated sub-domain and primary keywords; aim for the canonical 10–20 most-cited works in this area.
   - Round 2 (method-anchor): switch to the proposed method's name and key technical terms; find prior or concurrent work using the *same technique*.

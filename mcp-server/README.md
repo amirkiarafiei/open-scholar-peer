@@ -1,19 +1,28 @@
 # `osp_mcp` — Open ScholarPeer MCP Server
 
-Single FastMCP server exposing academic-search tools across three providers.
+Single FastMCP server exposing academic-search and full-text tools across four providers.
 
 ## Tools
 
-16 tools. The authority is the source: `grep -c '^@mcp.tool()' osp_mcp.py`.
+19 tools. The authority is the source: `grep -c '^@mcp.tool()' osp_mcp.py`.
 Each tool's own docstring gives the full parameter list and return keys —
 that is what the agent reads, so keep it richer than this table.
 
-### arXiv — free, no key (2)
+### arXiv — free, no key (3)
 - `search_arxiv(query, max_results=10, sort_by="relevance", date_from=None, date_to=None, categories=None)`
   Dates and categories are filtered by arXiv itself, inside the query.
 - `get_arxiv_paper_details(arxiv_id)`
   Takes new-style `2305.14314`, old-style `hep-th/9901001`, or a pinned
   version `1706.03762v5`.
+- `read_arxiv_paper(arxiv_id, max_chars=50000, offset=0)`
+  The paper's **full text**, from its LaTeX source. Nothing written to disk.
+  Returned in windows; follow `truncated` and `offset`.
+
+### Europe PMC — free, no key (2)
+Biomedical, health and life sciences, which arXiv barely covers. The only
+provider here that serves whole articles over a plain request.
+- `search_europe_pmc(query, limit=10, open_access_only=True, sort=None)`
+- `get_europe_pmc_full_text(pmcid, max_chars=50000, offset=0)`
 
 ### Semantic Scholar — free, optional key for a dedicated rate limit (11)
 - `search_semantic_scholar(query, limit=10, year=, publication_date_or_year=, venue=, fields_of_study=, publication_types=, open_access_pdf=, min_citation_count=, sort=)`
@@ -43,6 +52,7 @@ A tool returns either records, or an error record. The error carries a
 | `blocked` | Google Scholar refused — a 429, 403, or captcha page |
 | `rate_limited` | Semantic Scholar answered 429 |
 | `busy` | another arXiv call held the one allowed connection |
+| `not_found` | no such paper, so no fallback worth suggesting |
 | `timeout` | the call ran past `OSP_CALL_TIMEOUT` |
 | `bad_request` | the arguments were wrong |
 | `failed` | anything else |

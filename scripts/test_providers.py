@@ -331,8 +331,131 @@ def check_google_scholar() -> None:
         fail(f"returned something unexpected: {rows[:1]}")
 
 
+def check_arxiv_fulltext() -> None:
+    from providers import arxiv as ax
+
+    r = ax.read_paper("1706.03762", max_chars=3000)
+    if r.get("total_chars", 0) > 10000:
+        ok(f"full text returned {r['total_chars']} chars of LaTeX")
+    else:
+        fail(f"full text was only {r.get('total_chars')} chars: {str(r)[:120]}")
+    if r.get("text", "").lstrip().startswith("\\documentclass"):
+        fail("the preamble was not dropped")
+    else:
+        ok("the preamble is dropped — the text opens on the paper itself")
+    # Not exactly 3000: the window snaps back to a paragraph break so it
+    # never cuts inside a number.
+    got = r.get("returned_chars", 0)
+    if r.get("truncated") and 2700 <= got <= 3000:
+        ok(f"long papers are windowed ({got} chars, snapped back from 3000)")
+    else:
+        fail(f"windowing is wrong: returned={got} truncated={r.get('truncated')}")
+    if r.get("next_offset") == r.get("offset", 0) + got:
+        ok("next_offset is given, and chains")
+    else:
+        fail(f"next_offset is {r.get('next_offset')}, expected {got}")
+
+    if "Attention Is All You Need" in r.get("text", ""):
+        ok("the title survives, even though it lives in the preamble")
+    else:
+        fail("the title was lost with the preamble")
+
+    time.sleep(3)
+    nxt = ax.read_paper("1706.03762", max_chars=200,
+                        offset=r["offset"] + r["returned_chars"])
+    if nxt.get("text") and nxt["text"] not in r["text"]:
+        ok("the next window continues where the first stopped")
+    else:
+        fail("paging returned overlapping or empty text")
+
+    # The documented loop must reassemble the paper exactly — no gap at a
+    # window boundary, no text delivered twice.
+    time.sleep(3)
+    whole = ax.read_paper("1706.03762", max_chars=200000)["text"]
+    joined, offset, guard = "", 0, 0
+    while guard < 20:
+        guard += 1
+        time.sleep(3)
+        w = ax.read_paper("1706.03762", max_chars=15000, offset=offset)
+        joined += w["text"]
+        offset += w["returned_chars"]
+        if not w["truncated"] or w["returned_chars"] == 0:
+            break
+    if joined == whole:
+        ok(f"paging reassembles the paper exactly ({len(whole)} chars)")
+    else:
+        fail(f"paging lost or duplicated text: {len(joined)} vs {len(whole)}")
+
+    time.sleep(3)
+    past = ax.read_paper("1706.03762", max_chars=100, offset=len(whole) + 5000)
+    if past["returned_chars"] == 0 and not past["truncated"]:
+        ok("an offset past the end ends the loop instead of spinning")
+    else:
+        fail(f"an offset past the end returned {past['returned_chars']} chars, "
+             f"truncated={past['truncated']}")
+
+    time.sleep(3)
+    try:
+        ax.read_paper("9999.99999")
+        fail("a missing paper returned text instead of an error")
+    except ax.ArxivNotFound:
+        ok("a missing paper raises, and does not suggest a PDF that is not there")
+
+
+def check_europe_pmc() -> None:
+    from providers import europe_pmc as ep
+
+    rows = ep.search("mental fatigue detection EEG", limit=3, open_access_only=True)
+    if is_error_envelope(rows):
+        fail(f"search errored: {rows[0]['error']}")
+        return
+    if not rows:
+        fail("an open-access biomedical query returned nothing")
+        return
+    ok(f"search returned {len(rows)} records")
+
+    with_abs = sum(1 for r in rows if r.get("abstract"))
+    if with_abs == len(rows):
+        ok(f"every record carries an abstract ({with_abs}/{len(rows)})")
+    else:
+        fail(f"only {with_abs}/{len(rows)} records carry an abstract "
+             f"— resultType=core may not be reaching the API")
+
+    readable = [r for r in rows if r.get("hasFullTextXML")]
+    if len(readable) == len(rows):
+        ok(f"all {len(rows)} are marked full-text readable")
+    else:
+        fail(f"open_access_only returned {len(rows) - len(readable)} records "
+             f"with no full-text route")
+
+    # The clause matters: without it most hits have no pmcid at all.
+    loose = ep.search("mental fatigue detection EEG", limit=3)
+    if any(r.get("pmcid") is None for r in loose):
+        ok("without open_access_only, some hits have no full text — as expected")
+    else:
+        note("every unfiltered hit happened to have full text this time")
+
+    ft = ep.get_full_text(readable[0]["pmcid"], max_chars=2000)
+    if ft.get("total_chars", 0) > 5000:
+        ok(f"full text returned {ft['total_chars']} chars")
+    else:
+        fail(f"full text was only {ft.get('total_chars')} chars")
+    if "<" in ft.get("text", "")[:500] and ">" in ft.get("text", "")[:500]:
+        fail("XML tags leaked into the text")
+    else:
+        ok("XML is converted to text, no tags left")
+
+    try:
+        ep.get_full_text("PMC99999999")
+        fail("a missing article returned text instead of an error")
+    except ep.EuropePmcError:
+        ok("a missing article raises rather than returning empty text")
+
+
 PROVIDERS = {
     "arxiv": check_arxiv,
+    "arxiv_fulltext": check_arxiv_fulltext,
+    "europe_pmc": check_europe_pmc,
     "semantic_scholar": check_semantic_scholar,
     "google_scholar": check_google_scholar,
 }
