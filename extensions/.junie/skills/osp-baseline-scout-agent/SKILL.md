@@ -87,7 +87,8 @@ Write **exactly one file**: `.brain/raw/04_missing_baselines.md`.
 - **Papers read in full:** <arXiv id or PMCID, and what you checked in each — or "none">
 - **Code / data release:** <what the code-and-data search returned for the paper, method and
   authors — or "nothing found" — or "not checked: no code-and-data repository search is
-  installed in this project">
+  installed in this project" — or "search failed: <reason from the error record>". Never write
+  "nothing found" for a search that errored: that would claim the authors released nothing.>
 - **Retraction check:** <which cited DOIs you checked, and the result — or "not run">
 
 ## Output

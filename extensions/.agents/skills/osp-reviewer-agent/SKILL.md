@@ -29,7 +29,7 @@ knowledge — an empty section that says why is worth more than a filled one tha
 | `.brain/raw/02_retrieved_literature.md` | **cite nothing.** No corpus means no citations — MANIFESTO rule 4 |
 | `.brain/raw/03_domain_narrative.md` | drop the historical placement; do not improvise an era |
 | `.brain/raw/04_missing_baselines.md` | drop missing-baseline weaknesses; say the audit was not run |
-| `.brain/raw/05_qa_<slug>.md` | that criterion's section says no Q&A was run for it |
+| `.brain/raw/05_qa_<slug>.md` | that criterion's section says no Q&A was run for it. These files are **pre-scaffolded at onboarding**, so presence proves nothing — check `criteria_progress` |
 
 ## Output
 
@@ -52,11 +52,13 @@ Write **exactly one file**: `.brain/review/final_review.md`. The structure is di
 ## Detailed comments per criterion
 
 ### Novelty & Originality
-<Synthesis from `05_qa_novelty.md`, citing specific Q&A pairs. No such file? Write exactly:
-"No Q&A was run for this criterion." and move on.>
+<Synthesis from `05_qa_novelty.md`, citing specific Q&A pairs. **The file's existence proves nothing** —
+`/0-osp-onboarding` pre-scaffolds one per criterion. Treat the criterion as not run unless
+`phases.qa.criteria_progress.novelty == "completed"`, or the file still holds unfilled placeholders.
+Then write exactly "No Q&A was run for this criterion." and move on.>
 
 ### Technical Soundness
-<Synthesis from `05_qa_technical-soundness.md`, or the same one-line statement.>
+<Synthesis from `05_qa_technical-soundness.md`, under the same test.>
 
 ### Clarity & Presentation
 <...>
@@ -79,7 +81,9 @@ Write **exactly one file**: `.brain/review/final_review.md`. The structure is di
 <Before writing this section, read `session.json` — **a present file does not mean a full phase.** List:
  - every phase whose `status` is not `"completed"`, with its `skip_reason`;
  - `phases.literature.rounds_completed` if it is under 3;
- - every `phases.qa.criteria_progress` entry that is not `completed`.
+ - every criterion in `qa_criteria[]` whose slug is **missing from** `phases.qa.criteria_progress`,
+   or present there with any status other than `completed`. A missing key is the common case — the
+   criterion was never started — and reading only the keys that exist will find nothing wrong.
 
 Each gets a line here, whether or not its artifact file exists. A one-round corpus and a three-round
 corpus produce the same filename; only `session.json` knows the difference. Omit the section only when

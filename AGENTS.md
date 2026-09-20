@@ -70,7 +70,7 @@ cd mcp-server && PYTHONPATH=. ../.venv/bin/python osp_mcp.py
 - `reviewer-os/` at repo root is an external reference (gitignored), not part of OSP.
 - When adding or renaming a command/skill, update **both** `extensions/_shared/MANIFEST.md` and `docs/ARTIFACT_CONTRACTS.md`.
 - Q&A behavior differs per tool, and `sync_adapters.py::adapt_qa_body_for_tool()` has **three** modes, not two: `subagent` (11 tools), `prefer-subagent` (Antigravity — try delegation, fall back to self-reflection rather than fail), and `self-reflection` (Mistral Vibe, OpenHands). Antigravity moved out of the self-reflection group in 2026-09 — see `kia-context/logs/BRAINSTORM.md` D16 and D17.
-- Paper hyperparameters: `k=3` literature rounds is fixed (enforced via 3 round files); `N_QA` is **user-configurable** at `/5-osp-qa` start (default 2 pairs/criterion, persisted as `session.json.qa_pairs_per_criterion`). The Q&A template renders `### Q1`…`### QN` from that field.
+- Paper hyperparameters: `k=3` literature rounds is **recommended, not fixed** — the user may stop at 1, 2 or 3, enforced by one file per round actually run and recorded in `session.json.phases.literature.rounds_completed` (D29); `N_QA` is **user-configurable** at `/5-osp-qa` start (default 2 pairs/criterion, persisted as `session.json.qa_pairs_per_criterion`). The Q&A template renders `### Q1`…`### QN` from that field.
 - Tools that share the project-root `AGENTS.md` surface (Copilot, Codex, Kimi, Vibe, OpenCode, OpenHands) all merge through `scripts/merge_agents_md.sh` using `<!-- OSP-BEGIN/OSP-END -->` markers. Do not roll your own merge logic.
 - The MCP server runs as a subprocess of the host tool over stdio. To debug, run `python3 mcp-server/osp_mcp.py` standalone — it'll wait for MCP protocol messages and surface any startup errors.
 - `init_mcp.sh` copies `mcp-server/` into `<user-project>/.open-scholar-peer/mcp/` and builds a venv there. The dev repo's `mcp-server/` is the source; the per-project copy is the runtime.
@@ -143,6 +143,10 @@ docs/
 - What can break → [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md), [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
 <!-- OSP-BEGIN: managed by Open ScholarPeer; do not edit between markers -->
+---
+name: osp-rules
+description: Always-on rules for Open ScholarPeer review sessions
+---
 
 # Open ScholarPeer — Always-On Rules
 
@@ -151,9 +155,21 @@ These rules apply automatically in any project where Open ScholarPeer is install
 ## Brain protocol (apply on every invocation)
 
 1. **Read `.brain/session.json` first** to understand current state.
-2. **Load only the artifacts in the active step's `reads:` contract** (see `docs/ARTIFACT_CONTRACTS.md`). Do not load the full `.brain/` directory.
-3. **After completing a step, update `session.json`:** set the matching `phases.<name>` block to `completed`, set `completed_at`, and update `resume_from`.
-4. **Re-runs overwrite with a warning.** If a step is already `completed`, print one warning, then proceed.
+2. **Load only the artifacts in the active step's `reads:` contract.** Do not load the full `.brain/`
+   directory. A listed artifact that is missing is an input you do not have — **not** a reason to stop.
+3. **Update `session.json` around every step.** Set `started_at` when you begin. On finishing, set the
+   matching `phases.<name>` block to `completed`, set `completed_at`, and update `resume_from`.
+4. **When the user moves past a step without running it, record that.** Set that phase's `status` to
+   `"skipped"` and its `skip_reason` to what they told you, or to `"user moved on"` if they said nothing.
+   Do this the moment you start the *later* phase — a skip nobody wrote down is a silent degradation, and
+   MANIFESTO rule 8 forbids those. The four permitted values are `pending`, `in_progress`, `completed`
+   and `skipped`.
+5. **Carry every skip forward.** Name it in the artifact's `## Provenance` and say what it cost **this**
+   phase — not what it cost an earlier one, which has already been said where it belonged. Each phase
+   reports its own consequence, once. `/6-osp-review` collects them all under
+   `## What this review did not have`, so whoever reads the review can tell a thin corpus from a
+   thorough one. State it; do not repeat it, and never dress it as a warning.
+6. **Re-runs overwrite with a warning.** If a step is already `completed`, print one warning, then proceed.
 
 ## Persona discipline
 
@@ -164,23 +180,19 @@ These rules apply automatically in any project where Open ScholarPeer is install
 ## Subagent vs self-reflection
 
 - **Prefer subagents** for the Q&A engine on tools that support them — every supported tool except the two named below.
-- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) on tools without (or with only partial) subagent support: Mistral Vibe, OpenHands.
+- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) where subagents are unavailable — always on Mistral Vibe and OpenHands, and on any tool where the delegation call does not work. Finishing the phase in the weaker mode beats stopping it; note which mode was used in the artifact.
 - Self-reflection is a documented weaker substitute. See `KNOWN_LIMITATIONS.md`.
 
-## User orientation (required on every phase invocation)
+## Phase blocks (required on every phase invocation)
 
-Before doing any work in a phase, print a short orientation block so the user always knows where they are:
+Every phase prints two blocks: an opening one before it does any work, and a closing one when it
+ends. **`defaults/phase_block_template.md` is the only definition of their format** — the rail, the
+rules, the labels, the widths and the ASCII fallback all live there and nowhere else. Do not restate
+them, here or in a command.
 
-```
-── <Phase name> ──────────────────────────────────────────
-What this phase does: <one sentence — the agent's role and why this step exists>
-Reads:  <list the key input files>
-Writes: <list the key output files>
-Effort: <rough estimate — "~2 min, ~N tool calls", etc.>
-──────────────────────────────────────────────────────────
-```
-
-After the phase completes, the closing report block must say **what was done** (findings, counts, highlights), not just which command to run next. The user is learning the system as they go — orient them every time, even on repeat runs.
+Each phase's command supplies only the values. The closing block must say **what was done** —
+findings, counts, highlights — not merely which command comes next. The user is learning the system
+as they go, so orient them every time, including on a re-run.
 
 ## Output discipline
 
@@ -194,7 +206,7 @@ After the phase completes, the closing report block must say **what was done** (
   - Claude Code / Cursor / Gemini CLI / Codex CLI / Qwen Code / OpenCode / Junie / Kiro: `@.brain/raw/01_summary.md`
   - Copilot CLI: `#file:.brain/raw/01_summary.md`
   - Kimi Code / Mistral Vibe / OpenHands / Antigravity: plain path (no native shorthand)
-- Always pair the native reference with the `↳ .brain/…` path in the terminal report block so users can locate files regardless of tool.
+- Always pair the native reference with the plain `.brain/…` path on the continuation line under `DONE`, so users can locate the file whatever their tool does with markdown.
 
 ## File ownership
 

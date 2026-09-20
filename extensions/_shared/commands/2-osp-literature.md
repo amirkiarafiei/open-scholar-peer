@@ -86,11 +86,10 @@ holds the rail, the rules and the widths, and is the only place they are written
    One `BLOCKED` line per provider that failed — an error is not an empty result; drop the label
    when nothing failed. After round 3 the literature marker becomes `●` and the label reads
    `LITERATURE  3 rounds`; after a deliberate stop it stays `◐` and reads `LITERATURE  <N> rounds`.
-   - If `rounds_completed < 3`, give both routes, recommended first: `/2-osp-literature` for round
-     N+1, or `/3-osp-historian` to move on with what is already retained. Say once what the thinner
-     corpus costs — a round-2 stop means the method-anchor search never ran, so concurrent work using
-     the same technique may be missing. Do not repeat it on the next invocation.
-   - If `rounds_completed == 3`: "Next: /3-osp-historian"
+   Under `NEXT`, say once what stopping here would cost: after **round 1** the method-anchor search
+   has not run, so work using the same technique may be missing; after **round 2** the temporal
+   expansion has not run, so concurrent work from the last 12 months may be missing. Do not repeat it
+   on the next invocation. Once round 3 is done, `NEXT` carries `/3-osp-historian` alone.
 
 ## Re-run behavior
 

@@ -188,9 +188,9 @@ warning. It does **not** invalidate anything downstream — re-running step 1 le
 reflecting a summary that no longer exists. Cascading invalidation is a known gap
 (`docs/KNOWN_LIMITATIONS.md` §8), not a solved problem.
 
-> **Code contradicts template.** Commands read `phases.literature.rounds_completed`
-> (`extensions/_shared/commands/2-osp-literature.md`), but `.brain-template/session.json` does not declare
-> the field. It works — the command defaults a missing value to 0 — but the schema is incomplete.
+> **Template and initialisers agree.** `phases.literature.rounds_completed` is declared in
+> `.brain-template/session.json` and in the `scripts/init_brain.sh` fallback, alongside `skip_reason` and
+> the four permitted `status` values. Closed as O3 on 2026-09-21 (M15).
 
 ---
 
@@ -348,14 +348,16 @@ query formulations, not sequentially — a paper ranked low in one index is ofte
 There is no GUI, so the terminal block *is* the product surface, and its shape is specified in
 `extensions/_shared/rules/osp-rules.md` as an always-on rule rather than left to the model.
 
-Every phase opens with an orientation block — what this phase does, what it reads, what it writes, and a
-rough effort estimate — and closes with a report of **what was found**, not merely which command comes
-next. The rule is explicit that this runs *every* time, including re-runs: the user is learning the
-system as they go.
+Every phase opens and closes with a block whose format is defined **once**, in
+`extensions/_shared/defaults/phase_block_template.md`: a progress rail welded into a 60-column rule, then
+left-hand labels — `DOING` / `READS` / `WRITES` / `COST` opening, `DONE` / `BLOCKED` / `NOTE` / `NEXT`
+closing — with values in a column at 12. No other file may render a rail; `scripts/test_parity.py`
+fails if one does. The block runs *every* time, including re-runs: the user is learning the system as
+they go, and the closing one reports **what was found**, not merely which command comes next.
 
-Artifact paths are printed twice: once in the host tool's native clickable form (`@.brain/…` for Claude,
-Cursor, Gemini and others; `#file:` for Copilot CLI; a plain path where there is no shorthand) and once as
-a `↳ .brain/…` line, so the path is usable regardless of tool.
+Artifact paths are printed on a continuation line under `DONE`, in the value column, paired with the
+host tool's native clickable form where it has one (`@.brain/…` for Claude, Cursor, Gemini and others;
+`#file:` for Copilot CLI; a plain path where there is no shorthand).
 
 Resource warnings precede anything expensive. Step 5 prints the full multiplication — criteria × pairs =
 subagent calls, with an estimated wall-clock — *before* asking how many pairs to run.

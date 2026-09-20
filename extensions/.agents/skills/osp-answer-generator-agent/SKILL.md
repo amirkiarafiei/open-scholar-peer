@@ -37,7 +37,7 @@ For each question:
 
 1. **Self-answer first** based on the context bundle (the structured summary).
 2. **Cross-check against external context** — the domain narrative, retrieved literature, missing baselines.
-3. **If the question depends on novelty or comparison to prior work, run a fresh search** to verify the claim is current (the literature corpus may not cover everything the question requires).
+3. **If the question depends on novelty or comparison to prior work, run a fresh search** to verify the claim is current (the literature corpus may not cover everything the question requires). An error record (`{"error": ..., "reason": ...}`) means the provider failed, **not** that no such work exists — say under Verification that the cross-check was blocked by `<reason>`, rather than letting a failed search confirm novelty.
 4. **If the question turns on what a specific paper actually says or reports, open that paper.** An abstract will not settle whether a cited work reports a particular number. Use a full-text reader if you have one. No id? A title-matching tool gives you `externalIds.ArXiv`. No route at all? Say the claim could not be checked, rather than checking the abstract and calling it done.
 5. **Flag discrepancies** with `[DISCREPANCY]` followed by a brief explanation. A discrepancy is any case where the paper's claim is contradicted, weakened, or pre-empted by external context.
 

@@ -85,7 +85,7 @@ Everything lands in the directory you ran the installer from. Four things:
 | What | Where | Why |
 | --- | --- | --- |
 | **`.brain/`** — `session.json`, `raw/`, `review/`, `input/` | your project | Every step writes plain markdown you can open — including each intermediate literature round, not just the final review. This is how you check any claim the system makes. |
-| **Agent config** — slash commands, skills, rules, and an MCP server entry | your tool's own directory (`.claude/`, `.cursor/`, `.gemini/`, …) | How your agent learns the seven `/N-osp-*` commands and reaches the paper search server. Existing files are merged, not overwritten. |
+| **Agent config** — slash commands, skills, rules, and an MCP server entry | your tool's own directory (`.claude/`, `.cursor/`, `.gemini/`, …), plus a root file for some tools: `.mcp.json`, `AGENTS.md` or `QWEN.md` | How your agent learns the seven `/N-osp-*` commands and reaches the paper search server. Existing files are merged, never overwritten — OSP's part sits between `<!-- OSP-BEGIN -->` and `<!-- OSP-END -->`. |
 | **`.open-scholar-peer/mcp/`** — the search server and a Python `.venv/` | your project | The search server is Python. The virtualenv keeps its dependencies out of your system Python, so nothing you already have is touched or upgraded. |
 | **`.env`** | your project | Your API keys, written with `chmod 600`. Optional — every database works without one. |
 
@@ -94,7 +94,9 @@ your `.gitignore`, so a manuscript under embargo is never committed by accident.
 outside this directory except the MCP config that a few tools insist on keeping in your home folder.
 Nothing leaves the machine except the searches you ask for.
 
-To remove it all: delete those four paths, and the tool directory the installer reported.
+To remove it all: delete `.brain/`, `.open-scholar-peer/` and `.env`, delete the tool directory the
+installer named, and remove the OSP block from any root file it touched (`.mcp.json`, `AGENTS.md`,
+`QWEN.md`).
 
 ---
 
