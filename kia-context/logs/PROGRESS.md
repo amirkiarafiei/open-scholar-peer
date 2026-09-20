@@ -1383,6 +1383,52 @@ verified mechanically) · 4 ✅ · 5 ✅ · 6 ✅.
 
 ---
 
+---
+
+## 🔍 Independent review of M14–M16 — 2026-09-21: Antigravity, Gemini 3.8 Flash (High)
+
+One run, all three milestones plus the README, no knowledge of how any of it was built. It needed
+`--dangerously-skip-permissions` to run shell commands at all — headless mode auto-denies them and
+exits 0 with a 303-byte notice, which is the silent-failure mode the skill warns about. HEAD and the
+working tree were recorded before the run and confirmed byte-identical after.
+
+**11 findings, 4 HIGH, all fixed in `a4f2c91`.**
+
+**The one that mattered most, and that two internal review rounds missed.**
+`/0-osp-onboarding` **pre-scaffolds** `.brain/raw/05_qa_<slug>.md` for every criterion. So the reviewer
+skill's completeness test — *"No such file? write 'No Q&A was run for this criterion'"* — can never
+fire. Its other test read `phases.qa.criteria_progress` for entries *"that is not `completed`"*, but an
+unrun criterion has **no key there at all**, not a key set to `pending`. Both tests therefore pass on a
+Q&A run covering 1 of 5 criteria, and `## What this review did not have` comes out empty. **The precise
+failure M15 exists to prevent — a thin review that reads as complete — reached the end of M16 alive,
+because both of its detectors were looking at the wrong thing.** Completeness now comes from
+`criteria_progress` keyed by `qa_criteria[]`, and the skill says outright that a file's existence
+proves nothing.
+
+**The other three HIGH were all self-inflicted by the M15 review round.** Fixing that round's
+"nothing writes `skipped`" finding, I gave the orchestrator an exception to write `session.json`. That
+contradicts `open-scholar-peer.md`'s own frontmatter (`writes: []`) and the line *"does not modify
+`session.json`"*, duplicates the pre-flight every command already runs, and produces a **false**
+`skip_reason` — `"user ran /6-osp-review first"` for a phase abandoned three steps earlier. Separately,
+the Baseline Scout's output template offered hits / `"nothing found"` / `"not checked"` and **no slot
+for a provider failure**, so a 429 became a claim that the authors released no code; and the Answer
+Generator had no error-vs-empty contract at all, so a rate-limited verification search could confirm a
+novelty claim.
+
+**Where the docs had drifted behind the code:** `AGENTS.md` still called `k=3` fixed and carried a stale
+copy of the retired orientation block; `ARCHITECTURE.md` still carried the O3 callout claiming
+`rounds_completed` was undeclared, and described the retired `↳` glyph in §10; the README's *"What is
+installed on your machine?"* never named `.mcp.json`, `AGENTS.md` or `QWEN.md` at the project root, so
+its uninstall line was incomplete — and that section is the one telling users their embargoed paper will
+not be committed.
+
+**Checked and found clean:** every rate limit in the README's database table, against provider code and
+published documentation.
+
+**The lesson, again.** Two internal rounds found 29 defects between them and still left four HIGH ones,
+three of which *the second round's own fixes introduced*. A reviewer that has not read the previous
+review is worth more than one that has.
+
 ## 📎 Reference: links and measurements for M11–M13
 
 Kept here on purpose, so an implementation session that has lost the conversation still has every source.
