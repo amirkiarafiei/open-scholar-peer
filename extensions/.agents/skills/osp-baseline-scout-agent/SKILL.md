@@ -22,9 +22,11 @@ Critically, you operate **independently** of the authors' narrative. You analyze
 
 ## Tools
 
-Use the same retrieval tools as the Literature Agent (`osp-mcp.search_arxiv`,
-`search_semantic_scholar`, `search_google_scholar`, `search_europe_pmc`, native
-Web Search). You are encouraged to run targeted searches like:
+Use the same sources as the Literature Agent, chosen the same way. **Read the
+`## Sources` section of `skills/osp-literature-review-agent/SKILL.md` before you
+search** — it is the rule, and it also tells you how to read a failed call. The
+installed set differs per project, so list what you have first. Then run targeted
+searches like:
 - `"<task name> state of the art <year>"`
 - `"<benchmark name> leaderboard"`
 - `"<dataset name> comparison"`
@@ -33,8 +35,8 @@ Web Search). You are encouraged to run targeted searches like:
 **Read the baseline, do not guess at it.** When a reported number decides
 whether a baseline is missing or misquoted, open the paper:
 
-- `osp-mcp.read_arxiv_paper(arxiv_id)` — the author's own LaTeX, tables intact.
-- `osp-mcp.get_europe_pmc_full_text(pmcid)` — open-access biomedical articles.
+- a preprint full-text reader, if this project has one — the author's own LaTeX, tables intact.
+- a biomedical full-text reader, if this project has one — open-access articles.
 
 Both return text in windows; while `next_offset` is not null, call again with
 `offset` set to it. A claim checked against the paper's own text is worth more
@@ -42,29 +44,32 @@ than one checked against its abstract — say which you did.
 
 **Two checks nothing else in this system can make.**
 
-*Was the code or data actually released?* Most review forms ask. Search
-`osp-mcp.search_zenodo(query, resource_type="software")` — and `"dataset"` —
-for the paper's title, its method name, and the authors' names. A hit gives
+*Was the code or data actually released?* Most review forms ask. If this project
+has a code-and-data repository search, query it for software and for datasets
+under the paper's title, its method name, and the authors' names. A hit gives
 you a DOI and often a GitHub link in `relatedIdentifiers`. Nothing found is
-worth reporting, but write it as *"nothing found on Zenodo"*: code often lives
-only on GitHub, so this is evidence, not proof.
+worth reporting, but write it as *"nothing found"*: code often lives only on
+GitHub, so this is evidence, not proof. **If no such search is installed, say the
+check could not be made — never write "nothing found" for a search you did not run.**
 
-*Has anything it leans on been retracted?* Take the DOI of each citation the
-paper's argument rests on and call `osp-mcp.get_openalex_work(doi)`. Read
-`isRetracted`. One retracted load-bearing citation changes a review's verdict,
-and nothing else here can see it. Worth doing for the central references, and
-for any that look unusually old or unusually convenient.
+*Has anything it leans on been retracted?* If this project has an open
+bibliographic index, take the DOI of each citation the paper's argument rests on,
+look the work up and read `isRetracted`. One retracted load-bearing citation
+changes a review's verdict, and nothing else here can see it. Worth doing for the
+central references, and for any that look unusually old or unusually convenient.
+If no such index is installed, say the check could not be made.
 
 **When there is no arXiv id and no PMCID**, in order:
-1. `match_semantic_scholar_title(title)` → read `externalIds.ArXiv` → `read_arxiv_paper`.
-2. Still nothing? Take `openAccessPdf.url` from the Semantic Scholar record and
-   pass it to markitdown's `convert_to_markdown`.
+1. A title-matching tool turns the title into a record carrying `externalIds.ArXiv`; then read the preprint.
+2. Still nothing? Take `openAccessPdf.url` from the citation-graph record and
+   pass it to markitdown's `convert_to_markdown` (the installer configures
+   markitdown, but check that you actually have it).
 3. No route at all? **Say so.** Reading the abstract and calling it a check is
    the failure this section exists to prevent.
 
 Note two limits before you rely on a read. arXiv source has `\citep{key}`
-markers, not printed numbers, and no reference list — resolve a citation with
-`get_semantic_scholar_paper_references`. Europe PMC gives table captions but
+markers, not printed numbers, and no reference list — resolve a citation with a
+citation-graph references lookup. Biomedical full text gives table captions but
 not table contents, so a number that appears only inside a table will not be
 there.
 
@@ -80,7 +85,9 @@ Write **exactly one file**: `.brain/raw/04_missing_baselines.md`.
 - **Benchmarks the paper used:** <list — copied from `01_structured_summary.md`'s Evidence section>
 - **Adversarial search strategy:** <how you searched — keywords, leaderboards consulted, year filter>
 - **Papers read in full:** <arXiv id or PMCID, and what you checked in each — or "none">
-- **Code / data release:** <what Zenodo returned for the paper, method and authors — or "nothing found on Zenodo">
+- **Code / data release:** <what the code-and-data search returned for the paper, method and
+  authors — or "nothing found" — or "not checked: no code-and-data repository search is
+  installed in this project">
 - **Retraction check:** <which cited DOIs you checked, and the result — or "not run">
 
 ## Output

@@ -19,7 +19,7 @@ Tell the user which round is about to run, what its goal is, and what tools will
 ── Literature Review — Round N/3 ────────────────────────
 Strategy: <sub-domain anchor | method anchor | temporal expansion>
 Goal:     <one sentence — what this round is trying to find>
-Tools:    arxiv  +  semantic_scholar  +  google_scholar  +  web search (if available)
+Tools:    <the ones you picked for this round, named>  +  web search
 Writes:   .brain/raw/02N_literature_round<N>.md
 Effort:   ~8-12 tool calls, ~1-3 min
 ─────────────────────────────────────────────────────────
@@ -44,46 +44,41 @@ You MUST execute three structurally distinct rounds and produce **three separate
 
 After all three rounds, write `02_retrieved_literature.md` consolidating retained papers (deduplicated).
 
-## Tools
+## Sources
 
-In **every round** you MUST dispatch **all available retrieval tools simultaneously** — not sequentially:
+**List the retrieval tools you actually have, before each round.** The user picks
+which databases get installed, so the set differs per project — nothing here
+promises any of them is present. Choose by the paper's topic, not by the list.
 
-- `osp-mcp.search_arxiv` — pre-prints
-- `osp-mcp.search_semantic_scholar` — citation graph, well-indexed publications
-- `osp-mcp.search_google_scholar` — broader coverage: blogs, theses, workshop papers
-- `osp-mcp.search_europe_pmc` — medicine, biology, public health, psychology. Add
-  it to every round when the paper is in those fields; arXiv barely covers them.
-- `osp-mcp.search_openalex` — all fields, ~327 million works. Every record says
-  whether the work was retracted, and `fwci` compares its citations against the
-  average for its own field and year, which travels better than a raw count.
-- Native `Web Search` (when your host tool provides one) — non-academic mentions, news, blog summaries
+- **Native web search — every round, no exception.** The one source no install can remove. If your host genuinely has none, record that in the round file rather than proceeding quietly without it.
+- **A preprint archive** — the strongest single source for CS, physics and maths, and one of the two kinds that also return **full text**.
+- **A citation-graph index** — references, citations, recommendations, title matching. With a key it is generous; keyless it shares one global pool and throttles unpredictably. A throttle is an error, never an empty result.
+- **A biomedical database** — add it to **every** round when the paper touches medicine, biology, public health or psychology, because a preprint archive barely covers those; it serves **full text** too. On a CS paper it returns noise.
+- **An open bibliographic index** — when retraction status or field-normalised impact (`fwci`) decides something. Keyless it runs on a small **daily budget**, not a per-second limit: once spent, waiting will not help until tomorrow.
+- **Scraped general search** — theses, workshops, blogs. The least reliable of all: **being blocked is the normal case**, never evidence that no papers exist.
 
-Not every tool in this list is installed in every project — the user chooses
-the databases at install time. Use the ones you can see, and record in the
-round file which you called, which you skipped, and which failed. The template
-at `defaults/round_strategy_template.md` has a line for each.
+Record in the round file which you called, which you skipped and why, and which
+failed. The template at `defaults/round_strategy_template.md` has a line for each.
 
-**Simultaneously** means: fire all tools in the same dispatch batch, not one after the other. Each tool gets a query formulation tailored to its index — the arxiv query stresses category + keywords, the semantic_scholar query stresses citations + field-of-study, the web search query adds the venue name for recency. Do not wait for one result before starting the next.
+**Simultaneously** means: fire everything you chose in the same dispatch batch, not one after the other. Each tool gets a query formulation tailored to its index — a preprint query stresses category + keywords, a citation-graph query stresses field-of-study, a web query adds the venue name for recency. Do not wait for one result before starting the next.
 
-### Use the filters, especially in round 3
+### Ask the database for the filter — especially in round 3
 
-Round 3 says "last 12 months". Ask the database for that window — do not put the
-date in the keywords and do not filter the results yourself:
+Round 3 says "last 12 months". Ask for that window; do not put the date in the
+keywords and do not filter the results yourself. What your tools accept, if you
+have them:
 
-- `search_arxiv(query, date_from="YYYY-MM-DD", date_to="YYYY-MM-DD", categories=["cs.CL"])`
-  `categories` matches cross-listed papers too.
-- `search_semantic_scholar(query, publication_date_or_year="2025-09-01:2026-09-01")`
-  Also takes `year`, `venue`, `fields_of_study`, `min_citation_count` and
-  `open_access_pdf`.
-- `search_google_scholar_advanced(query, year_start=, year_end=)`
+- an arXiv search takes `date_from` / `date_to` and `categories` (which matches cross-listed papers too)
+- a Semantic Scholar search takes `publication_date_or_year="YYYY-MM-DD:YYYY-MM-DD"`, and also `year`, `venue`, `fields_of_study`, `min_citation_count`, `open_access_pdf`
+- a Google Scholar advanced search takes `year_start` / `year_end`
 
-Use `match_semantic_scholar_title(title)` to turn a title into a paperId. It
-returns one paper and a `matchScore`. The endpoint always returns its best
-guess, so a low score means no real match — check it before trusting the id.
+If a title is all you have, a title-matching tool turns it into a paper id and
+returns a `matchScore`. Such endpoints always return their best guess, so a low
+score means no real match — check it before trusting the id.
 
-`osp-mcp.search_zenodo` is **not** a literature tool. It finds code, datasets
-and software releases, not papers. Using it in a round pollutes the corpus.
-It belongs to the Baseline Scout.
+A code-and-data repository search — Zenodo, if this project has it — is **not** a
+literature tool. It finds software and datasets, not papers, and using it in a
+round pollutes the corpus. It belongs to the Baseline Scout.
 
 Relying on only one source biases the corpus. A paper that ranks low in one index may be the top result in another.
 
@@ -111,12 +106,12 @@ Use `extensions/_shared/defaults/round_strategy_template.md` (or its synced equi
 
 | # | Title | Authors | Year | Venue | Found in round(s) | Source(s) | One-line relevance |
 |---|---|---|---|---|---|---|---|
-| 1 | ... | ... | ... | ... | 1, 3 | arxiv, semantic_scholar | ... |
+| 1 | ... | ... | ... | ... | 1, 3 | <source>, <source> | ... |
 | ... |
 
 ## Provenance
 - Total queries run across all rounds: <N>
-- API key used: <yes/no for Semantic Scholar>
+- API keys in play: <which of your sources you had a key for, or "none">
 - Tools that were unavailable in this environment: <list, if any>
 ```
 
@@ -135,6 +130,7 @@ After all four files exist:
 - Do **not** discard pre-prints just because they're unpublished — round 3's whole purpose is catching them.
 - Do **not** silently fail a tool — if `osp-mcp` is unreachable, list it in Provenance under "Tools unavailable" so the user knows.
 - Do **not** read a tool error as "no papers found". An error record carries a
-  `reason`: `blocked`, `rate_limited`, `busy`, `timeout` or `bad_request`. Only
+  `reason`: `blocked`, `rate_limited`, `busy`, `timeout`, `unavailable`,
+  `not_found`, `bad_request` or `failed`. Only
   an empty list `[]` means the search really found nothing. Anything with an
   `error` key goes in Provenance under "Tools unavailable".

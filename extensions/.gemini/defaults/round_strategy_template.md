@@ -4,12 +4,13 @@
 
 - **Strategy:** `{{strategy_slug}}` (one of: `sub-domain-anchor`, `method-anchor`, `temporal-expansion`)
 - **Goal of this round:** {{strategy_goal}}
-- **Tools used:** every retrieval tool you actually called this round. Call each
-  one this project offers, with one exception: `osp-mcp.search_europe_pmc` is
-  worth a call only when the paper touches medicine, biology, public health or
-  psychology. Firing it on a CS paper pollutes the corpus.
+- **Tools used:** every retrieval tool you actually called this round. Pick the
+  ones that suit the paper's field — a biomedical database is worth a call only
+  when the paper touches medicine, biology, public health or psychology, and
+  firing it on a CS paper pollutes the corpus.
   - `<tool>` — `<why it was in scope this round>`
-  (`osp-mcp.search_zenodo` is never in scope here — it finds code, not papers.)
+  (A code-and-data repository search is never in scope here — it finds software,
+  not papers.)
 - **Tools not called:** `<tool>` — `not installed in this project` | `out of scope: <reason>`
 - **Tools that failed:** `<tool>` — `<the reason from the error record>`.
   An `error` key means the provider failed and you did not get to look. An
@@ -25,7 +26,7 @@
 
 | # | Title | Authors | Year | Venue | Source(s) | Why kept |
 |---|---|---|---|---|---|---|
-| 1 | <title> | <authors> | <year> | <venue> | arxiv,semantic_scholar | <one-line justification> |
+| 1 | <title> | <authors> | <year> | <venue> | <source>,<source> | <one-line justification> |
 | 2 | ... | ... | ... | ... | ... | ... |
 
 ### Notes on what was excluded
