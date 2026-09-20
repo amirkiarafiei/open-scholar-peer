@@ -35,6 +35,11 @@ class OpenAlexError(RuntimeError):
     """OpenAlex could not answer. Never reported as an empty result."""
 
 
+class OpenAlexRateLimited(OpenAlexError):
+    """OpenAlex answered 429 or 403. Temporary, and a key lifts it — telling
+    the agent the provider is unavailable would retire it for the review."""
+
+
 class OpenAlexNotFound(OpenAlexError):
     """No such work. OpenAlex is fine; it has simply not indexed this one.
 
@@ -65,11 +70,11 @@ def _get(path: str, params: dict[str, Any]) -> dict[str, Any]:
         raise OpenAlexError(f"OpenAlex request failed: {e}") from e
 
     if resp.status_code == 403:
-        raise OpenAlexError(
+        raise OpenAlexRateLimited(
             "OpenAlex refused the request (HTTP 403). The keyless daily budget "
             "is small — set OPENALEX_API_KEY in .env to raise it.")
     if resp.status_code == 429:
-        raise OpenAlexError(
+        raise OpenAlexRateLimited(
             "OpenAlex rate limit reached (HTTP 429). Set OPENALEX_API_KEY in "
             ".env for a much larger budget.")
     if resp.status_code == 404:
@@ -186,7 +191,9 @@ def search(
 
 
 def get_work(identifier: str) -> dict[str, Any]:
-    """Look up one work by DOI, OpenAlex id, PMID or arXiv id.
+    """Look up one work by DOI, OpenAlex id or PMID.
+
+    **Not an arXiv id** — OpenAlex has no arXiv namespace, so one returns 404.
 
     This is the retraction check: give it the DOI from a bibliography line and
     read `isRetracted`.

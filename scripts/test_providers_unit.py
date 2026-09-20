@@ -1124,6 +1124,102 @@ def test_audit_regressions() -> None:
         check_true(f"{name} worst case {worst}s fits inside 90s", worst < 90)
 
 
+# ---------------------------------------------------------------------------
+# Regressions found by the independent Antigravity review, 2026-09-20.
+# Two of these were HIGH, and one contradicted a claim already written into
+# PROGRESS.md — which is the reason the claim is now tested and not asserted.
+# ---------------------------------------------------------------------------
+
+def test_independent_review_regressions() -> None:
+    from providers import europe_pmc as ep
+    from providers import arxiv as ax
+    from providers import openalex as oa
+    from providers import zenodo as zn
+    from providers import google_scholar as gs
+
+    # --- the entity guard sniffed only the first 8192 bytes ---------------
+    # PROGRESS.md claimed "pushing the DOCTYPE past the sniff window does not
+    # get through either". It did: 9 KB of leading comment and the bomb
+    # parsed and expanded.
+    bomb = ('<!DOCTYPE lolz [<!ENTITY lol "lol">'
+            '<!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">'
+            '<!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">]>'
+            '<article><body><sec><p>&lol3;</p></sec></body></article>')
+    for label, doc in [
+        ("an entity bomb in the first bytes", bomb),
+        ("one pushed past the old 8192-byte window",
+         '<?xml version="1.0"?>\n<!--' + " " * 9000 + "-->\n" + bomb),
+        ("one behind 20 KB of padding",
+         '<?xml version="1.0"?>\n<!--' + "x" * 20000 + "-->\n" + bomb),
+    ]:
+        try:
+            ep.jats_to_text(doc)
+            FAIL.append(f"{label}: parsed instead of being refused")
+        except ep.EuropePmcError:
+            PASS.append(f"refused: {label}")
+
+    # ...and an ordinary external-DTD DOCTYPE must still be accepted.
+    ordinary = ('<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) v1.4//EN" '
+                '"JATS-archivearticle1-4.dtd">'
+                '<article><body><sec><p>Real text.</p></sec></body></article>')
+    check_true("a normal JATS DOCTYPE is still accepted",
+               "Real text." in ep.jats_to_text(ordinary))
+
+    # --- the package makes num_retries + 1 attempts -----------------------
+    # Assuming 3 put the worst case at 104 s against a 90 s ceiling.
+    attempts = ax._ARXIV_RETRIES + 1
+    worst = attempts * ax._HTTP_TIMEOUT + ax._ARXIV_RETRIES * 3 + ax._LOCK_WAIT
+    check_true(f"arXiv search worst case {worst}s fits inside 90s", worst < 90)
+    check("the client pins its own retry count rather than taking the default",
+          ax._CLIENT.num_retries, ax._ARXIV_RETRIES)
+
+    # --- get_details returned a dict, so it never picked up a reason ------
+    check_true("ArxivNotFound is available to get_details",
+               issubclass(ax.ArxivNotFound, ax.ArxivFullTextError))
+
+    # --- every failure type maps to the right reason ----------------------
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "osp_probe_err", REPO_ROOT / "mcp-server" / "osp_mcp.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    expected = [
+        (oa.OpenAlexRateLimited("x"), "rate_limited"),
+        (zn.ZenodoRateLimited("x"), "rate_limited"),
+        (oa.OpenAlexNotFound("x"), "not_found"),
+        (zn.ZenodoNotFound("x"), "not_found"),
+        (gs.GoogleScholarNotFound("x"), "not_found"),
+        (ax.ArxivNotFound("x"), "not_found"),
+        (gs.GoogleScholarBlocked("x"), "blocked"),
+        (ValueError("x"), "bad_request"),
+        (RuntimeError("x"), "failed"),
+    ]
+    for exc, want in expected:
+        check(f"{type(exc).__name__} -> {want}",
+              mod._err("t", exc)["reason"], want)
+
+    # The Semantic Scholar package has its own hierarchy, matched by name.
+    try:
+        from semanticscholar.SemanticScholarException import (
+            ObjectNotFoundException, BadQueryParametersException)
+        check("ObjectNotFoundException -> not_found",
+              mod._err("t", ObjectNotFoundException("x"))["reason"], "not_found")
+        check("BadQueryParametersException -> bad_request",
+              mod._err("t", BadQueryParametersException("x"))["reason"],
+              "bad_request")
+    except ImportError:
+        pass
+
+    # A missing profile must NOT be reported as the provider being down.
+    check_false("a missing profile is not an outage",
+                issubclass(gs.GoogleScholarNotFound, gs.GoogleScholarUnavailable))
+
+    # --- the alias the other five sources already had ---------------------
+    check("open_alex is accepted like europe_pmc and s2",
+          mod._SOURCE_ALIASES.get("open_alex"), "openalex")
+
+
 TESTS = [
     ("google_scholar", test_google_scholar),
     ("arxiv query builder", test_arxiv_query),
@@ -1137,6 +1233,7 @@ TESTS = [
     ("zenodo", test_zenodo),
     ("source gating", test_source_gating),
     ("audit regressions", test_audit_regressions),
+    ("independent review regressions", test_independent_review_regressions),
 ]
 
 

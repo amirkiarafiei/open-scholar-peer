@@ -47,14 +47,17 @@ def _err(tool: str, exc: Exception) -> dict[str, Any]:
         reason = "blocked"
     elif isinstance(exc, gs_provider.GoogleScholarUnavailable):
         reason = "unavailable"
-    elif isinstance(exc, ss_provider.SemanticScholarRateLimited):
+    elif isinstance(exc, (ss_provider.SemanticScholarRateLimited,
+                          openalex_provider.OpenAlexRateLimited,
+                          zenodo_provider.ZenodoRateLimited)):
         reason = "rate_limited"
     elif isinstance(exc, arxiv_provider.ArxivBusy):
         reason = "busy"
     elif isinstance(exc, (arxiv_provider.ArxivNotFound,
                           epmc_provider.EuropePmcNotFound,
                           openalex_provider.OpenAlexNotFound,
-                          zenodo_provider.ZenodoNotFound)):
+                          zenodo_provider.ZenodoNotFound,
+                          gs_provider.GoogleScholarNotFound)):
         reason = "not_found"
     elif isinstance(exc, (arxiv_provider.ArxivFullTextError,
                           epmc_provider.EuropePmcError,
@@ -65,6 +68,14 @@ def _err(tool: str, exc: Exception) -> dict[str, Any]:
         reason = "timeout"
     elif isinstance(exc, ValueError):
         reason = "bad_request"
+    else:
+        # The semanticscholar package raises its own types. Matched by name
+        # so a missing optional dependency cannot break error reporting.
+        name = type(exc).__name__
+        if name == "ObjectNotFoundException":
+            reason = "not_found"
+        elif name == "BadQueryParametersException":
+            reason = "bad_request"
     return {"error": f"{tool} failed: {exc}", "reason": reason}
 
 try:
@@ -101,7 +112,7 @@ _SOURCE_ALIASES = {
     "europe_pmc": "europepmc", "epmc": "europepmc", "pmc": "europepmc",
     "s2": "semantic_scholar", "semanticscholar": "semantic_scholar",
     "gscholar": "google_scholar", "scholar": "google_scholar",
-    "openalex_works": "openalex",
+    "openalex_works": "openalex", "open_alex": "openalex",
 }
 
 

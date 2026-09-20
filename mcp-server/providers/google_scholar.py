@@ -109,6 +109,13 @@ class GoogleScholarBlocked(GoogleScholarUnavailable):
     """Google actively refused: a 429, a 403, or a captcha interstitial."""
 
 
+class GoogleScholarNotFound(RuntimeError):
+    """No such profile. Google answered; nobody by that name is listed.
+
+    Deliberately NOT a subclass of GoogleScholarUnavailable: the provider
+    worked, so it must not be recorded as unavailable."""
+
+
 def _proxies() -> dict[str, str] | None:
     url = os.environ.get("GOOGLE_SCHOLAR_PROXY_URL")
     return {"http": url, "https": url} if url else None
@@ -258,8 +265,11 @@ def get_author_info(author_name: str) -> dict[str, Any]:
         search_query = scholarly.search_author(author_name)
         author = next(search_query)
         filled = scholarly.fill(author)
-    except StopIteration:
-        return {"error": f"No Google Scholar profile found for {author_name!r}"}
+    except StopIteration as e:
+        # Raised, not returned: a dict here bypasses _err and carries no
+        # `reason`, which is the field the agent branches on.
+        raise GoogleScholarNotFound(
+            f"No Google Scholar profile found for {author_name!r}") from e
     except Exception as e:
         name = type(e).__name__
         if "MaxTries" in name or "Captcha" in name or "Blocked" in name:
@@ -267,7 +277,13 @@ def get_author_info(author_name: str) -> dict[str, Any]:
                 "Google Scholar refused the profile request (blocked by"
                 f" {name}). This is a block, not a missing profile."
             ) from e
-        raise
+        # Anything else out of scholarly is still a failure to reach the
+        # provider. Left bare, a ConnectionError arrived as reason "failed"
+        # rather than "unavailable".
+        raise GoogleScholarUnavailable(
+            f"Google Scholar profile lookup failed ({name}: {e}). Not an "
+            "empty result — record the provider as unavailable."
+        ) from e
 
     return {
         "name": filled.get("name", ""),

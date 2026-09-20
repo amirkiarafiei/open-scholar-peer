@@ -323,6 +323,28 @@ def _wrap(child: ET.Element) -> ET.Element:
     return holder
 
 
+class _EntityDeclared(Exception):
+    """An entity declaration reached the parser. Refuse the document."""
+
+
+def _safe_parser() -> ET.XMLParser:
+    """An XMLParser that refuses to define entities at all.
+
+    The textual scan above can be defeated by anything that hides the
+    declaration from a substring search. expat cannot be: this handler fires
+    on the declaration itself, before any expansion happens.
+    """
+    parser = ET.XMLParser()
+    try:
+        def _refuse(*_args, **_kwargs):
+            raise _EntityDeclared()
+        parser.parser.EntityDeclHandler = _refuse
+    except AttributeError:
+        # Non-expat backend; the textual scan is the only guard there.
+        pass
+    return parser
+
+
 def jats_to_text(xml: str) -> str:
     """Turn a JATS article into readable text. Pure, unit tested offline."""
     # xml.etree expands *internal* entity declarations, so a kilobyte of
@@ -330,17 +352,27 @@ def jats_to_text(xml: str) -> str:
     # Only `<!ENTITY` does that. A plain DOCTYPE naming an external DTD is
     # harmless here, because ElementTree never fetches one — and refusing it
     # would be wrong: of four articles sampled on 2026-09-20, one carried a
-    # JATS DTD declaration and none declared an entity. Blocking DOCTYPE
-    # outright broke that article's full text, which is how this comment
-    # came to be written.
-    if "<!ENTITY" in xml[:8192].upper():
+    # JATS DTD declaration and none declared an entity.
+    #
+    # Two guards, because the first one alone was not enough. It used to
+    # sniff only `xml[:8192]`, and 9 KB of leading comment pushed the
+    # declaration past the window: the bomb parsed and expanded. The scan is
+    # now over the whole document — it is capped at _MAX_BYTES anyway — and
+    # expat is told to reject an entity declaration outright, which catches
+    # anything a textual scan could still miss.
+    if "<!ENTITY" in xml.upper():
         raise EuropePmcError(
             "Europe PMC full text declares XML entities, which this reader "
             "refuses — such a document can expand to many times its size. "
             "Use the links in fullTextUrls instead.")
 
     try:
-        root = ET.fromstring(xml)
+        root = ET.fromstring(xml, parser=_safe_parser())
+    except _EntityDeclared as e:
+        raise EuropePmcError(
+            "Europe PMC full text declares XML entities, which this reader "
+            "refuses — such a document can expand to many times its size. "
+            "Use the links in fullTextUrls instead.") from e
     except ET.ParseError as e:
         raise EuropePmcError(f"Europe PMC full text is not valid XML: {e}") from e
 

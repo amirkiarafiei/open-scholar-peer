@@ -58,7 +58,7 @@ paper.pdf ─► [0] onboard ─► [1] summarise ─► [2] retrieve ×3 ─►
 
 | | |
 |---|---|
-| **The library is prompts, not code** | 1,455 lines of canonical prompt markdown against 5,226 lines of Python and 2,254 of shell — and none of that code is review logic; it is sync tooling, search and installers. §3 |
+| **The library is prompts, not code** | 1,455 lines of canonical prompt markdown against 5,851 lines of Python and 2,301 of shell — and none of that code is review logic; it is sync tooling, search and installers. §3 |
 | **One source, fourteen adapters, generated** | Editing a per-tool directory is pointless; it is wiped on the next sync. §7 |
 | **Paper hyperparameters are enforced by file structure** | `k=3` retrieval rounds means three files must exist on disk, because a model will otherwise claim it did three rounds. §4 |
 | **The agent's memory is a JSON file** | `session.json` is the only thing connecting one slash command to the next. §5 |
@@ -78,7 +78,7 @@ paper.pdf ─► [0] onboard ─► [1] summarise ─► [2] retrieve ×3 ─►
 | **Search providers** | `arxiv`, `semanticscholar`, `scholarly` + BeautifulSoup; Europe PMC, Zenodo and OpenAlex over plain `requests` | Pinned, with upper bounds, in `mcp-server/requirements.txt`. Google Scholar is HTML scraping and is best-effort. |
 | **Runtime isolation** | A venv per user project at `.open-scholar-peer/mcp/` | Not published to PyPI; the installer builds it in place. |
 
-*Re-measured 2026-09-20: `cat extensions/_shared/{commands/*.md,skills/*/SKILL.md,rules/*.md,defaults/*.md} | wc -l` → **1342**; `cat scripts/*.py mcp-server/*.py mcp-server/providers/*.py | wc -l` → **1640**; `cat install.sh scripts/*.sh | wc -l` → **1922**. The shell figure grew most: M9 took `install.sh` from 88 lines to a 607-line TUI and added `scripts/_post_install.sh`.*
+*Re-measured 2026-09-20: `cat extensions/_shared/{commands/*.md,skills/*/SKILL.md,rules/*.md,defaults/*.md} | wc -l` → **1342**; `cat scripts/*.py mcp-server/*.py mcp-server/providers/*.py | wc -l` → **5,851**; `cat install.sh scripts/*.sh | wc -l` → **1922**. The shell figure grew most: M9 took `install.sh` from 88 lines to a 607-line TUI and added `scripts/_post_install.sh`.*
 
 ---
 
@@ -297,17 +297,19 @@ Every tool is atomic and stateless. The server decides nothing: which queries to
 keep, and when the corpus is sufficient are all the agent's judgement. This is a standing constraint set
 at t=0 — the design explicitly forbade a tool like `fetch_literature` — not an accident of scope. See
 `logs/BRAINSTORM.md` D3. Two caches exist and neither breaks that rule, because both change *when* an
-answer arrives and never *what* it is: one HTTP client per provider, and a two-entry cache of parsed
-arXiv text so paging through a paper does not re-download it (O17).
+answer arrives and never *what* it is: one HTTP client per provider, and an eight-entry cache of parsed
+arXiv text so paging through a paper does not re-download it, and one
+download per paper however many callers ask at once (D25, O17).
 
 Three operational details worth knowing.
 
 Every provider call goes through `_run()`, which pushes the synchronous call into a thread with
 `asyncio.wait_for` and a timeout (`OSP_CALL_TIMEOUT`, default 90 s). Because `asyncio.to_thread` cannot
 cancel a running thread, that timeout alone is not enough — a provider that hangs keeps working after
-the caller has given up. So each one also bounds itself from the inside: arXiv waits at most 25 s for
-the single connection its terms allow and caps a download at 45 s; Google Scholar's whole retry budget
-is 63 s; Europe PMC's transfer budget is 55 s. Each is pinned by a test, because the point is to stay
+the caller has given up. So each one also bounds itself from the inside: arXiv waits at most 15 s for
+the single connection its terms allow, pins the package to three attempts and caps a download at 35 s,
+for a worst case of 66 s on search and 78 s on a full-text read; Google Scholar's whole retry budget is
+63 s; Europe PMC's is 60 s. Each is pinned by a test, because the point is to stay
 under the 90 s ceiling.
 
 Every tool returns a consistent error envelope — `[{"error": …, "reason": …}]` for searches,

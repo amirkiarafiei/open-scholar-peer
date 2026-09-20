@@ -550,6 +550,14 @@ menu_databases() {
 # db_slug_to_index <slug> -> echoes index, or nothing when unknown.
 db_slug_to_index() {
   local want=$1 i=0
+  # Same aliases osp_mcp.py accepts, so a name that works in .env is not
+  # rejected here.
+  case "$want" in
+    europe_pmc|epmc|pmc) want="europepmc" ;;
+    s2|semanticscholar)  want="semantic_scholar" ;;
+    scholar|gscholar)    want="google_scholar" ;;
+    open_alex|openalex_works) want="openalex" ;;
+  esac
   while [ "$i" -lt "${#DB_SLUGS[@]}" ]; do
     [ "${DB_SLUGS[$i]}" = "$want" ] && { printf '%s' "$i"; return 0; }
     i=$((i + 1))
@@ -842,8 +850,11 @@ if [ -z "$SELECTED_IDX" ]; then
       printf '\n'; bad "Cancelled - nothing was installed."; exit 130
     fi
     SELECTED_DB="${DB_SELECTED[*]}"
-    collect_keys
   fi
+  # Offered whichever way the databases were chosen. When --sources named
+  # them, the picker is skipped but the keys still matter, and skipping each
+  # prompt is one keypress.
+  collect_keys
   # Only when step 2 actually drew something, or two rules print back to back.
   if [ "$SOURCES_FLAG_SEEN" -eq 0 ]; then printf '\n'; hr; printf '\n'; fi
 

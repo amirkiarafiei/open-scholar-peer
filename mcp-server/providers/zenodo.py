@@ -36,6 +36,10 @@ class ZenodoError(RuntimeError):
     """Zenodo could not answer. Never reported as an empty result."""
 
 
+class ZenodoRateLimited(ZenodoError):
+    """Zenodo answered 429. Temporary, and a token lifts it — not an outage."""
+
+
 class ZenodoNotFound(ZenodoError):
     """No such record. Zenodo is fine."""
 
@@ -57,7 +61,7 @@ def _get(path: str, params: dict[str, Any]) -> dict[str, Any]:
         # actually reaches is the hourly one.
         retry = resp.headers.get("Retry-After") or resp.headers.get("retry-after")
         wait = f" Retry-After: {retry}s." if retry else ""
-        raise ZenodoError(
+        raise ZenodoRateLimited(
             f"Zenodo rate limit reached (HTTP 429).{wait} Anonymous callers "
             "get roughly 30-60 requests a minute and 2,000 an hour. Set "
             "ZENODO_API_TOKEN in .env to raise it.")

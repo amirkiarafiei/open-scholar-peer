@@ -97,6 +97,13 @@ def _rate_limited() -> tuple:
         types.append(ArxivBusy)
     except Exception:
         pass
+    for mod, cls in (("openalex", "OpenAlexRateLimited"),
+                     ("zenodo", "ZenodoRateLimited")):
+        try:
+            types.append(getattr(__import__(f"providers.{mod}",
+                                            fromlist=[cls]), cls))
+        except Exception:
+            pass
     return tuple(types) or (RuntimeError,)
 
 

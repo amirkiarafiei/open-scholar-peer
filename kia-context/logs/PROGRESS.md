@@ -1023,6 +1023,41 @@ columns, because `hr()` assumes 80 and the frame wraps. Recorded as **O19**.
 
 ---
 
+### Independent review — 2026-09-20: Antigravity, Gemini 3.8 Flash (High)
+
+The owner asked for two reviews from outside this session, run through their own CLIs. This is the
+first. It read all five commits with no knowledge of how they were produced, ran the four verification
+gates, and was told to report only what the six in-session reviewers had missed. It found twelve
+things, and **one of them proves a claim already written into this file was false.**
+
+| | Defect | Severity | Fix |
+|---|---|---|---|
+| 1 | **The XML entity guard could be walked past.** It sniffed only `xml[:8192]`, so 9 KB of leading comment put the `<!ENTITY` declaration outside the window and the bomb parsed and expanded. **This file claimed the opposite** — the M12 review round said "pushing the DOCTYPE past the sniff window does not get through either", on the word of an in-session reviewer who tested it and got it wrong. Reproduced here in one command. | **HIGH** | Two guards now: the scan covers the whole document, which is capped anyway, and expat is given an `EntityDeclHandler` that refuses the declaration outright. Three padding variants tested, and an ordinary external-DTD DOCTYPE still parses. |
+| 2 | **The arXiv retry arithmetic was wrong, and so was the test that pinned it.** `Client._parse_feed` starts at `_try_index = 0` and recurses while `_try_index < num_retries`, so the default of 3 means **four** requests, not three. 4 × 20 s plus spacing is 89 s inside `results()` alone; with `_LOCK_WAIT` the worst case was **104 s** against a 90 s ceiling — on a thread that cannot be cancelled and that keeps the lock. | **HIGH** | `num_retries` is pinned at 2 (three attempts) and the timeout cut to 15 s. Worst case **66 s**, and the test now uses `num_retries + 1`. |
+| 3 | `get_arxiv_paper_details` on an unknown id **returned a dict**, so it never passed through `_err` and carried no `reason`. | MEDIUM | raises `ArxivNotFound`. |
+| 4 | `get_google_scholar_author_info` did the same for a missing profile, and re-raised a bare `ConnectionError`, which arrived as `failed` rather than `unavailable`. | MEDIUM | `GoogleScholarNotFound` — deliberately *not* a subclass of `GoogleScholarUnavailable`, because the provider answered — and anything else is wrapped. |
+| 5 | The Semantic Scholar package raises its own `ObjectNotFoundException` and `BadQueryParametersException`, neither of which `_err` knew, so both arrived as `failed`. | MEDIUM | matched by name, so a missing optional dependency cannot break error reporting. |
+| 6 | **A 429 from OpenAlex or Zenodo was reported as `unavailable`** — which by our own contract tells the agent to stop using the provider, when a key would fix it. | MEDIUM | `OpenAlexRateLimited` and `ZenodoRateLimited`. |
+| 7 | The live runner did not know those two types either, so a 429 from them **failed the run** as if it were a local defect. | MEDIUM | added to `_rate_limited()`. |
+| 8 | Stale figures in `ARCHITECTURE.md`: the cache is 8 entries not 2, `_LOCK_WAIT` 15 s not 25, the arXiv download budget 35 s not 45, Europe PMC 60 s not 55, and the Python line count 1,640 against a real 5,851. Rule 7 again. | LOW | every number re-derived from the source. |
+| 9 | `open_alex` was not an alias, although `europe_pmc`, `s2` and `scholar` all are — so a user writing it by analogy silently got all six databases, and `install.sh --sources open_alex` exited 2. | LOW | aliased in both, and `install.sh` now accepts every alias the server does. |
+| 10 | `openalex.get_work`'s own docstring still promised arXiv ids after the M13 round removed that promise from the tool. | LOW | corrected. |
+| 11 | `.bbl` files are collected now, so the reference list *is* in the output — while the `bibliography` field still said "not included". | LOW | the field reports what is actually there. |
+| 12 | `--sources` skipped the key prompt along with the picker, so an interactive user who pre-selected databases was never offered a key. | LOW | the prompt is offered whichever way the databases were chosen. |
+
+**What it cleared:** the tool gate across quoting, whitespace and aliases; bash 3.2 compliance and the
+`osp_env_set` trailing-newline handling; every resource bound in the archive reader and the lazy tar
+iteration; the windowing algorithm's byte-exact reassembly; `islice` on every paging call site; the
+percent-encoding fix; `sort` stripping `tldr`; and the structural block detector, which it confirmed no
+longer false-positives on papers about CAPTCHAs.
+
+**The lesson worth keeping.** Finding 1 existed because this file recorded a *reviewer's* conclusion as
+a fact. The in-session reviewer had tested the bypass, reported that it was safe, and I wrote that down
+without re-running it. Rule 7 says every number is measured; the same applies to every security claim.
+It is now a test, not a sentence.
+
+---
+
 ## 📎 Reference: links and measurements for M11–M13
 
 Kept here on purpose, so an implementation session that has lost the conversation still has every source.

@@ -42,12 +42,20 @@ from . import window as _window  # the function in providers/__init__.py
 # give up instead of queueing forever. Without both, a single hung socket
 # would wedge the provider for the life of the process.
 
-# arxiv.Client retries num_retries (3) times, so 3 x 20 s plus the 3 s spacing
-# stays inside the 90 s OSP_CALL_TIMEOUT.
-_HTTP_TIMEOUT = 20
+# The package makes num_retries + 1 attempts, not num_retries: _parse_feed
+# starts at _try_index 0 and recurses while _try_index < num_retries, so the
+# default of 3 means FOUR requests. At 20 s each plus the 3 s spacing that is
+# 89 s inside results() alone, and _LOCK_WAIT on top took the worst case to
+# 104 s — past the 90 s ceiling, on a thread that cannot be cancelled and
+# that goes on holding the lock after the caller has given up.
+#
+# Pinned here rather than left to the default. Worst case now:
+# 3 attempts x 15 s + 2 x 3 s spacing + _LOCK_WAIT 15 = 66 s.
+_HTTP_TIMEOUT = 15
+_ARXIV_RETRIES = 2          # => 3 attempts
 _LOCK_WAIT = 15
 
-_CLIENT = arxiv.Client()
+_CLIENT = arxiv.Client(num_retries=_ARXIV_RETRIES)
 _CLIENT_LOCK = threading.Lock()
 
 
@@ -97,6 +105,15 @@ _CATEGORY_RE = re.compile(r"[A-Za-z-]+(?:\.[A-Za-z-]+)?")
 
 _STAMP_MIN = "190001010000"
 _STAMP_MAX = "299912312359"
+
+
+class ArxivFullTextError(RuntimeError):
+    """Full text could not be produced. Never reported as empty text."""
+
+
+class ArxivNotFound(ArxivFullTextError):
+    """No such paper, or no source archive for it. arXiv is fine; the id
+    is not, so suggesting a PDF fallback here would be wrong."""
 
 
 def _paper_to_dict(paper: arxiv.Result) -> dict[str, Any]:
@@ -240,7 +257,9 @@ def get_details(arxiv_id: str) -> dict[str, Any]:
             # published with an empty feed, not an error.
             hint = (" That version may not exist — try the id without the"
                     " version suffix to get the latest one.")
-        return {"error": f"No paper found for arxiv_id={arxiv_id!r}.{hint}"}
+        # Raised, not returned: a dict here bypasses _err and arrives with
+        # no `reason`, which is the one field the agent branches on.
+        raise ArxivNotFound(f"No paper found for arxiv_id={arxiv_id!r}.{hint}")
     return _paper_to_dict(papers[0])
 
 
@@ -342,14 +361,6 @@ def _cache_put(key: str, text: str) -> None:
         _TEXT_CACHE[key] = text
         while len(_TEXT_CACHE) > _TEXT_CACHE_MAX:
             _TEXT_CACHE.popitem(last=False)
-
-
-class ArxivFullTextError(RuntimeError):
-    """Full text could not be produced. Never reported as empty text."""
-
-
-class ArxivNotFound(ArxivFullTextError):
-    """No source archive at that id. Suggesting a PDF here would be wrong."""
 
 
 def _throttle() -> None:
@@ -646,15 +657,26 @@ def read_paper(arxiv_id: str, max_chars: int = 50000, offset: int = 0) -> dict[s
         raise ValueError("read_arxiv_paper needs an arXiv id")
     url = f"https://arxiv.org/e-print/{arxiv_id}"
 
+    def _bibliography_note(body: str) -> str:
+        """Say honestly whether the reference list came through.
+
+        Most arXiv archives ship a compiled `.bbl`, which is collected and
+        appended as an orphan. When it is there the printed entries ARE
+        present, and claiming otherwise was simply wrong.
+        """
+        if "bibitem" in body:
+            return ("the compiled .bbl is appended at the end, so the "
+                    "reference entries are present — but \\citep{key} markers "
+                    "still do not map to their printed numbers")
+        return ("not included — resolve citations with "
+                "get_semantic_scholar_paper_references")
+
     def _serve(body: str) -> dict[str, Any]:
         out = _window(body, max_chars, offset)
         out["arxiv_id"] = arxiv_id
         out["format"] = "latex"
         out["source"] = url
-        # Said outright, because the source carries \citep{key} markers and
-        # no printed reference numbers, and the reference list is not in it.
-        out["bibliography"] = ("not included — resolve citations with "
-                               "get_semantic_scholar_paper_references")
+        out["bibliography"] = _bibliography_note(body)
         return out
 
     cached = _cache_get(arxiv_id)
