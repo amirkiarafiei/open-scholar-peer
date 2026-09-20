@@ -48,12 +48,12 @@ fi
 
 if printf '%s' "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" | grep -qi 'utf-*8'; then
   UTF8=1
-  LINE="─"; ON="◉"; OFF="○"; CHK="▣"; BOX="□"; ARROW="›"; TICK="✓"; CROSS="✗"; DOT="·"
+  ELL="…"; LINE="─"; ON="◉"; OFF="○"; CHK="▣"; BOX="□"; ARROW="›"; TICK="✓"; CROSS="✗"; DOT="·"
   TL="╭"; TR="╮"; BL="╰"; BR="╯"; VT="│"; UPDN="↑/↓"
   BTL="╔"; BTR="╗"; BBL="╚"; BBR="╝"; BVT="║"; BHZ="═"; BML="╠"; BMR="╣"
 else
   UTF8=0
-  LINE="-"; ON="(*)"; OFF="( )"; CHK="[x]"; BOX="[ ]"; ARROW=">"; TICK="+"; CROSS="x"; DOT="-"
+  ELL="~"; LINE="-"; ON="(*)"; OFF="( )"; CHK="[x]"; BOX="[ ]"; ARROW=">"; TICK="+"; CROSS="x"; DOT="-"
   TL="+"; TR="+"; BL="+"; BR="+"; VT="|"; UPDN="up/down"
   BTL="+"; BTR="+"; BBL="+"; BBR="+"; BVT="|"; BHZ="="; BML="+"; BMR="+"
 fi
@@ -380,8 +380,8 @@ menu_tools() {
       printf '\n'; drawn=$((drawn + 1))
       printf '     %s* Antigravity falls back to self-reflection if delegation is unavailable%s\n' \
         "$DIM" "$R"; drawn=$((drawn + 1))
-      printf '     %s%s move %s space or enter toggle %s a all %s n none %s tab jumps to the button%s\n' \
-        "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
+      printf '     %s%s move %s space toggle %s a all %s n none %s tab %s button%s\n' \
+        "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$ARROW" "$R"; drawn=$((drawn + 1))
       printf '     %spast the last tool is the %s button %s q cancel%s\n' \
         "$DIM" "$verb" "$DOT" "$R"; drawn=$((drawn + 1))
     else
@@ -502,7 +502,7 @@ menu_databases() {
       j=0
       while [ "$j" -lt "$n" ]; do
         if [ "${marks:$j:1}" = "1" ] && [ -n "${DB_ENVVARS[$j]}" ]; then
-          eval "kv=\${${DB_ENVVARS[$j]}:-}"
+          local kv; eval "kv=\${${DB_ENVVARS[$j]}:-}"
           [ -z "$kv" ] && { vnow="Continue"; break; }
         fi
         j=$((j + 1))
@@ -527,10 +527,10 @@ menu_databases() {
       printf '\n'; drawn=$((drawn + 1))
       printf '     %soptional key = works without one, but a key lifts the rate limit%s\n' \
         "$DIM" "$R"; drawn=$((drawn + 1))
-      printf '     %s%s move %s space toggle %s a all %s n none %s tab to the button%s\n' \
-        "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
+      printf '     %s%s move %s space toggle %s a all %s n none %s tab %s button%s\n' \
+        "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$ARROW" "$R"; drawn=$((drawn + 1))
       printf '     %spast the last row is the %s button %s q cancel%s\n' \
-        "$DIM" "$verb" "$DOT" "$R"; drawn=$((drawn + 1))
+        "$DIM" "$vnow" "$DOT" "$R"; drawn=$((drawn + 1))
     else
       printf '     %s%s %s space toggle %s a all %s tab to the button %s q cancel%s\n' \
         "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
@@ -665,6 +665,26 @@ export_source_env() {
 
 BOXW=74
 
+# Display columns, not characters and not bytes. `${#s}` counts characters in
+# a UTF-8 locale and bytes in C, and neither is the width a terminal gives a
+# CJK glyph — a path with wide characters pushed the right border out by one
+# column per glyph. `wc -L` knows; where it does not exist, fall back.
+_dispw() {
+  local n
+  n=$(printf '%s' "$1" | wc -L 2>/dev/null | tr -d ' ')
+  case "$n" in ''|*[!0-9]*) n=${#1} ;; esac
+  printf '%s' "$n"
+}
+
+# Fit the panel to the terminal. hr() already clamps at 78; the box did not,
+# so a narrow window shredded all seventeen rows.
+box_fit() {
+  local cols; cols=$(term_cols)
+  BOXW=74
+  [ "$cols" -lt 78 ] && BOXW=$(( cols - 4 ))
+  [ "$BOXW" -lt 24 ] && BOXW=24
+}
+
 box_rule() {   # box_rule <left glyph> <right glyph>
   local i=0 bar=""
   while [ "$i" -lt "$BOXW" ]; do bar="${bar}${BHZ}"; i=$((i + 1)); done
@@ -672,18 +692,21 @@ box_rule() {   # box_rule <left glyph> <right glyph>
 }
 
 box_row() {    # box_row <plain text>  |  box_row <plain text> <coloured text>
-  local plain=$1 shown=${2:-$1} pad
-  if [ "${#plain}" -gt "$BOXW" ]; then
-    plain=${plain:0:$((BOXW - 1))}; shown=$plain
+  local plain=$1 shown=${2:-$1} pad w
+  w=$(_dispw "$plain")
+  if [ "$w" -gt "$BOXW" ]; then
+    # Say it was cut. Silently truncating the line that tells the user where
+    # the thing installed is worse than an ugly line.
+    plain="${plain:0:$((BOXW - 1))}$ELL"; shown=$plain; w=$(_dispw "$plain")
   fi
-  pad=$(( BOXW - ${#plain} )); [ "$pad" -lt 0 ] && pad=0
+  pad=$(( BOXW - w )); [ "$pad" -lt 0 ] && pad=0
   printf '  %s%s%s%s%*s%s%s%s\n' \
     "$GRN" "$BVT" "$R" "$shown" "$pad" "" "$GRN" "$BVT" "$R"
 }
 
 # join_names <array-name> <index list> -> "A · B · C", truncated to fit
 join_names() {
-  local arr=$1 idx out="" name eval_expr
+  local arr=$1 out="" name i
   shift
   for i in $@; do
     eval "name=\${${arr}[$i]}"
@@ -920,7 +943,13 @@ if [ -z "$SELECTED_IDX" ]; then
   # says "Install". With --sources the database step is skipped and the tool
   # menu is last; otherwise the database menu is.
   tools_verb="Continue"
-  [ "$SOURCES_FLAG_SEEN" -eq 1 ] && tools_verb="Install"
+  # Install only when this really is the last thing: the database step must be
+  # skipped AND no key question can follow. Checking only the flag made the
+  # button promise an install and then ask one more question — the exact lie
+  # the per-frame check on the database menu exists to prevent.
+  if [ "$SOURCES_FLAG_SEEN" -eq 1 ] && ! keyed_databases_selected; then
+    tools_verb="Install"
+  fi
 
   # Step 2 — which agents.
   if ! menu_tools "Into $TARGET" "$tools_verb"; then
@@ -1005,7 +1034,11 @@ fi
 
 # What the user ended up with. Built before drawing so each row is one string
 # whose length can be measured.
-agents_line=$(join_names TOOL_NAMES $SELECTED_IDX)
+# What actually installed, not what was asked for: a failed tool was being
+# named as installed four lines under the line reporting it failed.
+agents_line=${installed_names# }
+[ -z "$agents_line" ] && agents_line="(none)"
+agents_line=$(printf '%s' "$agents_line" | sed "s/  */ $DOT /g")
 dbs_line=$(join_names DB_NAMES $SELECTED_DB)
 
 keys_set=0; keys_possible=0
@@ -1013,7 +1046,11 @@ for i in $SELECTED_DB; do
   var=${DB_ENVVARS[$i]}
   [ -z "$var" ] && continue
   keys_possible=$((keys_possible + 1))
+  # Either already in the environment, or typed during this run — collect_keys
+  # stores those under OSP_KEY_<name>, so reading only $var reported "none set"
+  # right after the user had entered one.
   eval "val=\${$var:-}"
+  [ -z "$val" ] && eval "val=\${OSP_KEY_$var:-}"
   [ -n "$val" ] && keys_set=$((keys_set + 1))
 done
 if [ "$keys_possible" -eq 0 ]; then
@@ -1024,6 +1061,7 @@ else
   keys_line="$keys_set of $keys_possible set $DOT the rest are optional"
 fi
 
+box_fit
 box_rule "$BTL" "$BTR"
 box_row  "  $TICK  Open ScholarPeer installed at:" \
          "  ${GRN}${B}${TICK}${R}  ${B}Open ScholarPeer installed at:${R}"
