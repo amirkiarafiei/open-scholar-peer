@@ -1025,23 +1025,30 @@ else
 fi
 
 box_rule "$BTL" "$BTR"
-box_row  "  $TICK  Open ScholarPeer installed" \
-         "  ${GRN}${B}${TICK}${R}  ${B}Open ScholarPeer installed${R}"
-box_row  "     $TARGET" "     ${DIM}${TARGET}${R}"
+box_row  "  $TICK  Open ScholarPeer installed at:" \
+         "  ${GRN}${B}${TICK}${R}  ${B}Open ScholarPeer installed at:${R}"
+box_row  "       $TARGET" "       ${DIM}${TARGET}${R}"
 if [ "$failed" -ne 0 ]; then
-  box_row "     $failed tool(s) failed:$failed_names" \
-          "     ${YEL}${failed} tool(s) failed:${failed_names}${R}"
+  box_row "       $failed tool(s) failed:$failed_names" \
+          "       ${YEL}${failed} tool(s) failed:${failed_names}${R}"
 fi
 box_rule "$BML" "$BMR"
-box_row  "  agents      $agents_line"
-box_row  "  databases   $dbs_line"
-box_row  "  api keys    $keys_line"
+box_row  ""
+box_row  "  AGENTS" "  ${B}AGENTS${R}"
+box_row  "       $agents_line"
+box_row  ""
+box_row  "  DATABASES" "  ${B}DATABASES${R}"
+box_row  "       $dbs_line"
+box_row  ""
+box_row  "  API KEYS" "  ${B}API KEYS${R}"
+box_row  "       $keys_line"
+box_row  ""
 box_rule "$BML" "$BMR"
 box_row  ""
 box_row  "  WHAT TO DO NEXT" "  ${B}WHAT TO DO NEXT${R}"
 box_row  ""
-box_row  "    1  Put the paper you want reviewed in this directory"
-box_row  "    2  Open your code agent here and run"
+box_row  "       1  Put the paper you want reviewed in this directory"
+box_row  "       2  Open your code agent here and run"
 box_row  ""
 box_row  "          /open-scholar-peer" "          ${CYN}${B}/open-scholar-peer${R}"
 box_row  ""
