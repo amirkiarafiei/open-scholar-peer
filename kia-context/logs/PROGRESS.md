@@ -979,6 +979,48 @@ byte-identical, the file ends up `chmod 600`, and no `.env.XXXXXX` is left behin
 
 ---
 
+### Follow-up — 2026-09-20: a blocker this milestone introduced
+
+The installer reviewer reported after M13 was committed, and found a release blocker **created by this
+milestone**.
+
+**`bash install.sh --tool claude > install.log` refused to run.** The no-TTY guard used to hang off
+`TOOL_FLAG_SEEN`; adding `--sources` re-parented it to `SOURCES_FLAG_SEEN`, so naming a tool up front no
+longer satisfied it. Every pipe, `tee`, redirect, CI job and Dockerfile broke, along with the line in
+`README.md` that recommends exactly that command — and it silently contradicted finding 7 of the M9
+review, which had established that the gate tests whether the *flag was seen*. Confirmed by running the
+same command against `7b3c6da`: exit 0 and a full install before, exit 1 after. The mirror case,
+`--sources` with no `--tool` and no terminal, fell through to the menu and died with "Cancelled" instead
+of the helpful message.
+
+The guard is its own block again, testing `TOOL_FLAG_SEEN`. Re-verified across the matrix: `--tool` with
+stdout redirected installs and writes all six sources; `--tool --sources arxiv` installs and writes one;
+`--sources` alone and a bare invocation both give the guidance and exit 1; a bogus database exits 2.
+
+**A `.env` with no trailing newline lost the database choice.** The rewrite branch handled a missing
+final newline; the append branch did not, so `LAST_LINE=nonewline` + `OSP_SOURCES=...` became one line —
+corrupting the user's last setting *and* leaving `grep -c '^OSP_SOURCES='` at zero, so the picker's whole
+output went nowhere. Fixed and tested.
+
+Four more from the same pass: Zenodo's token was documented in `.env` but the picker labelled Zenodo
+free and never offered it, so it is optional-key now like the other two; a pasted key keeps its
+whitespace and a silently-wrong key is worse than none, so keys are trimmed; `osp_env_set` returned 1 on
+a `mktemp` failure, which under `set -e` killed a *sourced* installer after the venv was already built,
+so it warns and carries on; and the variable **name** spliced into an `eval` is now validated, because a
+per-tool installer can be run directly with `OSP_KEY_NAMES` inherited from the environment.
+
+**What the installer pass cleared, having driven it rather than read it:** the `drawn` line-count
+arithmetic is exact at every layout tier for both menus — 17/17, 13/13, 9/9, 7/7, 5/5 — checked by
+matching each rewind against the newlines the previous frame actually emitted. The resize defect did not
+return, across fifteen heights and every layout boundary including a six-times hard 40↔6 flip. Keys,
+cursor balance on all seven exit paths, four non-UTF-8 locales, the full `--sources` matrix, and a typed
+key appearing nowhere in the pty byte stream: all clean. bash 3.2 respected.
+
+**One real gap left open, pre-existing and shared with the tools menu:** both smear below about 78
+columns, because `hr()` assumes 80 and the frame wraps. Recorded as **O19**.
+
+---
+
 ## 📎 Reference: links and measurements for M11–M13
 
 Kept here on purpose, so an implementation session that has lost the conversation still has every source.

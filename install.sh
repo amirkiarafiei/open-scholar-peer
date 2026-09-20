@@ -91,7 +91,7 @@ DB_SLUGS=(
 # break the promise that OSP runs on open sources (MANIFESTO rule 1).
 DB_ENVVARS=(
   "" "SEMANTIC_SCHOLAR_API_KEY" ""
-  "" "" "OPENALEX_API_KEY"
+  "" "ZENODO_API_TOKEN" "OPENALEX_API_KEY"
 )
 DB_DOMAINS=(
   "preprints $DOT CS, physics, maths"
@@ -503,9 +503,9 @@ menu_databases() {
       printf '\n'; drawn=$((drawn + 1))
       printf '     %soptional key = works without one, but a key lifts the rate limit%s\n' \
         "$DIM" "$R"; drawn=$((drawn + 1))
-      printf '     %s%s move %s space or enter toggle %s a all %s n none %s tab jumps to Continue%s\n' \
+      printf '     %s%s move %s space toggle %s a all %s n none %s tab to Continue%s\n' \
         "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
-      printf '     %spast the last database is the Continue button %s q cancel%s\n' \
+      printf '     %spast the last row is the Continue button %s q cancel%s\n' \
         "$DIM" "$DOT" "$R"; drawn=$((drawn + 1))
     else
       printf '     %s%s %s space toggle %s a all %s tab Continue %s q cancel%s\n' \
@@ -578,6 +578,9 @@ collect_keys() {
     printf '  %s key for %s%s%s (Enter to skip): ' "$var" "$CYN" "$name" "$R"
     IFS= read -rs val <"$TTY" || val=""
     printf '\n'
+    # Trim: a key pasted from a web page often brings a leading or trailing
+    # space, and a key that is silently wrong is worse than no key.
+    val=$(printf '%s' "$val" | tr -d '[:space:]')
     if [ -n "$val" ]; then
       OSP_KEY_NAMES="$OSP_KEY_NAMES $var"
       eval "OSP_KEY_$var=\$val"
@@ -774,7 +777,14 @@ if [ "$SOURCES_FLAG_SEEN" -eq 1 ]; then
   done
   IFS=$OLDIFS
   if [ -z "$SELECTED_DB" ]; then bad "--sources given but no database parsed."; exit 2; fi
-elif [ "$HAVE_TTY" -eq 0 ]; then
+fi
+
+# The no-TTY refusal belongs to --tool, and nothing else. M13 briefly hung it
+# off the --sources block instead, which meant `install.sh --tool claude > log`
+# refused to run at all — breaking every pipe, tee, CI job and Dockerfile, and
+# contradicting the README. It tests whether the TOOL flag was seen, which is
+# also what finding 7 of the M9 review established.
+if [ "$TOOL_FLAG_SEEN" -eq 0 ] && [ "$HAVE_TTY" -eq 0 ]; then
   hr
   if [ -r "$TTY" ]; then
     bad "Standard output is not a terminal, and no --tool given."
@@ -834,7 +844,8 @@ if [ -z "$SELECTED_IDX" ]; then
     SELECTED_DB="${DB_SELECTED[*]}"
     collect_keys
   fi
-  printf '\n'; hr; printf '\n'
+  # Only when step 2 actually drew something, or two rules print back to back.
+  if [ "$SOURCES_FLAG_SEEN" -eq 0 ]; then printf '\n'; hr; printf '\n'; fi
 
   # Step 3 — which tools. Its Install button starts the work.
   if ! menu_tools "Into $TARGET"; then

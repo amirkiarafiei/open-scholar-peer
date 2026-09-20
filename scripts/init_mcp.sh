@@ -189,7 +189,11 @@ osp_env_set() {
   if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
     # Rewrite in place without sed -i, which differs on BSD and GNU.
     local tmp
-    tmp=$(mktemp "${ENV_FILE}.XXXXXX") || return 1
+    if ! tmp=$(mktemp "${ENV_FILE}.XXXXXX" 2>/dev/null); then
+      echo -e "  ${YELLOW}⚠️  Could not update ${key} in .env (cannot write"
+      echo -e "     a temporary file here). Set it by hand.${NC}"
+      return 0
+    fi
     while IFS= read -r line || [[ -n "$line" ]]; do
       if [[ "$line" == "${key}="* ]]; then
         printf '%s=%s\n' "$key" "$value"
@@ -197,8 +201,18 @@ osp_env_set() {
         printf '%s\n' "$line"
       fi
     done < "$ENV_FILE" > "$tmp"
-    mv "$tmp" "$ENV_FILE"
+    if ! mv "$tmp" "$ENV_FILE" 2>/dev/null; then
+      rm -f "$tmp"
+      echo -e "  ${YELLOW}⚠️  Could not update ${key} in .env. Set it by hand.${NC}"
+      return 0
+    fi
   else
+    # A file with no final newline would otherwise have our line glued onto
+    # the user's last setting: `LAST=value` + `OSP_SOURCES=...` on one line,
+    # corrupting their setting AND losing the database choice silently.
+    if [ -s "$ENV_FILE" ] && [ -n "$(tail -c1 "$ENV_FILE")" ]; then
+      printf '\n' >> "$ENV_FILE"
+    fi
     printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
   fi
 }
@@ -207,6 +221,13 @@ if [[ -n "$OSP_SOURCES" ]]; then
   osp_env_set "OSP_SOURCES" "$OSP_SOURCES"
 fi
 for _osp_var in $OSP_KEY_NAMES; do
+  # The name is spliced into an eval, so accept only real variable names.
+  # install.sh always passes safe ones, but a per-tool installer can be run
+  # directly with OSP_KEY_NAMES inherited from the environment.
+  if [[ ! "$_osp_var" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    echo -e "  ${YELLOW}⚠️  Ignoring malformed key name: ${_osp_var}${NC}"
+    continue
+  fi
   eval "_osp_val=\${OSP_KEY_$_osp_var:-}"
   osp_env_set "$_osp_var" "$_osp_val"
 done
