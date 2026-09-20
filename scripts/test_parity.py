@@ -111,6 +111,72 @@ def check_tool(tool: ToolSpec, commands: list[str], skills: list[str], defaults:
     return issues
 
 
+def _display_width(s: str) -> int:
+    """Columns a terminal gives this string. `─` and `●` are one column, three bytes."""
+    import unicodedata
+    return sum(
+        0 if (unicodedata.combining(c) or c == "\ufe0f")
+        else (2 if unicodedata.east_asian_width(c) in "WF" else 1)
+        for c in s
+    )
+
+
+def check_phase_blocks() -> list[str]:
+    """The phase block has exactly one definition. Guard its shape so it cannot drift back.
+
+    M16 replaced seven hand-written closing blocks with one template. The thing that let them
+    drift in the first place was that nothing checked them, so this does.
+    """
+    import re
+
+    tmpl = SHARED / "defaults" / "phase_block_template.md"
+    if not tmpl.exists():
+        return ["defaults/phase_block_template.md is missing — the phase block has no definition"]
+
+    issues: list[str] = []
+    text = tmpl.read_text(encoding="utf-8")
+
+    # Only the template may carry a rendered rail; everywhere else supplies values.
+    rail_re = re.compile(r"──\s*[●◐○]")
+    for f in sorted(SHARED.rglob("*.md")):
+        if f == tmpl:
+            continue
+        if rail_re.search(f.read_text(encoding="utf-8")):
+            issues.append(
+                f"{f.relative_to(SHARED)} renders a rail. Only defaults/phase_block_template.md may — "
+                f"everything else gives values, or the design drifts again."
+            )
+
+    # Inside the template: rules exactly 60 columns, nothing past 72, 7 markers, value column at 12.
+    inside, block, start = False, [], 0
+    blocks = 0
+    for n, line in enumerate(text.split("\n"), 1):
+        if line.strip().startswith("```"):
+            if inside and block and block[0].startswith("──"):
+                blocks += 1
+                top, bottom = block[0], block[-1]
+                if _display_width(top) != 60:
+                    issues.append(f"phase_block_template.md:{start}: top rule is {_display_width(top)} columns, not 60")
+                if _display_width(bottom) != 60:
+                    issues.append(f"phase_block_template.md:{start}: bottom rule is {_display_width(bottom)} columns, not 60")
+                marks = [c for c in top if c in "●◐○"]
+                if len(marks) != 7:
+                    issues.append(f"phase_block_template.md:{start}: rail has {len(marks)} markers, not 7 (one per phase)")
+                for k, b in enumerate(block):
+                    if _display_width(b) > 72:
+                        issues.append(f"phase_block_template.md:{start + k}: {_display_width(b)} columns, over the 72 cap")
+                    if b.startswith("  ") and not b.startswith("   ") and len(b) > 11 and b[10] != " ":
+                        issues.append(f"phase_block_template.md:{start + k}: value column is not at 12")
+            block, inside, start = [], not inside, n + 1
+            continue
+        if inside:
+            block.append(line)
+
+    if blocks < 2:
+        issues.append(f"phase_block_template.md shows {blocks} example block(s); it needs an opening and a closing one")
+    return issues
+
+
 def main() -> int:
     if not SHARED.exists():
         print(f"ERROR: {SHARED} does not exist.", file=sys.stderr)
@@ -133,6 +199,12 @@ def main() -> int:
             all_issues.extend(issues)
         else:
             print(f"  ✓ {tool.name}: parity OK")
+
+    block_issues = check_phase_blocks()
+    if block_issues:
+        all_issues.extend(block_issues)
+    else:
+        print("  ✓ phase block: one definition, 60-column rules, 7 markers")
 
     if all_issues:
         print("\n  ❌ Drift detected:")

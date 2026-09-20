@@ -65,6 +65,17 @@ The banner at the top of this command says which mode your tool is in.
 
 Whichever you end up using, record it as `Mode:` in each file's `## Method` section.
 
+## Opening block (print before step 1)
+
+Render the **opening block** exactly as `defaults/phase_block_template.md` defines it — that
+file holds the rail, the rules and the widths, and it is the only place they are written down.
+This is phase **6 of 7** (`qa`); read the rail's state from `session.json`. Values:
+
+      DOING    probe each criterion, and verify the answers
+      READS    .brain/raw/ summary, narrative, baselines
+      WRITES   .brain/raw/05_qa_<slug>.md   (one per criterion)
+      COST     <C>x<N> subagent calls, ~45 s each
+
 ## Steps
 
 1. Read all input artifacts listed in the frontmatter.
@@ -82,15 +93,17 @@ Whichever you end up using, record it as `Mode:` in each file's `## Method` sect
    - `phases.qa.notes = "<C> criteria × <N> pairs each; <M> discrepancies flagged"`
    - `resume_from = "review"`
 
-## User-facing report (print after all criteria complete)
+## Closing block (print when the phase ends)
 
-```
-── Q&A Engine complete ──────────────────────────────────────
-Ran <N> pairs across <C> criteria — <M> discrepancies flagged.
-↳ .brain/raw/05_qa_<slug>.md  (one file per criterion)
-Next: /6-osp-review
-─────────────────────────────────────────────────────────────
-```
+Render the **closing block** from `defaults/phase_block_template.md`. **Build the rail from
+`session.json`** — `●` only where `status == "completed"`, `○` for `pending` *and* `skipped`. A
+phase the user skipped must not show as done.
+Drop `BLOCKED` and `NOTE` when there is nothing to put on them. Values:
+
+      DONE     <N> pairs, <C> criteria, <M> discrepancies
+               .brain/raw/05_qa_<slug>.md
+      NEXT     /6-osp-review   write the review
+
 
 ## Re-run behavior
 

@@ -26,6 +26,18 @@ command directly, so it falls to you: for every earlier phase still `pending`, s
 cannot tell the difference.
 
 
+## Opening block (print before step 1)
+
+Render the **opening block** exactly as `defaults/phase_block_template.md` defines it — that
+file holds the rail, the rules and the widths, and it is the only place they are written down.
+This is phase **4 of 7** (`historian`); read the rail's state from `session.json`. Values:
+
+      DOING    build the sub-field's chronological narrative
+      READS    .brain/raw/01_structured_summary.md
+               .brain/raw/02_retrieved_literature.md
+      WRITES   .brain/raw/03_domain_narrative.md
+      COST     ~2 min, no external calls
+
 ## Steps
 
 1. Read `.brain/session.json`, `.brain/raw/01_structured_summary.md`, `.brain/raw/02_retrieved_literature.md`.
@@ -39,16 +51,18 @@ cannot tell the difference.
    - `phases.historian.notes = "<N> eras identified; paper placed in era <N>"`
    - `resume_from = "baseline_scout"`
 
-## User-facing report (print after completion)
+## Closing block (print when the phase ends)
 
-```
-── Domain Narrative complete ─────────────────────────────
-Mapped <N> historical eras; placed paper in era <E>.
-Closest precedents: <2-3 bullet items>
-↳ .brain/raw/03_domain_narrative.md
-Next: /4-osp-baseline-scout
-──────────────────────────────────────────────────────────
-```
+Render the **closing block** from `defaults/phase_block_template.md`. **Build the rail from
+`session.json`** — `●` only where `status == "completed"`, `○` for `pending` *and* `skipped`. A
+phase the user skipped must not show as done.
+Drop `BLOCKED` and `NOTE` when there is nothing to put on them. Values:
+
+      DONE     <N> eras mapped, paper placed in era <E>
+               closest precedents: <2-3, comma separated>
+               .brain/raw/03_domain_narrative.md
+      NEXT     /4-osp-baseline-scout   audit the baselines
+
 
 ## Re-run behavior
 

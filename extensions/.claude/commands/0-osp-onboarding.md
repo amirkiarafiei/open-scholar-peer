@@ -13,6 +13,18 @@ criteria and with no venue.
 
 Invoke the `osp-orchestrator` skill (no domain persona needed for this step).
 
+## Opening block (print before step 1)
+
+Render the **opening block** exactly as `defaults/phase_block_template.md` defines it — that
+file holds the rail, the rules and the widths, and it is the only place they are written down.
+This is phase **1 of 7** (`onboarding`); read the rail's state from `session.json`. Values:
+
+      DOING    set the venue, find the paper, scaffold criteria
+      READS    .brain/input/   whatever you put there
+      WRITES   .brain/raw/00_review_guidelines.md
+               .brain/session.json
+      COST     ~1 min, one web search
+
 ## Steps
 
 ### 1. Read session state
@@ -90,16 +102,18 @@ This is a **structural nudge**: when the Query Agent runs in Phase 5, the empty 
 - `phases.onboarding.notes = "Venue: <name>; criteria: <N>; paper: <path>; guidelines source: <web|user|generic>"`
 - `resume_from = "summary"`
 
-### 9. User-facing report
+## Closing block (print when the phase ends)
 
-Print:
-```
-── Onboarding complete ───────────────────────────────────
-Venue: <name>  |  Criteria: <N>  |  Guidelines: <web|user|generic>
-Paper located and text-version confirmed.
-↳ .brain/raw/00_review_guidelines.md
-↳ .brain/raw/05_qa_<slug>.md  (pre-scaffolded for each criterion)
-↳ .brain/session.json  (qa_pairs_per_criterion: <N>)
-Next: /1-osp-summary
-─────────────────────────────────────────────────────────
-```
+Render the **closing block** from `defaults/phase_block_template.md`. **Build the rail from
+`session.json`** — `●` only where `status == "completed"`, `○` for `pending` *and* `skipped`. A
+phase the user skipped must not show as done.
+Drop `BLOCKED` and `NOTE` when there is nothing to put on them. Values:
+
+      DONE     venue <name>, <N> criteria, guidelines <source>
+               paper found, readable text confirmed
+               .brain/raw/00_review_guidelines.md
+               .brain/raw/05_qa_<slug>.md   (<N> pairs each)
+               .brain/session.json
+      BLOCKED  web search for the venue's form — <reason>
+      NEXT     /1-osp-summary   compress the paper
+

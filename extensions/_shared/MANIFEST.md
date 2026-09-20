@@ -45,6 +45,7 @@ This file enumerates every canonical asset under `extensions/_shared/`. It is do
 | `defaults/generic_review_guidelines.md` | `/0-osp-onboarding` when venue lookup fails and user has no guidelines |
 | `defaults/qa_pair_template.md` | `/5-osp-qa` to enforce the N-pair structure per criterion (N = `session.json.qa_pairs_per_criterion`, default 2) |
 | `defaults/round_strategy_template.md` | `/2-osp-literature` — one file per round actually run |
+| `defaults/phase_block_template.md` | every phase — the one definition of the opening and closing blocks printed to the **terminal**. Never written to `.brain/` |
 
 ## What gets generated where
 

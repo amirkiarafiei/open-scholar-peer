@@ -44,16 +44,18 @@ say once what it costs and carry on.
 
 ## Output format when invoked as `/open-scholar-peer`
 
-Print a status snapshot:
+Print the status block defined in `defaults/phase_block_template.md`, labelled `OPEN SCHOLARPEER`.
+The rail answers "where am I" with no words; read its state from `session.json`. Values:
 
-```
-Open ScholarPeer — review status
-  Venue:    <name> (criteria: <N> active)
-  Paper:    <path or "not yet loaded">
-  Progress: [X] onboarding [X] summary [~] literature [ ] historian [ ] baseline_scout [ ] qa [ ] review
-            [X] done   [~] skipped or cut short   [ ] not run yet
-  Next:     /N-osp-<step>   ←  <one-line description>
-```
+    STEPS    onboard·summary·lit·history·baseline·qa·review
+    VENUE    <name>   ·   <N> criteria
+    PAPER    <path, or "not yet loaded">
+    NOTE     literature stopped at round 2 of 3, by choice
+    NEXT     /3-osp-historian   the narrative  (recommended)
+          /5-osp-qa        skip ahead
+
+`NOTE` lists every phase whose `status` is `skipped`, plus any round or criterion left short — drop
+the label when there are none. `NEXT` recommends first, then offers.
 
 Then wait for the user to invoke the next command. Do NOT proactively run it for them — phase boundaries are intentional.
 

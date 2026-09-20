@@ -32,6 +32,17 @@ command directly, so it falls to you: for every earlier phase still `pending`, s
 cannot tell the difference.
 
 
+## Opening block (print before step 1)
+
+Render the **opening block** exactly as `defaults/phase_block_template.md` defines it — that
+file holds the rail, the rules and the widths, and it is the only place they are written down.
+This is phase **7 of 7** (`review`); read the rail's state from `session.json`. Values:
+
+      DOING    synthesise everything into one review
+      READS    every .brain/raw/ artifact that exists
+      WRITES   .brain/review/final_review.md
+      COST     ~2 min, no external calls
+
 ## Steps
 
 1. Read all artifacts listed in the frontmatter.
@@ -45,15 +56,18 @@ cannot tell the difference.
    - `phases.review.notes = "Final review written; decision: <recommendation>"`
    - `resume_from = "completed"`
 
-## User-facing report (print after completion)
+## Closing block (print when the phase ends)
 
-```
-── Review complete ───────────────────────────────────────
-Decision: <Reject | Major revision | Minor revision | Accept>
-↳ .brain/review/final_review.md
-To revise any phase, re-invoke its slash command.
-──────────────────────────────────────────────────────────
-```
+Render the **closing block** from `defaults/phase_block_template.md`. **Build the rail from
+`session.json`** — `●` only where `status == "completed"`, `○` for `pending` *and* `skipped`. A
+phase the user skipped must not show as done.
+Drop `BLOCKED` and `NOTE` when there is nothing to put on them. Values:
+
+      DONE     decision: <from the reviewer's scale>
+               .brain/review/final_review.md
+      NOTE     <what the review did not have, or omit this line>
+      NEXT     re-run any phase, then /6-osp-review again
+
 
 ## Re-run behavior
 

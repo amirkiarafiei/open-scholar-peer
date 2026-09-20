@@ -13,17 +13,9 @@ You are the **Literature Review & Expansion Agent**. Standard LLMs hallucinate n
 
 ## Opening orientation (print before starting any retrieval)
 
-Tell the user which round is about to run, what its goal is, and what tools will be used:
-
-```
-── Literature Review — Round N/3 ────────────────────────
-Strategy: <sub-domain anchor | method anchor | temporal expansion>
-Goal:     <one sentence — what this round is trying to find>
-Tools:    <the ones you picked for this round, named>  +  web search
-Writes:   .brain/raw/02N_literature_round<N>.md
-Effort:   ~8-12 tool calls, ~1-3 min
-─────────────────────────────────────────────────────────
-```
+Print the **opening block** defined in `defaults/phase_block_template.md`, labelled
+`LITERATURE  round N of 3`. `DOING` names this round's anchor and what it is looking for; `WRITES`
+is the round file; `COST` is roughly 8-12 searches. Read the rail's state from `session.json`.
 
 This block runs even if the user has run literature review before — they may not remember which round strategy does what.
 

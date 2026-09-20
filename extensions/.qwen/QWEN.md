@@ -34,20 +34,16 @@ These rules apply automatically in any project where Open ScholarPeer is install
 - **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) where subagents are unavailable — always on Mistral Vibe and OpenHands, and on any tool where the delegation call does not work. Finishing the phase in the weaker mode beats stopping it; note which mode was used in the artifact.
 - Self-reflection is a documented weaker substitute. See `KNOWN_LIMITATIONS.md`.
 
-## User orientation (required on every phase invocation)
+## Phase blocks (required on every phase invocation)
 
-Before doing any work in a phase, print a short orientation block so the user always knows where they are:
+Every phase prints two blocks: an opening one before it does any work, and a closing one when it
+ends. **`defaults/phase_block_template.md` is the only definition of their format** — the rail, the
+rules, the labels, the widths and the ASCII fallback all live there and nowhere else. Do not restate
+them, here or in a command.
 
-```
-── <Phase name> ──────────────────────────────────────────
-What this phase does: <one sentence — the agent's role and why this step exists>
-Reads:  <list the key input files>
-Writes: <list the key output files>
-Effort: <rough estimate — "~2 min, ~N tool calls", etc.>
-──────────────────────────────────────────────────────────
-```
-
-After the phase completes, the closing report block must say **what was done** (findings, counts, highlights), not just which command to run next. The user is learning the system as they go — orient them every time, even on repeat runs.
+Each phase's command supplies only the values. The closing block must say **what was done** —
+findings, counts, highlights — not merely which command comes next. The user is learning the system
+as they go, so orient them every time, including on a re-run.
 
 ## Output discipline
 
@@ -61,7 +57,7 @@ After the phase completes, the closing report block must say **what was done** (
   - Claude Code / Cursor / Gemini CLI / Codex CLI / Qwen Code / OpenCode / Junie / Kiro: `@.brain/raw/01_summary.md`
   - Copilot CLI: `#file:.brain/raw/01_summary.md`
   - Kimi Code / Mistral Vibe / OpenHands / Antigravity: plain path (no native shorthand)
-- Always pair the native reference with the `↳ .brain/…` path in the terminal report block so users can locate files regardless of tool.
+- Always pair the native reference with the plain `.brain/…` path on the continuation line under `DONE`, so users can locate the file whatever their tool does with markdown.
 
 ## File ownership
 

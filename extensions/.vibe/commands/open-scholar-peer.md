@@ -16,15 +16,19 @@ Invoke the `osp-orchestrator` skill.
 
 1. **Read `.brain/session.json`.** If missing, the user has not initialized OSP in this project. Tell them to run the installer (`bash install.sh`) or, if `.brain/` is just missing, `bash scripts/init_brain.sh`.
 
-2. **Print a status snapshot:**
-   ```
-   Open ScholarPeer — review status
-     Venue:    <name> (criteria: <N> active)
-     Paper:    <path or "not yet loaded">
-     Progress: [X] onboarding [X] summary [~] literature [ ] historian [ ] baseline_scout [ ] qa [ ] review
-               [X] done   [~] skipped or cut short   [ ] not run yet
-     Next:     /N-osp-<step>   ←  <one-line description>
-   ```
+2. **Print the status block** defined in `defaults/phase_block_template.md`, labelled
+   `OPEN SCHOLARPEER`. The rail is the whole point here — it answers "where am I" with no words.
+   Values:
+
+       STEPS    onboard·summary·lit·history·baseline·qa·review
+       VENUE    <name>   ·   <N> criteria
+       PAPER    <path, or "not yet loaded">
+       NOTE     literature stopped at round 2 of 3, by choice
+       NEXT     /3-osp-historian   the narrative  (recommended)
+                /5-osp-qa           skip ahead
+
+   `NOTE` lists every phase whose `status` is `skipped`, plus any round or criterion left short;
+   drop the label when there are none. `NEXT` recommends first, then offers.
 
 3. **Route based on `resume_from`:**
 

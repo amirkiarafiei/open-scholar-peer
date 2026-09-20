@@ -42,6 +42,17 @@ Before activating the skill, verify in this order:
 
 Do NOT silently proceed with a PDF path on the assumption that the host tool will handle it. Even if it can, the conversion result becomes part of the audit trail and must be in `.brain/input/paper.md`.
 
+## Opening block (print before step 1)
+
+Render the **opening block** exactly as `defaults/phase_block_template.md` defines it — that
+file holds the rail, the rules and the widths, and it is the only place they are written down.
+This is phase **2 of 7** (`summary`); read the rail's state from `session.json`. Values:
+
+      DOING    compress the paper into claims and evidence
+      READS    .brain/input/paper.md
+      WRITES   .brain/raw/01_structured_summary.md
+      COST     ~2 min, no external calls
+
 ## Steps
 
 1. Run the hard input guard above.
@@ -54,15 +65,17 @@ Do NOT silently proceed with a PDF path on the assumption that the host tool wil
    - `phases.summary.notes = "<N> claims, <M> evidence items, method identified"`
    - `resume_from = "literature"`
 
-## User-facing report (print after completion)
+## Closing block (print when the phase ends)
 
-```
-── Internal Compression complete ────────────────────────
-Extracted <N> claims, <M> pieces of evidence, and the proposed method.
-↳ .brain/raw/01_structured_summary.md
-Next: /2-osp-literature
-─────────────────────────────────────────────────────────
-```
+Render the **closing block** from `defaults/phase_block_template.md`. **Build the rail from
+`session.json`** — `●` only where `status == "completed"`, `○` for `pending` *and* `skipped`. A
+phase the user skipped must not show as done.
+Drop `BLOCKED` and `NOTE` when there is nothing to put on them. Values:
+
+      DONE     <N> claims, <M> evidence items, method identified
+               .brain/raw/01_structured_summary.md
+      NEXT     /2-osp-literature   retrieve prior work
+
 
 ## Re-run behavior
 

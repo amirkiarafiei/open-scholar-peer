@@ -31,6 +31,17 @@ installed, plus native web search. Expect 1-3 minutes per round.
 | 2 | `method-anchor` | Search using the method's name and key technical terms |
 | 3 | `temporal-expansion` | Filter to last 12 months; include arXiv pre-prints, concurrent submissions |
 
+## Opening block (print before the round starts)
+
+Render the **opening block** exactly as `defaults/phase_block_template.md` defines it — that file
+holds the rail, the rules and the widths, and is the only place they are written down. This is phase
+**3 of 7** (`literature`); the rail carries `◐` while rounds remain. Values:
+
+      DOING    <the anchor for this round, in one line>
+      READS    .brain/raw/01_structured_summary.md
+      WRITES   .brain/raw/02<a|b|c>_literature_round<N>.md
+      COST     ~1-3 min, ~8-12 searches
+
 ## Steps
 
 1. Read `.brain/session.json`.
@@ -60,15 +71,19 @@ installed, plus native web search. Expect 1-3 minutes per round.
    - If they stopped early, set `phases.literature.skip_reason` to their reason, or
      `"user moved on after round <N>"` if they gave none.
 
-5. Print a progress banner and brief findings summary:
-   ```
-   ── Literature Review ────────────────────────────────────
-   Round N/3 complete  (anchor: <anchor-name>)
-   Papers retained this round: <n>
-   Top finds: <2-3 bullet highlights>
-   ↳ .brain/raw/02N_literature_round<N>.md
-   ─────────────────────────────────────────────────────────
-   ```
+5. Print the **closing block** from `defaults/phase_block_template.md`, labelled
+   `LITERATURE  round N of 3`. Values:
+
+       DONE     <n> retained, <m> excluded  ·  <anchor-name>
+                top finds: <2-3 short phrases>
+                .brain/raw/02<a|b|c>_literature_round<N>.md
+       BLOCKED  <source> — <reason>, nothing was searched
+       NEXT     /2-osp-literature   round N+1  (recommended)
+                /3-osp-historian    move on with <N> rounds
+
+   One `BLOCKED` line per provider that failed — an error is not an empty result; drop the label
+   when nothing failed. After round 3 the literature marker becomes `●` and the label reads
+   `LITERATURE  3 rounds`; after a deliberate stop it stays `◐` and reads `LITERATURE  <N> rounds`.
    - If `rounds_completed < 3`, give both routes, recommended first: `/2-osp-literature` for round
      N+1, or `/3-osp-historian` to move on with what is already retained. Say once what the thinner
      corpus costs — a round-2 stop means the method-anchor search never ran, so concurrent work using
