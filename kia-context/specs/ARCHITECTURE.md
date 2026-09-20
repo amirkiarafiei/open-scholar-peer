@@ -12,7 +12,7 @@ authority: blueprint
 writes: agent, when explicitly refactoring
 status: active
 covers: the system as it is today
-last_updated: "2026-09-20"
+last_updated: "2026-09-21"
 ---
 
 # 🏗️ ARCHITECTURE — How this project is built
@@ -60,7 +60,7 @@ paper.pdf ─► [0] onboard ─► [1] summarise ─► [2] retrieve ×3 ─►
 |---|---|
 | **The library is prompts, not code** | 1,455 lines of canonical prompt markdown against 5,851 lines of Python and 2,301 of shell — and none of that code is review logic; it is sync tooling, search and installers. §3 |
 | **One source, fourteen adapters, generated** | Editing a per-tool directory is pointless; it is wiped on the next sync. §7 |
-| **Paper hyperparameters are enforced by file structure** | `k=3` retrieval rounds means three files must exist on disk, because a model will otherwise claim it did three rounds. §4 |
+| **Paper hyperparameters are enforced by file structure** | Each retrieval round the user runs must leave its own file on disk, because a model will otherwise claim rounds it did not run. `k=3` is the recommendation; the count is the user's. §4 |
 | **The agent's memory is a JSON file** | `session.json` is the only thing connecting one slash command to the next. §5 |
 | **The orchestrator never does review work** | It reads state and names the next command. Every write is done by the persona skill that owns the step. §5 |
 | **The search server is deliberately stupid** | It fetches. It never decides what to fetch. §9 |
@@ -133,7 +133,7 @@ The paper specifies temperature 0.7, `k=3` retrieval rounds, and `N_QA=10` Q&A p
 | Paper says | Here | How |
 |---|---|---|
 | temperature 0.7 | **gone** | Not reachable from a prompt file. Unreproducible, and documented as such. |
-| `k = 3` rounds | **structural** | Three separate round files must exist. The Literature skill calls this non-negotiable precisely because a model will otherwise assert it ran three rounds without doing so. |
+| `k = 3` rounds | **structural, per round run** | One file per round actually run, written before the next begins — non-negotiable, because a model will otherwise assert rounds it did not run. **How many rounds is the user's choice** (D29, M15): the phase completes at 1, 2 or 3 with `rounds_completed` recorded. |
 | `N_QA = 10` | **user-chosen, default 2** | Persisted as `session.json.qa_pairs_per_criterion`; the template renders `### Q1`…`### QN` from it. Ten pairs across every criterion was judged too expensive as a default. |
 
 ### Q&A: two agents, or one agent pretending
@@ -257,8 +257,8 @@ means they are strong conventions rather than hard gates — worth knowing when 
 
 | Refusal | Where |
 |---|---|
-| **Advance without a readable paper.** If `.brain/input/paper.md` is absent and only a PDF exists, convert it or stop. Explicitly: do not assume the host tool will cope. | `commands/1-osp-summary.md` — "Hard input guard" |
-| **Advance out of order.** A step whose prerequisite phase is not `completed` refuses and names the command to run first. | every numbered command; `osp-orchestrator` |
+| **Advance without a readable paper.** If `.brain/input/paper.md` is absent and only a PDF exists, convert it or stop. Do not assume the host tool will cope. **Since M15 this is the only refusal left in the system** — with no paper there is nothing to review. | `commands/0-osp-onboarding.md`, `commands/1-osp-summary.md` |
+| ~~**Advance out of order.**~~ **Removed in M15 (D29).** No step is a gate: a phase with missing inputs states what it is therefore missing, records the skip in `session.json` and its Provenance, and runs. The final review names its own gaps under `## What this review did not have`. | `rules/osp-rules.md` §Brain protocol 4–5 |
 | **Auto-advance at all.** Phase boundaries exist so the user can read the artifact. | `commands/open-scholar-peer.md` |
 | **Invent an era.** The Historian may not create an era with fewer than two supporting papers in the corpus. | `osp-historian-agent` |
 | **Blame the authors for the future.** The Scout may not flag a baseline published after the paper's cutoff. | `osp-baseline-scout-agent` |

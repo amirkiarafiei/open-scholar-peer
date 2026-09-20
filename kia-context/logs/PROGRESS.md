@@ -1304,13 +1304,13 @@ they have drifted.
 
 ### Deliverables
 
-- [ ] **R1 — the chosen design, specified once.** The top rule carries the rail and the phase name: `── ●──●──◐──○──○──○──○ ── LITERATURE round 2 of 3 ────`. Below it, left-hand labels — `DONE`, `BLOCKED`, `NEXT` — with values in an aligned column. A closing rule. Nothing else.
-- [ ] **R2 — the rail states progress, including unfinished work.** `●` done, `◐` in progress or deliberately left short, `○` not started. The half-filled marker is how M15's "you may move on" becomes visible without a sentence.
-- [ ] **R3 — `BLOCKED` is its own label.** A provider that failed gets its own line, never buried in prose. Reporting a block as "no results" is the failure M11 existed to remove and it must not return through the reporting layer.
-- [ ] **R4 — `NEXT` offers, it does not command.** Where M15 allows a choice, both routes appear: the recommended one first, the alternative under it.
-- [ ] **R5 — one definition, seven users.** Put the template in `defaults/` and have each command reference it, the way `round_strategy_template.md` already works. Seven hand-maintained copies is how the current blocks drifted.
-- [ ] **R6 — it must read unrendered.** Not every one of the 14 tools renders markdown, so the block is plain text with box-drawing characters and must be legible raw. Give an ASCII fallback for the rail, as `install.sh` does for its glyphs.
-- [ ] **R7 — least text.** The owner's actual requirement. Each block should be shorter than the one it replaces; count the lines before and after.
+- [x] **R1 — the chosen design, specified once.** The top rule carries the rail and the phase name: `── ●──●──◐──○──○──○──○ ── LITERATURE round 2 of 3 ────`. Below it, left-hand labels — `DONE`, `BLOCKED`, `NEXT` — with values in an aligned column. A closing rule. Nothing else.
+- [x] **R2 — the rail states progress, including unfinished work.** `●` done, `◐` in progress or deliberately left short, `○` not started. The half-filled marker is how M15's "you may move on" becomes visible without a sentence.
+- [x] **R3 — `BLOCKED` is its own label.** A provider that failed gets its own line, never buried in prose. Reporting a block as "no results" is the failure M11 existed to remove and it must not return through the reporting layer.
+- [x] **R4 — `NEXT` offers, it does not command.** Where M15 allows a choice, both routes appear: the recommended one first, the alternative under it.
+- [x] **R5 — one definition, seven users.** Put the template in `defaults/` and have each command reference it, the way `round_strategy_template.md` already works. Seven hand-maintained copies is how the current blocks drifted.
+- [x] **R6 — it must read unrendered.** Not every one of the 14 tools renders markdown, so the block is plain text with box-drawing characters and must be legible raw. Give an ASCII fallback for the rail, as `install.sh` does for its glyphs.
+- [x] **R7 — least text.** The owner's actual requirement. Each block should be shorter than the one it replaces; count the lines before and after.
 
 ### Acceptance criteria
 
@@ -1322,6 +1322,64 @@ they have drifted.
 6. `sync_adapters.py --check` and `test_parity.py` pass.
 
 **Depends on:** M15 — the rail renders M15's states, so the behaviour has to exist before the display can be honest about it.
+
+### Report — 2026-09-21
+
+**Seven drifted blocks became one definition.** `defaults/phase_block_template.md` holds the rail, the
+rules, the widths, the labels and the ASCII fallback. Every command supplies values only.
+
+| | Before | After |
+|---|---|---|
+| files carrying a rendered rail | 7 hand-written blocks | **1** |
+| opening blocks (mandated by `rules/osp-rules.md` all along) | **1 of 7** | 7 of 7 |
+| closing-block lines, total | 40 | 42 — **40** typical, with `BLOCKED`/`NOTE` absent |
+| rule width | 57–61, inconsistent | **60**, every one |
+| anything checking the shape | nothing | `test_parity.py::check_phase_blocks` |
+
+**The first attempt failed this milestone's own main goal.** Each command carried a rendered copy of its
+block *as well as* a reference to the template — **11 files with a rail in them**. Changing the design
+tomorrow meant 11 hand edits, and they would drift again exactly as the originals had. Measured it,
+then restructured. R5 now holds literally: one file.
+
+### Review round — 2026-09-21
+
+One subagent, lens: *raw-text renderer — judge it as bytes on a screen, count display columns not bytes.*
+It read the pre-restructure tree and independently reached the same verdict on R5 ("seventeen copies…
+the milestone bought a convention, not a mechanism"), which the restructure had already answered.
+**Nine further defects, all fixed.** The two worst were in `rules/osp-rules.md` — the file loaded on
+**every** invocation, and the one file this milestone had never thought to open:
+
+1. **It carried a second, competing definition of the block.** 58-column rules, no rail,
+   `Reads:`/`Writes:`/`Effort:` instead of `READS`/`WRITES`/`COST`, and a line 80 columns wide — over
+   the cap the new template sets. An always-on rule beats a command file, so the old format would have
+   won.
+2. **It mandated the `↳` glyph**, which now appears in zero blocks.
+
+The rest:
+
+- **`/4-osp-baseline-scout` runs 6–10 live searches and had no `BLOCKED` label**, and none of the
+  error-vs-empty prose. A provider that 429s would print *"`<N>` missing baselines"* — a partial search
+  reported as a finding. **That is the M11 bug, one phase over.** Same gap, weaker, in onboarding's
+  venue lookup.
+- **The closing blocks said "rail advanced by one" without saying to read `session.json`**, so a skipped
+  phase would have rendered as done. Silent degradation, which M15 exists to forbid.
+- **The dispatcher printed seven anonymous circles** and kept its key in prose the user never sees.
+- The printed decision menu omitted `Weak Reject`, which the reviewer skill can return.
+- **Content overhung the rules by up to 9 columns**, so the block was not bounded in raw text at all.
+  Every value now fits inside 60. `(recommended)` is dropped where only one route exists — the layout
+  already says it.
+- The ASCII fallback named no trigger and covered only the rail glyphs, not the `—` and `·` that also
+  appear inside blocks.
+
+**The mechanism, which is the part that lasts.** `test_parity.py` gains `check_phase_blocks()`: it fails
+if any file but the template renders a rail, if a rule is not exactly 60 display columns, if the rail is
+not seven markers, if a line passes 72, or if the value column moves. **Verified by injecting both
+faults and watching it fail.** Nothing checked these blocks before — which is how seven of them drifted.
+
+**Acceptance:** 1 ✅ (one definition, enforced) · 2 ✅ (40 → 40 typical; six of seven equal or shorter,
+literature +1 for a `BLOCKED` label the old block could not express) · 3 ✅ (all 14 rail positions
+verified mechanically) · 4 ✅ · 5 ✅ · 6 ✅.
+
 
 ---
 
