@@ -707,8 +707,10 @@ Two details that decide whether the output is usable at all:
 3 on the rate gap and 60 on the request: **88 seconds**, which leaves the agent a bare "timed out"
 instead of an error it can act on. Worse, `requests`' `timeout` applies to each socket operation, not to
 the transfer, so a slow trickle had no bound at all. Both streaming loops now carry a wall-clock
-deadline — 45 s for arXiv, 55 s for Europe PMC — giving worst cases of 73 s and 55 s, each pinned by a
-test. Europe PMC's search was also calling `resp.json()` straight off the stream, walking around the
+deadline, each pinned by a test. (The figures first recorded here — 73 s and 55 s — were themselves
+wrong, and the review round below says how: `requests` spends its timeout on the connect *and* on each
+read, and an in-loop check overshoots by one read. The honest worst cases are **78 s** for arXiv and
+**60 s** for Europe PMC, and the tests assert those.) Europe PMC's search was also calling `resp.json()` straight off the stream, walking around the
 size cap it had just set; it now reads through the cap.
 
 ### The prompts
