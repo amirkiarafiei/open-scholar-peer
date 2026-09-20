@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import os
 import random
+import re
 import time
 from typing import Any
 
@@ -57,15 +58,34 @@ USER_AGENTS = [
     "Gecko/20100101 Firefox/133.0",
 ]
 
-# Text that only ever appears on an interstitial, never on a results page.
-BLOCK_MARKERS = (
+# Structure, not prose.
+#
+# The first version of this matched phrases: "unusual traffic", "not a robot",
+# "our systems have detected". Google echoes your query into the page title
+# and into every result, so a genuine results page for a paper called
+# "I'm not a robot: (Deep) Learning to Break Semantic Image CAPTCHAs" was
+# reported as a block. That is the B9 bug inverted — telling the agent the
+# provider is down when it answered perfectly well — and it would have hit
+# exactly the reviews most likely to search for those words.
+#
+# These are HTML element ids and classes from the interstitial itself. They
+# are matched only in attribute position, so a paper that merely discusses
+# reCAPTCHA cannot trip them.
+_BLOCK_ATTR_VALUES = (
     "gs_captcha_ccl",
-    "captcharedirect",
-    "/sorry/index",
-    "unusual traffic",
-    "not a robot",
-    "our systems have detected",
+    "g-recaptcha",
+    "recaptcha",
+    "rc-doscaptcha-body",
+    "captcha-form",
 )
+_BLOCK_ATTR_RE = re.compile(
+    r"""(?:id|class|name)\s*=\s*["']?[^"'>]*(?:"""
+    + "|".join(re.escape(v) for v in _BLOCK_ATTR_VALUES)
+    + r""")""",
+    re.IGNORECASE,
+)
+# Google's own redirect target, and the form it posts back to.
+_SORRY_RE = re.compile(r"""/sorry/(?:index|image)|CaptchaRedirect""", re.IGNORECASE)
 
 # The whole retry budget must fit inside OSP_CALL_TIMEOUT (90 s by default),
 # or the tool layer times out first and the caller gets a bare "timed out"
@@ -97,16 +117,24 @@ def _proxies() -> dict[str, str] | None:
 def is_block_page(status_code: int, html: str, final_url: str = "") -> bool:
     """True when the response is an interstitial rather than search results.
 
-    Pure, so it is unit tested offline against saved pages. It must never key
-    off the absence of result rows: a real search with no matches also has
-    none.
+    Pure, so it is unit tested offline against saved pages. Two rules it must
+    keep, and they pull in opposite directions:
+
+    * Never key off the absence of result rows. A real search with no matches
+      also has none.
+    * Never key off words that could appear in a paper. Google puts the query
+      and the results into the page, so any phrase a researcher might search
+      for will eventually show up on a perfectly good page.
+
+    So: the HTTP status, the redirect target, and element ids belonging to
+    the interstitial's own markup.
     """
-    if status_code in (429, 403):
+    if status_code in (429, 403, 503):
         return True
-    if "/sorry/" in (final_url or ""):
+    if _SORRY_RE.search(final_url or ""):
         return True
-    low = (html or "").lower()
-    return any(marker in low for marker in BLOCK_MARKERS)
+    text = html or ""
+    return bool(_BLOCK_ATTR_RE.search(text) or _SORRY_RE.search(text))
 
 
 def _parse_results(html: str, num_results: int) -> list[dict[str, Any]]:
@@ -191,7 +219,9 @@ def _fetch(params: dict[str, str], max_attempts: int = _MAX_ATTEMPTS) -> str:
 
 def search(query: str, num_results: int = 5) -> list[dict[str, Any]]:
     num_results = max(1, min(int(num_results), 20))
-    html = _fetch({"q": query})
+    # `num` was never sent, so Google returned its default page of 10 and a
+    # request for 20 could not be satisfied.
+    html = _fetch({"q": query, "num": str(num_results)})
     return _parse_results(html, num_results)
 
 
@@ -202,7 +232,7 @@ def search_advanced(
     num_results: int = 5,
 ) -> list[dict[str, Any]]:
     num_results = max(1, min(int(num_results), 20))
-    params: dict[str, str] = {"q": query}
+    params: dict[str, str] = {"q": query, "num": str(num_results)}
     if author:
         params["as_auth"] = author
     if year_range:

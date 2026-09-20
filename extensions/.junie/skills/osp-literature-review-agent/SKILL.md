@@ -53,6 +53,9 @@ In **every round** you MUST dispatch **all available retrieval tools simultaneou
 - `osp-mcp.search_google_scholar` — broader coverage: blogs, theses, workshop papers
 - `osp-mcp.search_europe_pmc` — medicine, biology, public health, psychology. Add
   it to every round when the paper is in those fields; arXiv barely covers them.
+- `osp-mcp.search_openalex` — all fields, ~327 million works. Every record says
+  whether the work was retracted, and `fwci` compares its citations against the
+  average for its own field and year, which travels better than a raw count.
 - Native `Web Search` (when your host tool provides one) — non-academic mentions, news, blog summaries
 
 Not every tool in this list is installed in every project — the user chooses
@@ -77,6 +80,10 @@ date in the keywords and do not filter the results yourself:
 Use `match_semantic_scholar_title(title)` to turn a title into a paperId. It
 returns one paper and a `matchScore`. The endpoint always returns its best
 guess, so a low score means no real match — check it before trusting the id.
+
+`osp-mcp.search_zenodo` is **not** a literature tool. It finds code, datasets
+and software releases, not papers. Using it in a round pollutes the corpus.
+It belongs to the Baseline Scout.
 
 Relying on only one source biases the corpus. A paper that ranks low in one index may be the top result in another.
 

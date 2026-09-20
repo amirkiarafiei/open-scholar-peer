@@ -79,17 +79,38 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ### Semantic Scholar returns 429 Too Many Requests
 
-Anonymous rate limits are tight. Get a free API key (https://www.semanticscholar.org/product/api#api-key) and export it:
+Anonymous access is one pool shared by every unauthenticated caller everywhere, so it is throttled unpredictably. Get a free API key (https://www.semanticscholar.org/product/api#api-key) and put it in `.env` at your project root:
 ```bash
-export SEMANTIC_SCHOLAR_API_KEY=sk-...
+SEMANTIC_SCHOLAR_API_KEY=sk-...
 ```
-Add to your shell profile (`~/.zshrc`, `~/.bashrc`) so it persists across sessions. Restart your AI tool to pick up the new env var.
+The MCP server reads `.env` on startup, so restart your AI tool to pick it up. The tool reports this failure with `reason: rate_limited` — it is not an empty result, and should not be recorded as "no papers found".
 
 ### `osp` server starts but tools return errors
 
-Each tool has consistent error envelopes. Look for entries like `[{"error": "..."}]` in the AI tool's output and check:
-- Network connectivity (`curl https://api.semanticscholar.org/graph/v1/paper/search?query=test`)
-- For Google Scholar tools: HTML scraping may have hit a rate limit; wait 5-10 minutes.
+Each tool has a consistent error envelope carrying a `reason`, which tells you what to do:
+
+| `reason` | What it means | What to do |
+|---|---|---|
+| `blocked` | Google refused — 429, 403 or a captcha page | Set `GOOGLE_SCHOLAR_PROXY_URL`, or drop Google Scholar. Waiting rarely helps; the block is on your address. |
+| `rate_limited` | Semantic Scholar answered 429 | Set `SEMANTIC_SCHOLAR_API_KEY` in `.env`. |
+| `busy` | another arXiv call held the one connection its terms allow | Transient. Retry. |
+| `timeout` | the call ran past `OSP_CALL_TIMEOUT` | Raise it in `.env`, or check the network. |
+| `not_found` | no such paper or article | Check the identifier. The provider is fine. |
+| `bad_request` | the arguments were wrong | Read the tool's docstring. |
+
+An empty list `[]` is not an error. It means the search ran and matched nothing.
+
+Also check network connectivity: `curl https://api.semanticscholar.org/graph/v1/paper/search?query=test`
+
+### A tool I expected is missing
+
+Tools are registered per database, and the installer asked which you wanted. Check `OSP_SOURCES` in `.env` at your project root — remove the line to enable all six databases, or add the one you want:
+
+```bash
+OSP_SOURCES=arxiv,semantic_scholar,google_scholar,europepmc,zenodo,openalex
+```
+
+Restart your AI tool afterwards. The server logs which databases are on at startup.
 
 ---
 

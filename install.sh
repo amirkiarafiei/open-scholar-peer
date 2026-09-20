@@ -75,6 +75,33 @@ TOOL_HINTS=(
   "subagents $DOT .agents/mcp_config.json auto"
 )
 
+# The paper databases the MCP server can use. Index-aligned, like the tools.
+# Built here because the domain column uses $DOT, which the locale decides.
+# Order matches mcp-server/README.md.
+DB_NAMES=(
+  "arXiv" "Semantic Scholar" "Google Scholar"
+  "Europe PMC" "Zenodo" "OpenAlex"
+)
+DB_SLUGS=(
+  "arxiv" "semantic_scholar" "google_scholar"
+  "europepmc" "zenodo" "openalex"
+)
+# Empty means no key exists at all. Otherwise it is the .env variable an
+# optional key goes in. No database here ever REQUIRES a key — that would
+# break the promise that OSP runs on open sources (MANIFESTO rule 1).
+DB_ENVVARS=(
+  "" "SEMANTIC_SCHOLAR_API_KEY" ""
+  "" "" "OPENALEX_API_KEY"
+)
+DB_DOMAINS=(
+  "preprints $DOT CS, physics, maths"
+  "all fields $DOT citation graph"
+  "broad $DOT best-effort scraping"
+  "biomedical $DOT full text"
+  "code, data and software releases"
+  "all fields $DOT retraction flags"
+)
+
 term_cols() { local c; c=$(tput cols 2>/dev/null) || c=80; [ "$c" -gt 0 ] 2>/dev/null || c=80; printf '%s' "$c"; }
 term_rows() { local r; r=$(tput lines 2>/dev/null) || r=24; [ "$r" -gt 0 ] 2>/dev/null || r=24; printf '%s' "$r"; }
 
@@ -390,6 +417,197 @@ menu_tools() {
   done
 }
 
+
+# The six paper databases, plus one focusable Continue button underneath.
+# Same keyboard model as menu_tools, and the same rule about geometry: the
+# window can be resized mid-menu, so every frame re-measures.
+DB_SELECTED=()
+menu_databases() {
+  local n=${#DB_NAMES[@]}
+  local cur=0 top=0 drawn=0 i key win rows count layout marks=""
+
+  # Everything on by default: the safe answer for someone who does not know
+  # yet what they will review.
+  i=0; while [ "$i" -lt "$n" ]; do marks="${marks}1"; i=$((i + 1)); done
+
+  hide_cursor
+  while :; do
+    rows=$(term_rows)
+    layout=0
+    [ $(( 13 + n )) -ge "$rows" ] && layout=1
+    [ $((  9 + n )) -ge "$rows" ] && layout=2
+    win=$n
+    if [ "$layout" -eq 2 ]; then
+      win=$(( rows - 5 )); [ "$win" -lt 1 ] && win=1; [ "$win" -gt "$n" ] && win=$n
+    fi
+    [ "$cur" -gt "$n" ] && cur=$n
+    if [ "$cur" -lt "$n" ]; then
+      [ "$cur" -lt "$top" ] && top=$cur
+      [ "$cur" -ge $((top + win)) ] && top=$((cur - win + 1))
+    fi
+
+    count=0; i=0
+    while [ "$i" -lt "$n" ]; do
+      [ "${marks:$i:1}" = "1" ] && count=$((count + 1))
+      i=$((i + 1))
+    done
+
+    rewind "$drawn"; drawn=0
+    printf '  %sWhich paper databases should the agent search?%s   %s%d of %d selected%s\n' \
+      "$B" "$R" "$DIM" "$count" "$n" "$R"; drawn=$((drawn + 1))
+    if [ "$layout" -eq 0 ]; then
+      printf '  %sFewer databases means a shorter tool list and faster searches.%s\n' \
+        "$DIM" "$R"; drawn=$((drawn + 1))
+    fi
+    if [ "$layout" -lt 2 ]; then printf '\n'; drawn=$((drawn + 1)); fi
+
+    i=$top
+    while [ "$i" -lt $((top + win)) ] && [ "$i" -lt "$n" ]; do
+      local box name keycol domain
+      if [ "${marks:$i:1}" = "1" ]; then box="${GRN}${CHK}${R}"; else box="${GRY}${BOX}${R}"; fi
+      name=${DB_NAMES[$i]}; domain=${DB_DOMAINS[$i]}
+      if [ -n "${DB_ENVVARS[$i]}" ]; then
+        keycol="${YEL}optional key${R}"
+      else
+        keycol="${GRN}free${R}        "
+      fi
+      if [ "$i" -eq "$cur" ]; then
+        printf ' %s %s %s%-17s%s %s  %s%s%s\n' \
+          "$ARROW" "$box" "$CYN$B" "$name" "$R" "$keycol" "$DIM" "$domain" "$R"
+      else
+        printf '   %s %-17s %s  %s%s%s\n' "$box" "$name" "$keycol" "$GRY" "$domain" "$R"
+      fi
+      drawn=$((drawn + 1)); i=$((i + 1))
+    done
+
+    if [ "$win" -lt "$n" ]; then
+      printf '   %s%d-%d of %d%s\n' "$DIM" $((top + 1)) "$i" "$n" "$R"; drawn=$((drawn + 1))
+    fi
+
+    if [ "$layout" -lt 2 ]; then printf '\n'; drawn=$((drawn + 1)); fi
+    local blabel benabled=1 bfocus=0
+    if [ "$count" -gt 0 ]; then
+      if [ "$count" -eq 1 ]; then blabel="Continue with 1 database"; else blabel="Continue with $count databases"; fi
+    else
+      benabled=0; blabel="Continue"
+      [ "$cur" -eq "$n" ] && blabel="Pick at least one database"
+    fi
+    [ "$cur" -eq "$n" ] && bfocus=1
+    if [ "$layout" -eq 2 ]; then
+      draw_button_inline "$blabel" "$bfocus" "$benabled"; drawn=$((drawn + 1))
+    else
+      draw_button "$blabel" "$bfocus" "$benabled"; drawn=$((drawn + 3))
+    fi
+
+    if [ "$layout" -eq 0 ]; then
+      printf '\n'; drawn=$((drawn + 1))
+      printf '     %soptional key = works without one, but a key lifts the rate limit%s\n' \
+        "$DIM" "$R"; drawn=$((drawn + 1))
+      printf '     %s%s move %s space or enter toggle %s a all %s n none %s tab jumps to Continue%s\n' \
+        "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
+      printf '     %spast the last database is the Continue button %s q cancel%s\n' \
+        "$DIM" "$DOT" "$R"; drawn=$((drawn + 1))
+    else
+      printf '     %s%s %s space toggle %s a all %s tab Continue %s q cancel%s\n' \
+        "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
+    fi
+
+    key=$(read_key)
+    case "$key" in
+      up | k)   cur=$((cur - 1)); [ "$cur" -lt 0 ] && cur=$n ;;
+      down | j) cur=$((cur + 1)); [ "$cur" -gt "$n" ] && cur=0 ;;
+      pgup)     cur=$((cur - win)); [ "$cur" -lt 0 ] && cur=0 ;;
+      pgdn)     cur=$((cur + win)); [ "$cur" -gt "$n" ] && cur=$n ;;
+      home)     cur=0 ;;
+      end | tab) cur=$n ;;
+      a | A)    marks=""; i=0; while [ "$i" -lt "$n" ]; do marks="${marks}1"; i=$((i + 1)); done ;;
+      n | N)    marks=""; i=0; while [ "$i" -lt "$n" ]; do marks="${marks}0"; i=$((i + 1)); done ;;
+      space | left | right | h | l)
+        if [ "$cur" -lt "$n" ]; then
+          if [ "${marks:$cur:1}" = "1" ]; then marks="${marks:0:$cur}0${marks:$((cur + 1))}"
+          else marks="${marks:0:$cur}1${marks:$((cur + 1))}"; fi
+        fi ;;
+      enter)
+        if [ "$cur" -lt "$n" ]; then
+          if [ "${marks:$cur:1}" = "1" ]; then marks="${marks:0:$cur}0${marks:$((cur + 1))}"
+          else marks="${marks:0:$cur}1${marks:$((cur + 1))}"; fi
+        elif [ "$count" -gt 0 ]; then
+          DB_SELECTED=()
+          i=0; while [ "$i" -lt "$n" ]; do
+            [ "${marks:$i:1}" = "1" ] && DB_SELECTED[${#DB_SELECTED[@]}]=$i
+            i=$((i + 1))
+          done
+          rewind "$drawn"; show_cursor
+          printf '  %s%s%s %sSelected %d database(s)%s\n' \
+            "$GRN" "$TICK" "$R" "$DIM" "${#DB_SELECTED[@]}" "$R"
+          return 0
+        fi ;;
+      q | esc | eof) show_cursor; DB_SELECTED=(); return 1 ;;
+    esac
+  done
+}
+
+# db_slug_to_index <slug> -> echoes index, or nothing when unknown.
+db_slug_to_index() {
+  local want=$1 i=0
+  while [ "$i" -lt "${#DB_SLUGS[@]}" ]; do
+    [ "${DB_SLUGS[$i]}" = "$want" ] && { printf '%s' "$i"; return 0; }
+    i=$((i + 1))
+  done
+  return 1
+}
+
+# Offer to type each optional key, once, before anything is installed.
+# A key is NEVER required to finish: every database here answers without one.
+# Keys are read with `read -rs`, so they are not echoed and never reach a log.
+collect_keys() {
+  local i idx var name val asked=0
+  for idx in $SELECTED_DB; do
+    var=${DB_ENVVARS[$idx]}
+    [ -z "$var" ] && continue
+    name=${DB_NAMES[$idx]}
+    # Already in the environment? Leave it alone and say nothing.
+    eval "val=\${$var:-}"
+    [ -n "$val" ] && continue
+    if [ "$asked" -eq 0 ]; then
+      printf '\n  %sOptional API keys%s\n' "$B" "$R"
+      printf '  %sPress Enter to skip any of these. Everything works without them.%s\n\n' \
+        "$DIM" "$R"
+      asked=1
+    fi
+    printf '  %s key for %s%s%s (Enter to skip): ' "$var" "$CYN" "$name" "$R"
+    IFS= read -rs val <"$TTY" || val=""
+    printf '\n'
+    if [ -n "$val" ]; then
+      OSP_KEY_NAMES="$OSP_KEY_NAMES $var"
+      eval "OSP_KEY_$var=\$val"
+      ok "$name key noted"
+    else
+      printf '     %sskipped%s\n' "$DIM" "$R"
+    fi
+  done
+  if [ "$asked" -eq 1 ]; then
+    printf '\n  %sYou can add or change keys later in %s.env%s%s\n' \
+      "$DIM" "$B" "$R$DIM" "$R"
+  fi
+}
+
+# Turn the chosen indices into the OSP_SOURCES line the MCP server reads, and
+# export the keys so init_mcp.sh can write them. init_mcp.sh is sourced once
+# per selected tool, so it must not prompt; everything is collected here.
+export_source_env() {
+  local idx list=""
+  for idx in $SELECTED_DB; do
+    if [ -z "$list" ]; then list="${DB_SLUGS[$idx]}"; else list="$list,${DB_SLUGS[$idx]}"; fi
+  done
+  [ -n "$list" ] && export OSP_SOURCES="$list"
+  export OSP_KEY_NAMES
+  local var
+  for var in $OSP_KEY_NAMES; do
+    eval "export OSP_KEY_$var"
+  done
+}
+
 # ----------------------------------------------------------- tool lookup ---
 
 # slug_to_index <slug> -> echoes index, or nothing when unknown.
@@ -417,6 +635,8 @@ Open ScholarPeer installer
   bash install.sh                        interactive install into the current directory
   bash install.sh --tool claude          install for one tool, no prompts
   bash install.sh --tool claude,cursor   install for several
+  bash install.sh --sources arxiv,openalex
+                                        choose the paper databases, no prompts
   bash install.sh --dir ~/papers/acl     install into another directory
   bash install.sh --list                 list tool slugs
   bash install.sh -h | --help            this message
@@ -435,12 +655,18 @@ USAGE
 TARGET=""
 CLI_TOOLS=""
 TOOL_FLAG_SEEN=0
+SOURCES_FLAG_SEEN=0
+CLI_SOURCES=""
+SELECTED_DB=""
+OSP_KEY_NAMES=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -h | --help) usage; exit 0 ;;
     --list)      list_slugs; exit 0 ;;
     --tool)      CLI_TOOLS="$2"; TOOL_FLAG_SEEN=1; shift 2 || { bad "--tool needs a value"; exit 2; } ;;
     --tool=*)    CLI_TOOLS="${1#--tool=}"; TOOL_FLAG_SEEN=1; shift ;;
+    --sources)   CLI_SOURCES="$2"; SOURCES_FLAG_SEEN=1; shift 2 || { bad "--sources needs a value"; exit 2; } ;;
+    --sources=*) CLI_SOURCES="${1#--sources=}"; SOURCES_FLAG_SEEN=1; shift ;;
     --dir)       TARGET="$2"; shift 2 || { bad "--dir needs a value"; exit 2; } ;;
     --dir=*)     TARGET="${1#--dir=}"; shift ;;
     *) printf 'Unknown option: %s\n\n' "$1" >&2; usage >&2; exit 2 ;;
@@ -521,6 +747,33 @@ if [ "$TOOL_FLAG_SEEN" -eq 1 ]; then
   done
   IFS=$OLD_IFS
   if [ -z "$SELECTED_IDX" ]; then bad "--tool given but no tool parsed."; exit 2; fi
+fi
+
+# --sources works with or without --tool, so it is parsed on its own.
+if [ "$SOURCES_FLAG_SEEN" -eq 1 ]; then
+  OLDIFS=$IFS; IFS=','
+  for slug in $CLI_SOURCES; do
+    slug=$(printf '%s' "$slug" | tr -d '[:space:]')
+    [ -z "$slug" ] && continue
+    if ! idx=$(db_slug_to_index "$slug"); then
+      IFS=$OLDIFS
+      bad "Unknown database: $slug"
+      say ""
+      say "  Known databases:"
+      i=0
+      while [ "$i" -lt "${#DB_SLUGS[@]}" ]; do
+        printf '    %s%-18s%s %s\n' "$B" "${DB_SLUGS[$i]}" "$R" "${DB_NAMES[$i]}"
+        i=$((i + 1))
+      done
+      exit 2
+    fi
+    case " $SELECTED_DB " in
+      *" $idx "*) ;;
+      *) SELECTED_DB="$SELECTED_DB $idx" ;;
+    esac
+  done
+  IFS=$OLDIFS
+  if [ -z "$SELECTED_DB" ]; then bad "--sources given but no database parsed."; exit 2; fi
 elif [ "$HAVE_TTY" -eq 0 ]; then
   hr
   if [ -r "$TTY" ]; then
@@ -554,7 +807,7 @@ if [ -z "$SELECTED_IDX" ]; then
   if [ -z "$TARGET" ]; then
     hr; printf '\n'
     MENU_SUB="Your paper, the .brain/ working state and the MCP runtime all live here."
-    if ! menu_single "Step 1 of 2 $DOT Where should Open ScholarPeer be installed?" 0 \
+    if ! menu_single "Step 1 of 3 $DOT Where should Open ScholarPeer be installed?" 0 \
       "This directory   $INVOKED_FROM" \
       "Another path..."; then
       printf '\n'; bad "Cancelled - nothing was installed."; exit 130
@@ -572,12 +825,33 @@ if [ -z "$SELECTED_IDX" ]; then
   fi
   printf '\n'; hr; printf '\n'
 
-  # Step 2 — which tools.
+  # Step 2 — which databases. Before the tool menu, so the Install button on
+  # that menu stays the last thing the user presses.
+  if [ "$SOURCES_FLAG_SEEN" -eq 0 ]; then
+    if ! menu_databases; then
+      printf '\n'; bad "Cancelled - nothing was installed."; exit 130
+    fi
+    SELECTED_DB="${DB_SELECTED[*]}"
+    collect_keys
+  fi
+  printf '\n'; hr; printf '\n'
+
+  # Step 3 — which tools. Its Install button starts the work.
   if ! menu_tools "Into $TARGET"; then
     printf '\n'; bad "Cancelled - nothing was installed."; exit 130
   fi
   SELECTED_IDX="${MULTI_SELECTED[*]}"
 fi
+
+# Nothing chosen — a scripted run with --tool and no --sources. Enable every
+# database, which is what an unset OSP_SOURCES already means to the server.
+if [ -z "$SELECTED_DB" ]; then
+  i=0
+  while [ "$i" -lt "${#DB_SLUGS[@]}" ]; do
+    SELECTED_DB="$SELECTED_DB $i"; i=$((i + 1))
+  done
+fi
+export_source_env
 
 [ -z "$TARGET" ] && TARGET="$INVOKED_FROM"
 TARGET=$(expand_tilde "$TARGET")

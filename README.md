@@ -98,35 +98,50 @@ Or just run `/open-scholar-peer` at any point — it reads your session state an
 
 ## Literature Databases
 
-OSP currently connects to arXiv and Semantic Scholar for paper discovery and evidence gathering.
+Six open databases. **None of them requires a paid subscription, and none
+requires a key to work** — a key only lifts a rate limit. The installer asks
+which ones you want and enables just those, so your agent carries a short tool
+list instead of all 22.
 
-| Database | Support | API Key |
+| Database | Key | What it is for |
 | --- | --- | --- |
-| arXiv | ✅ | Not Required |
-| Semantic Scholar | ✅ | Optional |
-| PubMed | 🚧 Soon | Not Required |
-| bioRxiv | 🚧 Soon | Not Required |
-| medRxiv | 🚧 Soon | Not Required |
-| DBLP | 🚧 Soon | Not Required |
-| ACM | 🚧 Soon | Required |
-| IEEE | 🚧 Soon | Required |
-| WoS | 🚧 Soon | Required |
-| Scopus | 🚧 Soon | Required |
-| Springer | 🚧 Soon | Required |
-| ScienceDirect | 🚧 Soon | Required |
+| arXiv | Not required | Preprints in CS, physics and maths. Also serves **full text**, from the LaTeX source. |
+| Semantic Scholar | Optional | Citation graph, references, recommendations, title matching. |
+| Google Scholar | Not required | Broadest coverage — theses, workshop papers, blogs. Best-effort scraping. |
+| Europe PMC | Not required | Biomedical and life sciences, with **full text** over a plain request. |
+| Zenodo | Not required | Code, datasets and software releases — *did the authors release their code?* |
+| OpenAlex | Optional | ~327 million works, with **retraction flags** and field-normalised citation impact. |
 
-The literature search layers is implemented in [mcp-server/](mcp-server/), so you can extend it with additional scholarly sources when you have valid access credentials.
+Deliberately not included: ACM DL, IEEE Xplore, Web of Science, Scopus,
+Springer and ScienceDirect all need a subscription or a paid key, which is the
+one thing this project will not require of you. DBLP was dropped after four
+probes in September 2026 hit a bot wall. bioRxiv and medRxiv are a feed rather
+than a search engine — they have no keyword search — and Semantic Scholar
+already indexes both.
+
+The search layer lives in [mcp-server/](mcp-server/), and
+[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) has the recipe for adding a
+source of your own.
 
 ### 🔑 API keys
 
-The installer creates a `.env` file at your project root. Add your keys there:
+The installer creates a `.env` file at your project root and offers to take
+your keys during setup. You can skip that and add them later:
 
 ```bash
 # .env  (gitignored — never committed)
-SEMANTIC_SCHOLAR_API_KEY=sk-...
+SEMANTIC_SCHOLAR_API_KEY=sk-...    # a dedicated rate limit
+OPENALEX_API_KEY=...               # a much larger daily budget
+OPENALEX_MAILTO=you@example.org    # OpenAlex's faster lane
+
+# which databases the agent may search; remove the line for all of them
+OSP_SOURCES=arxiv,semantic_scholar,google_scholar,europepmc,zenodo,openalex
 ```
 
-Anonymous Semantic Scholar limits are tight. Get a free key at https://www.semanticscholar.org/product/api#api-key — the MCP server loads `.env` automatically on startup.
+Anonymous Semantic Scholar access is one pool shared by every unauthenticated
+caller everywhere, so it is throttled unpredictably. A free key at
+https://www.semanticscholar.org/product/api#api-key gives you your own limit.
+The MCP server loads `.env` automatically on startup.
 
 ---
 

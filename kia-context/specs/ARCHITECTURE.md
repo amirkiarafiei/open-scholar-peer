@@ -58,7 +58,7 @@ paper.pdf ─► [0] onboard ─► [1] summarise ─► [2] retrieve ×3 ─►
 
 | | |
 |---|---|
-| **The library is prompts, not code** | 1,342 lines of canonical prompt markdown against 1,640 lines of Python and 1,922 of shell — and none of that code is review logic; it is sync tooling, search and installers. §3 |
+| **The library is prompts, not code** | 1,455 lines of canonical prompt markdown against 5,226 lines of Python and 2,254 of shell — and none of that code is review logic; it is sync tooling, search and installers. §3 |
 | **One source, fourteen adapters, generated** | Editing a per-tool directory is pointless; it is wiped on the next sync. §7 |
 | **Paper hyperparameters are enforced by file structure** | `k=3` retrieval rounds means three files must exist on disk, because a model will otherwise claim it did three rounds. §4 |
 | **The agent's memory is a JSON file** | `session.json` is the only thing connecting one slash command to the next. §5 |
@@ -74,8 +74,8 @@ paper.pdf ─► [0] onboard ─► [1] summarise ─► [2] retrieve ×3 ─►
 | **Protocol** | Markdown with YAML-ish frontmatter | The actual product. Parsed by the host AI tool, and by a deliberately simple home-grown parser in `sync_adapters.py` — keep frontmatter flat, no nesting or anchors. |
 | **Sync + tooling** | Python 3.10+, stdlib only | `sync_adapters.py`, `merge_mcp_config.py`, `test_parity.py`. No third-party dependency in the dev toolchain. |
 | **Installers** | Bash, `set -e` | 14 per-tool scripts plus a menu at `install.sh`. Must survive `curl … \| bash`. |
-| **Search server** | Python + FastMCP (`mcp>=1.2.0`) over stdio | Runs as a subprocess of the host tool. |
-| **Search providers** | `arxiv`, `semanticscholar`, `scholarly` + BeautifulSoup | Pinned in `mcp-server/requirements.txt`. Google Scholar is HTML scraping and is best-effort. |
+| **Search server** | Python + FastMCP (`mcp>=1.2.0,<2.0`) over stdio | Runs as a subprocess of the host tool. **The ceiling is load-bearing:** mcp 2.x deletes `mcp.server.fastmcp` and renames `FastMCP` to `MCPServer`, so an unbounded pin left the server unable to import at all. O15. |
+| **Search providers** | `arxiv`, `semanticscholar`, `scholarly` + BeautifulSoup; Europe PMC, Zenodo and OpenAlex over plain `requests` | Pinned, with upper bounds, in `mcp-server/requirements.txt`. Google Scholar is HTML scraping and is best-effort. |
 | **Runtime isolation** | A venv per user project at `.open-scholar-peer/mcp/` | Not published to PyPI; the installer builds it in place. |
 
 *Re-measured 2026-09-20: `cat extensions/_shared/{commands/*.md,skills/*/SKILL.md,rules/*.md,defaults/*.md} | wc -l` → **1342**; `cat scripts/*.py mcp-server/*.py mcp-server/providers/*.py | wc -l` → **1640**; `cat install.sh scripts/*.sh | wc -l` → **1922**. The shell figure grew most: M9 took `install.sh` from 88 lines to a 607-line TUI and added `scripts/_post_install.sh`.*
@@ -88,7 +88,7 @@ paper.pdf ─► [0] onboard ─► [1] summarise ─► [2] retrieve ×3 ─►
 |---|---|
 | `extensions/_shared/` | **The canonical protocol.** 8 commands, 8 skills, 1 rules file, 3 templates, 1 manifest — 21 files. The only place a human edits protocol content. |
 | `extensions/.{tool}/` | 14 generated adapter directories, 282 files. Never edited by hand. |
-| `mcp-server/` | The search server and its three providers. Source of truth; the copy in a user's project is the runtime. |
+| `mcp-server/` | The search server and its six providers. Source of truth; the copy in a user's project is the runtime. |
 | `scripts/` | Sync, parity check, MCP-config merge, `.brain/` and venv scaffolding, 14 installers, smoke tests. |
 | `docs/` | Human-facing: build phases, I/O contracts, brain layout, limitations, troubleshooting, and the source paper. |
 | `.brain-template/` | The `session.json` skeleton copied into every user project. |
@@ -272,43 +272,69 @@ means they are strong conventions rather than hard gates — worth knowing when 
 
 ## 9. The search layer
 
-15 MCP tools over three providers, exposed by `mcp-server/osp_mcp.py`.
+22 MCP tools over six databases, exposed by `mcp-server/osp_mcp.py` — but only the databases this
+project enabled have their tools registered.
 
-| Provider | Tools | Key | Character |
+| Database | Tools | Key | Character |
 |---|---|---|---|
-| arXiv | 2 | none | Pre-prints. Field-prefixed queries (`ti:`, `au:`, `abs:`). Via the official `arxiv` package. Category and date filtering are **advertised but broken** — see below. |
-| Semantic Scholar | 10 | optional | Citation graph — references, citations, batch lookup, authors, recommendations, snippet search. Anonymous limits are aggressive. |
+| arXiv | 3 | none | Pre-prints. Field-prefixed queries (`ti:`, `au:`, `abs:`). Category and date filtering happen inside the query, so arXiv does them. Also serves **full text**, from the LaTeX source. |
+| Semantic Scholar | 11 | optional | Citation graph — references, citations, batch lookup, authors, recommendations, title matching, snippet search. Anonymous access is one pool shared globally and is throttled hard. |
 | Google Scholar | 3 | none | Breadth: theses, workshop papers, blogs. HTML scraping, best-effort, not load-bearing. |
+| Europe PMC | 2 | none | Biomedical and life sciences. Serves **full text** as XML over a plain request — the cheapest full-text path in the system. |
+| Zenodo | 1 | none | Not a paper search. Code, datasets and software releases: *did the authors release their code?* |
+| OpenAlex | 2 | optional | ~327 million works. Carries `is_retracted`, which nothing else here can see, and field-normalised citation impact. |
 
-*Measured: `grep -c '^@mcp.tool()' mcp-server/osp_mcp.py` → 15.*
+*Measured 2026-09-20: `grep -c '^@tool_for(' mcp-server/osp_mcp.py` → 22.*
+
+**Which tools exist is a per-project decision.** The installer asks, and writes the answer to `.env` as
+`OSP_SOURCES`; `osp_mcp.py` reads it once at start-up and registers only those. An unset value means all
+six, so installs predating this are unaffected. This is not cosmetic: D21 rejected "always on" precisely
+because a longer tool list costs the agent on every request, and a three-database project carries 17
+tools rather than 22. An unknown name warns and is ignored; a value naming nothing valid falls back to
+all six rather than leaving the agent with no tools at all.
 
 Every tool is atomic and stateless. The server decides nothing: which queries to run, which results to
 keep, and when the corpus is sufficient are all the agent's judgement. This is a standing constraint set
 at t=0 — the design explicitly forbade a tool like `fetch_literature` — not an accident of scope. See
-`logs/BRAINSTORM.md` D3.
+`logs/BRAINSTORM.md` D3. Two caches exist and neither breaks that rule, because both change *when* an
+answer arrives and never *what* it is: one HTTP client per provider, and a two-entry cache of parsed
+arXiv text so paging through a paper does not re-download it (O17).
 
-Two operational details worth knowing. Every provider call goes through `_run()`, which pushes the
-synchronous call into a thread with `asyncio.wait_for` and a timeout (`OSP_CALL_TIMEOUT`, default 90s) —
-one hung HTTP call cannot wedge the server. And every tool returns a consistent error envelope
-(`[{"error": …}]` for searches, `{"error": …}` for single records) rather than raising, so a failing
-provider degrades that one call instead of the step.
+Three operational details worth knowing.
 
-### What this section claims, and where the code does not deliver it
+Every provider call goes through `_run()`, which pushes the synchronous call into a thread with
+`asyncio.wait_for` and a timeout (`OSP_CALL_TIMEOUT`, default 90 s). Because `asyncio.to_thread` cannot
+cancel a running thread, that timeout alone is not enough — a provider that hangs keeps working after
+the caller has given up. So each one also bounds itself from the inside: arXiv waits at most 25 s for
+the single connection its terms allow and caps a download at 45 s; Google Scholar's whole retry budget
+is 63 s; Europe PMC's transfer budget is 55 s. Each is pinned by a test, because the point is to stay
+under the 90 s ceiling.
 
-An audit on 2026-09-19 measured the layer against the live APIs. Three statements above are, today,
-aspirations rather than facts. They are recorded here because a reader of this file would otherwise
-believe the system does things it does not. All are scheduled in `logs/PROGRESS.md` **M11**.
+Every tool returns a consistent error envelope — `[{"error": …, "reason": …}]` for searches,
+`{"error": …, "reason": …}` for single records — rather than raising. **`reason` is what makes a
+failure actionable**: `blocked`, `rate_limited`, `busy`, `timeout`, `not_found` or `bad_request`. An
+empty list means one thing only, which is that the search ran and matched nothing. That distinction is
+load-bearing; the layer spent months reporting a Google Scholar block as a successful zero-hit search.
 
-| Claim above | What actually happens |
-|---|---|
-| arXiv supports category and date filtering | Both are applied **after** fetching, or with a missing operator. A category filter returned **3 of 25** results in the requested category; a 12-month window returned **1** paper where a native range returns a full page. M11 B1, B2. |
-| "a failing provider degrades that one call instead of the step" | True except for Google Scholar, which is the one most likely to fail. A block page returns `[]` — **identical to a genuine zero-hit search** — so a failure is reported to the agent as a successful empty result. M11 B9. |
-| "one hung HTTP call cannot wedge the server" | True, but the Semantic Scholar client retries a 429 internally for up to ~8 minutes. The 90 s timeout kills it and reports "timed out", hiding the real cause. M11 B4. |
+Full text is read in windows and never written to disk (D20). A window ends at a paragraph break rather
+than a character count, so a number cannot be cut in half, and `next_offset` chains the calls.
 
-One more fact that shapes the whole layer: the documented Semantic Scholar rate limit for an API key is
-**1 request per second**, while unauthenticated callers *share* 1000 RPS globally. Combined with the
-auto-pagination described in M11 B4 — where one tool call can issue 100–200 HTTP requests — holding a key
-currently makes OSP **slower**, not faster.
+### What the audit found, and what is left
+
+An audit on 2026-09-19 measured this layer against the live APIs and found three claims here to be
+aspirations rather than facts. **All three were fixed in M11** and the measurements are in
+`logs/PROGRESS.md`:
+
+| The claim | Then | Now |
+|---|---|---|
+| arXiv supports category and date filtering | a category filter returned 3 of 25 in the requested category; a 12-month window returned 1 paper | filtering happens inside the query: 25 of 25, and a full page |
+| a failing provider degrades one call, not the step | a Google Scholar block returned `[]`, identical to a genuine zero-hit search | a block raises and carries `reason: blocked` |
+| one hung HTTP call cannot wedge the server | the Semantic Scholar client retried a 429 for ~375 s, long past the 90 s timeout, while the orphaned thread kept hitting the API | the package's retry is off; the same call now fails in 1.3 s naming the cause |
+
+Consequently the old warning that **an API key made OSP slower** no longer holds: that was the
+auto-pagination, which issued 100–200 requests where one was asked for. One search is now one request.
+The documented Semantic Scholar limits are unchanged — 1 request per second with a key, against 1000 RPS
+shared by every unauthenticated caller on earth — and in practice the shared pool is the worse deal.
 
 The Literature Agent is instructed to fire **all** providers in the same dispatch batch with per-index
 query formulations, not sequentially — a paper ranked low in one index is often top of another.
@@ -339,11 +365,12 @@ subagent calls, with an estimated wall-clock — *before* asking how many pairs 
 **On the user's machine:** `git`, `bash`, `python3` 3.10+ with `venv` (checked explicitly, because Debian
 and Ubuntu ship `python3` without `ensurepip`), and one of the 14 supported AI tools.
 
-**External services:** arXiv, Semantic Scholar (optional key via `.env`), Google Scholar (scraped).
+**External services:** arXiv, Semantic Scholar (optional key), Google Scholar (scraped), Europe PMC,
+Zenodo, and OpenAlex (optional key). Keys live in `.env`; none is required.
 Optionally `markitdown-mcp` via `uvx` for PDF → Markdown conversion — the one dependency that can block
 step 0 outright.
 
-**What this repository exposes:** the 8 slash commands, the 8 persona skills, 15 MCP tools, and the
+**What this repository exposes:** the 8 slash commands, the 8 persona skills, up to 22 MCP tools, and the
 `.brain/` artifact layout. The artifact layout is the real public contract — users read those files, and
 renaming one breaks a workflow no test will catch.
 

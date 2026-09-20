@@ -24,7 +24,7 @@ import arxiv
 import requests
 from dateutil import parser as _dp
 
-from . import window as _window
+from . import window as _window  # the function in providers/__init__.py
 
 # One client for the whole process, and one request at a time.
 #
@@ -45,7 +45,7 @@ from . import window as _window
 # arxiv.Client retries num_retries (3) times, so 3 x 20 s plus the 3 s spacing
 # stays inside the 90 s OSP_CALL_TIMEOUT.
 _HTTP_TIMEOUT = 20
-_LOCK_WAIT = 25
+_LOCK_WAIT = 15
 
 _CLIENT = arxiv.Client()
 _CLIENT_LOCK = threading.Lock()
@@ -93,6 +93,8 @@ def _arxiv_turn():
         _CLIENT_LOCK.release()
 
 # arXiv ranges need both ends, so an open-ended request gets a wide default.
+_CATEGORY_RE = re.compile(r"[A-Za-z-]+(?:\.[A-Za-z-]+)?")
+
 _STAMP_MIN = "190001010000"
 _STAMP_MAX = "299912312359"
 
@@ -168,7 +170,19 @@ def build_query(
         parts.append(f"({text})")
 
     if categories:
-        cats = [c.strip() for c in categories if c and c.strip()]
+        # Validated, not just trimmed. A category of
+        # "cs.CL) OR (cat:quant-ph" would close the group early and leave the
+        # AND binding nothing — recreating the exact bug B2 existed to fix.
+        cats = []
+        for c in categories:
+            c = (c or "").strip()
+            if not c:
+                continue
+            if not _CATEGORY_RE.fullmatch(c):
+                raise ValueError(
+                    f"{c!r} is not an arXiv category. They look like "
+                    "'cs.CL', 'math.AG' or 'hep-th'.")
+            cats.append(c)
         if cats:
             parts.append("(" + " OR ".join(f"cat:{c}" for c in cats) + ")")
 
@@ -246,15 +260,25 @@ _MAX_DOWNLOAD = 40 * 1024 * 1024      # compressed bytes off the wire
 _MAX_UNPACKED = 60 * 1024 * 1024      # total decompressed bytes
 _MAX_MEMBERS = 2000                   # files inside the archive
 _MAX_MEMBER_BYTES = 12 * 1024 * 1024  # one file inside the archive
+_PARSE_BUDGET = 20                    # seconds spent walking the archive
+_BRACE_TRIES = 8                      # \title{ occurrences worth trying
+_BRACE_SCAN = 64 * 1024               # how far to look for its closing brace
 
 # The whole call must fit inside OSP_CALL_TIMEOUT (90 s), or the agent gets a
-# bare "timed out" instead of an error it can act on. Worst case:
-# _LOCK_WAIT (25) + _MIN_GAP (3) + _DOWNLOAD_BUDGET (45) = 73 s.
-# requests' `timeout` applies per socket operation, not to the whole transfer,
-# so a slow trickle would otherwise run for as long as it liked. The streaming
-# loop enforces the wall-clock budget itself.
-_DOWNLOAD_TIMEOUT = 20      # per socket operation
-_DOWNLOAD_BUDGET = 45       # whole transfer
+# bare "timed out" instead of an error it can act on.
+#
+# The arithmetic has to account for two things that are easy to miss, and a
+# measurement against a deliberately slow server caught both: requests' single
+# `timeout` value applies to the connect AND to each read separately, so a
+# server that stalls twice spends it twice; and an in-loop deadline check only
+# runs after a blocking read returns, so it can overshoot by one read timeout.
+#
+# Worst case now: _LOCK_WAIT 15 + _MIN_GAP 3 + connect 10 + budget 35 +
+# one overshooting read 15 = 78 s. The deadline is started before the request,
+# not after it returns.
+_CONNECT_TIMEOUT = 10
+_READ_TIMEOUT = 15
+_DOWNLOAD_BUDGET = 35       # whole transfer, from before the connect
 _MIN_GAP = 3.0
 _last_raw_request = 0.0
 
@@ -272,9 +296,37 @@ UA = "open-scholar-peer (https://github.com/amirkiarafiei/open-scholar-peer)"
 # Provider functions run in worker threads (asyncio.to_thread), so the cache
 # needs its own lock: a move_to_end followed by a popitem is not one atomic
 # step, and two readers could otherwise race on eviction.
+# Sized for a working set, not a single paper. At 2 entries a phase reading
+# three papers in turn missed on every single read — measured 41/41/40
+# downloads over 200 reads, a 0% hit rate, which is worse than no cache
+# because each miss also pays the three-second gap.
 _TEXT_CACHE: "OrderedDict[str, str]" = OrderedDict()
-_TEXT_CACHE_MAX = 2
+_TEXT_CACHE_MAX = 8
 _TEXT_CACHE_LOCK = threading.Lock()
+
+# One download per paper, however many callers ask at once.
+#
+# Without this, concurrent first-touches of the same id all miss the cache and
+# all queue up behind the single arXiv connection. Measured with nine threads
+# on one cold id: six separate downloads, and the last three were refused with
+# ArxivBusy after waiting out _LOCK_WAIT — for a paper that was already being
+# fetched. The Q&A engine runs subagents in parallel and they read the same
+# paper, so this is the normal case, not a corner.
+_INFLIGHT: dict[str, threading.Lock] = {}
+_INFLIGHT_GUARD = threading.Lock()
+_INFLIGHT_MAX = 64
+
+
+def _inflight_lock(key: str) -> threading.Lock:
+    with _INFLIGHT_GUARD:
+        lock = _INFLIGHT.get(key)
+        if lock is None:
+            if len(_INFLIGHT) >= _INFLIGHT_MAX:
+                # Drop the ones nobody is holding; the rest are in use.
+                for k in [k for k, v in _INFLIGHT.items() if not v.locked()]:
+                    del _INFLIGHT[k]
+            lock = _INFLIGHT[key] = threading.Lock()
+        return lock
 
 
 def _cache_get(key: str) -> str | None:
@@ -318,9 +370,13 @@ def _download(url: str) -> bytes:
     # everything under our control, not one per library.
     with _arxiv_turn():
         _throttle()
+        # Started before the request, so a slow connect and a slow first read
+        # both count against it.
+        deadline = time.time() + _DOWNLOAD_BUDGET
         try:
             resp = requests.get(url, headers={"User-Agent": UA},
-                                timeout=_DOWNLOAD_TIMEOUT, stream=True)
+                                timeout=(_CONNECT_TIMEOUT, _READ_TIMEOUT),
+                                stream=True)
         except requests.RequestException as e:
             raise ArxivFullTextError(f"arXiv download failed: {e}") from e
 
@@ -333,7 +389,6 @@ def _download(url: str) -> bytes:
             raise ArxivFullTextError(
                 f"arXiv returned HTTP {resp.status_code} for {url}")
 
-        deadline = time.time() + _DOWNLOAD_BUDGET
         chunks, total = [], 0
         for chunk in resp.iter_content(chunk_size=262144):
             total += len(chunk)
@@ -357,8 +412,17 @@ def _tex_members(raw: bytes) -> dict[str, str]:
     try:
         tf = tarfile.open(fileobj=io.BytesIO(raw))
     except tarfile.ReadError:
+        # gzip.decompress() has no ceiling, and gzip reaches about 1030:1.
+        # Measured: a 4.7 MB e-print expanded to 1,073,741,864 characters and
+        # 3.1 GB of RSS before returning happily. Read through the cap instead.
         try:
-            text = gzip.decompress(raw).decode("utf-8", errors="replace")
+            with gzip.GzipFile(fileobj=io.BytesIO(raw)) as gz:
+                blob = gz.read(_MAX_UNPACKED + 1)
+            if len(blob) > _MAX_UNPACKED:
+                raise ArxivFullTextError(
+                    f"arXiv source expands past the {_MAX_UNPACKED} byte "
+                    "limit on unpacked size")
+            text = blob.decode("utf-8", errors="replace")
         except OSError as e:
             raise ArxivFullTextError(
                 f"arXiv source is neither a tarball nor a gzipped file: {e}") from e
@@ -374,7 +438,16 @@ def _tex_members(raw: bytes) -> dict[str, str]:
     skipped_big = 0
     hit_cap = ""
 
-    for i, member in enumerate(tf.getmembers()):
+    # Iterating the TarFile yields headers lazily. `getmembers()` walked the
+    # whole index first, so an archive of 9 million empty members cost 4 GB
+    # and 157 s before `_MAX_MEMBERS` was ever consulted — well past the call
+    # timeout, on a thread that cannot be cancelled.
+    parse_deadline = time.time() + _PARSE_BUDGET
+    for i, member in enumerate(tf):
+        if time.time() > parse_deadline:
+            hit_cap = (f"stopped after {_PARSE_BUDGET}s spent reading the "
+                       "archive index")
+            break
         if i >= _MAX_MEMBERS:
             hit_cap = f"stopped after {_MAX_MEMBERS} files in the archive"
             break
@@ -465,14 +538,20 @@ def _braced(tex: str, command: str) -> str | None:
     braces (\\thanks{}, \\textbf{}, footnote markers), and a non-greedy match
     stops at the first closing brace.
     """
+    # Bounded on both axes. An unclosed `\title{` repeated through the file
+    # made this quadratic: 22 s on 64 KB, and the archive compressed to 2.5 KB.
+    # A real document has one or two of these, near the top.
+    tries = 0
     at = tex.find("\\" + command)
-    while at != -1:
+    while at != -1 and tries < _BRACE_TRIES:
+        tries += 1
         i = at + len(command) + 1
         while i < len(tex) and tex[i] in " \t\n":
             i += 1
         if i < len(tex) and tex[i] == "{":
             depth, j = 0, i
-            while j < len(tex):
+            stop = min(len(tex), i + _BRACE_SCAN)
+            while j < stop:
                 if tex[j] == "{" and (j == 0 or tex[j - 1] != "\\"):
                     depth += 1
                 elif tex[j] == "}" and tex[j - 1] != "\\":
@@ -509,9 +588,21 @@ def _body_only(tex: str) -> str:
     end = tex.find("\\end{document}")
     if end != -1:
         tex = tex[:end]
-    # An inlined bibliography is long and carries no argument.
-    tex = re.sub(r"\\begin\{thebibliography\}.*?\\end\{thebibliography\}",
-                 "", tex, flags=re.S)
+    # An inlined bibliography is long and carries no argument. Done with
+    # find() rather than a regex: `\begin{...}.*?\end{...}` with re.S rescans
+    # to end-of-file for every unmatched opener, which is quadratic. Measured
+    # 10.6 s on 508 KB, and hours at the per-file cap.
+    open_tag, close_tag = "\\begin{thebibliography}", "\\end{thebibliography}"
+    while True:
+        b = tex.find(open_tag)
+        if b == -1:
+            break
+        e = tex.find(close_tag, b)
+        if e == -1:
+            # Unterminated: a bibliography runs to the end of the document.
+            tex = tex[:b]
+            break
+        tex = tex[:b] + tex[e + len(close_tag):]
     return tex
 
 
@@ -552,19 +643,34 @@ def latex_from_archive(raw: bytes) -> str:
 def read_paper(arxiv_id: str, max_chars: int = 50000, offset: int = 0) -> dict[str, Any]:
     arxiv_id = (arxiv_id or "").strip()
     if not arxiv_id:
-        return {"error": "read_arxiv_paper needs an arXiv id"}
+        raise ValueError("read_arxiv_paper needs an arXiv id")
     url = f"https://arxiv.org/e-print/{arxiv_id}"
 
-    cached = _cache_get(arxiv_id)
-    if cached is not None:
-        out = _window(cached, max_chars, offset)
+    def _serve(body: str) -> dict[str, Any]:
+        out = _window(body, max_chars, offset)
         out["arxiv_id"] = arxiv_id
         out["format"] = "latex"
         out["source"] = url
+        # Said outright, because the source carries \citep{key} markers and
+        # no printed reference numbers, and the reference list is not in it.
         out["bibliography"] = ("not included — resolve citations with "
                                "get_semantic_scholar_paper_references")
         return out
 
+    cached = _cache_get(arxiv_id)
+    if cached is not None:
+        return _serve(cached)
+
+    with _inflight_lock(arxiv_id):
+        # Another caller may have finished the download while we waited.
+        cached = _cache_get(arxiv_id)
+        if cached is not None:
+            return _serve(cached)
+        return _serve(_fetch_text(arxiv_id, url))
+
+
+def _fetch_text(arxiv_id: str, url: str) -> str:
+    """Download and parse one paper. Callers hold its in-flight lock."""
     try:
         text = latex_from_archive(_download(url))
     except ArxivNotFound:
@@ -578,14 +684,14 @@ def read_paper(arxiv_id: str, max_chars: int = 50000, offset: int = 0) -> dict[s
             "it with convert_to_markdown."
         ) from e
 
-    _cache_put(arxiv_id, text)
+    if not text.strip():
+        # A record saying total_chars: 0 with no error reads as "this paper is
+        # empty". It means we could not get the text out.
+        raise ArxivFullTextError(
+            f"no readable text came out of the source for {arxiv_id}. The "
+            "body may be entirely comments or non-TeX includes. Read the PDF "
+            f"instead: https://arxiv.org/pdf/{arxiv_id} — the markitdown MCP "
+            "server registered alongside this one converts it.")
 
-    out = _window(text, max_chars, offset)
-    out["arxiv_id"] = arxiv_id
-    out["format"] = "latex"
-    out["source"] = url
-    # Said outright, because the source carries \citep{key} markers and no
-    # printed reference numbers, and the reference list is not in it.
-    out["bibliography"] = ("not included — resolve citations with "
-                           "get_semantic_scholar_paper_references")
-    return out
+    _cache_put(arxiv_id, text)
+    return text

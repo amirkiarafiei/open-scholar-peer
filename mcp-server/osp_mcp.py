@@ -31,6 +31,8 @@ from providers import arxiv as arxiv_provider
 from providers import semantic_scholar as ss_provider
 from providers import google_scholar as gs_provider
 from providers import europe_pmc as epmc_provider
+from providers import zenodo as zenodo_provider
+from providers import openalex as openalex_provider
 
 
 def _err(tool: str, exc: Exception) -> dict[str, Any]:
@@ -50,10 +52,14 @@ def _err(tool: str, exc: Exception) -> dict[str, Any]:
     elif isinstance(exc, arxiv_provider.ArxivBusy):
         reason = "busy"
     elif isinstance(exc, (arxiv_provider.ArxivNotFound,
-                          epmc_provider.EuropePmcNotFound)):
+                          epmc_provider.EuropePmcNotFound,
+                          openalex_provider.OpenAlexNotFound,
+                          zenodo_provider.ZenodoNotFound)):
         reason = "not_found"
     elif isinstance(exc, (arxiv_provider.ArxivFullTextError,
-                          epmc_provider.EuropePmcError)):
+                          epmc_provider.EuropePmcError,
+                          zenodo_provider.ZenodoError,
+                          openalex_provider.OpenAlexError)):
         reason = "unavailable"
     elif isinstance(exc, TimeoutError):
         reason = "timeout"
@@ -74,6 +80,74 @@ mcp = FastMCP("osp_mcp")
 
 _TIMEOUT = int(os.environ.get("OSP_CALL_TIMEOUT", "90"))
 
+# ---------- Which databases this project uses -------------------------------
+#
+# The installer asks, and writes the answer to .env as OSP_SOURCES. Only the
+# chosen sources have their tools registered, so a user reviewing CS papers is
+# not carrying eleven biomedical and repository tools in every request. That
+# is the whole reason the picker exists (D21): "always on" was rejected
+# because a longer tool list costs the agent on every single call.
+#
+# UNSET MEANS ALL. Installs made before this existed, and anyone running a
+# per-tool installer directly, keep every tool.
+
+_ALL_SOURCES = (
+    "arxiv", "semantic_scholar", "google_scholar",
+    "europepmc", "zenodo", "openalex",
+)
+
+# Spellings a human might reasonably type into .env by hand.
+_SOURCE_ALIASES = {
+    "europe_pmc": "europepmc", "epmc": "europepmc", "pmc": "europepmc",
+    "s2": "semantic_scholar", "semanticscholar": "semantic_scholar",
+    "gscholar": "google_scholar", "scholar": "google_scholar",
+    "openalex_works": "openalex",
+}
+
+
+def _enabled_sources() -> set[str]:
+    raw = os.environ.get("OSP_SOURCES", "").strip()
+    # Someone hand-editing .env may well write OSP_SOURCES='arxiv, openalex'.
+    # python-dotenv strips the quotes, a plain environment variable does not.
+    raw = raw.strip("\"'").strip()
+    if not raw:
+        return set(_ALL_SOURCES)
+
+    # Commas are the documented separator; whitespace is accepted because it
+    # is the other thing a person types.
+    asked = {
+        _SOURCE_ALIASES.get(part, part)
+        for part in (
+            token.strip().lower().replace("-", "_")
+            for token in raw.replace(",", " ").split()
+        )
+        if part
+    }
+    unknown = sorted(asked - set(_ALL_SOURCES))
+    known = asked & set(_ALL_SOURCES)
+
+    if unknown:
+        log.warning("OSP_SOURCES names %s, which is not a source I know. "
+                    "Known sources: %s", ", ".join(unknown), ", ".join(_ALL_SOURCES))
+    if not known:
+        # Better to be noisy and complete than silently useless.
+        log.warning("OSP_SOURCES enabled no known source, so all of them are "
+                    "on. Fix the value in .env or remove the line.")
+        return set(_ALL_SOURCES)
+    return known
+
+
+_ENABLED = _enabled_sources()
+
+
+def tool_for(source: str):
+    """Register this tool only when its database is switched on."""
+    def decorate(fn):
+        if source in _ENABLED:
+            return mcp.tool()(fn)
+        return fn
+    return decorate
+
 
 async def _run(fn, *args, **kwargs) -> Any:
     """Run a synchronous provider function in a thread with a timeout."""
@@ -88,7 +162,7 @@ async def _run(fn, *args, **kwargs) -> Any:
 
 # ---------- arXiv ----------------------------------------------------------
 
-@mcp.tool()
+@tool_for("arxiv")
 async def search_arxiv(
     query: str,
     max_results: int = 10,
@@ -137,7 +211,7 @@ async def search_arxiv(
         return [_err("search_arxiv", e)]
 
 
-@mcp.tool()
+@tool_for("arxiv")
 async def get_arxiv_paper_details(arxiv_id: str) -> dict[str, Any]:
     """Fetch detailed metadata for a specific arXiv paper by its ID.
 
@@ -163,7 +237,7 @@ async def get_arxiv_paper_details(arxiv_id: str) -> dict[str, Any]:
         return _err("get_arxiv_paper_details", e)
 
 
-@mcp.tool()
+@tool_for("arxiv")
 async def read_arxiv_paper(
     arxiv_id: str, max_chars: int = 50000, offset: int = 0
 ) -> dict[str, Any]:
@@ -214,7 +288,7 @@ async def read_arxiv_paper(
 
 # ---------- Europe PMC ------------------------------------------------------
 
-@mcp.tool()
+@tool_for("europepmc")
 async def search_europe_pmc(
     query: str,
     limit: int = 10,
@@ -264,7 +338,7 @@ async def search_europe_pmc(
         return [_err("search_europe_pmc", e)]
 
 
-@mcp.tool()
+@tool_for("europepmc")
 async def get_europe_pmc_full_text(
     pmcid: str, max_chars: int = 50000, offset: int = 0
 ) -> dict[str, Any]:
@@ -306,7 +380,7 @@ async def get_europe_pmc_full_text(
 
 # ---------- Semantic Scholar -----------------------------------------------
 
-@mcp.tool()
+@tool_for("semantic_scholar")
 async def search_semantic_scholar(
     query: str,
     limit: int = 10,
@@ -377,7 +451,7 @@ async def search_semantic_scholar(
         return [_err("search_semantic_scholar", e)]
 
 
-@mcp.tool()
+@tool_for("semantic_scholar")
 async def match_semantic_scholar_title(title: str) -> dict[str, Any]:
     """Find the ONE paper whose title best matches the text you give.
 
@@ -400,7 +474,7 @@ async def match_semantic_scholar_title(title: str) -> dict[str, Any]:
         return _err("match_semantic_scholar_title", e)
 
 
-@mcp.tool()
+@tool_for("semantic_scholar")
 async def get_semantic_scholar_paper(paper_id: str) -> dict[str, Any]:
     """Fetch full metadata for a specific Semantic Scholar paper.
 
@@ -425,7 +499,7 @@ async def get_semantic_scholar_paper(paper_id: str) -> dict[str, Any]:
         return _err("get_semantic_scholar_paper", e)
 
 
-@mcp.tool()
+@tool_for("semantic_scholar")
 async def get_semantic_scholar_paper_references(
     paper_id: str, limit: int = 50
 ) -> list[dict[str, Any]]:
@@ -451,7 +525,7 @@ async def get_semantic_scholar_paper_references(
         return [_err("get_semantic_scholar_paper_references", e)]
 
 
-@mcp.tool()
+@tool_for("semantic_scholar")
 async def get_semantic_scholar_paper_citations(
     paper_id: str, limit: int = 50
 ) -> list[dict[str, Any]]:
@@ -476,7 +550,7 @@ async def get_semantic_scholar_paper_citations(
         return [_err("get_semantic_scholar_paper_citations", e)]
 
 
-@mcp.tool()
+@tool_for("semantic_scholar")
 async def get_semantic_scholar_papers_batch(
     paper_ids: list[str],
 ) -> list[dict[str, Any]]:
@@ -498,7 +572,7 @@ async def get_semantic_scholar_papers_batch(
         return [_err("get_semantic_scholar_papers_batch", e)]
 
 
-@mcp.tool()
+@tool_for("semantic_scholar")
 async def get_semantic_scholar_author(author_id: str) -> dict[str, Any]:
     """Fetch metadata for a specific Semantic Scholar author by ID.
 
@@ -520,7 +594,7 @@ async def get_semantic_scholar_author(author_id: str) -> dict[str, Any]:
         return _err("get_semantic_scholar_author", e)
 
 
-@mcp.tool()
+@tool_for("semantic_scholar")
 async def search_semantic_scholar_authors(
     query: str, limit: int = 10
 ) -> list[dict[str, Any]]:
@@ -544,7 +618,7 @@ async def search_semantic_scholar_authors(
         return [_err("search_semantic_scholar_authors", e)]
 
 
-@mcp.tool()
+@tool_for("semantic_scholar")
 async def get_semantic_scholar_author_papers(
     author_id: str, limit: int = 50
 ) -> list[dict[str, Any]]:
@@ -567,7 +641,7 @@ async def get_semantic_scholar_author_papers(
         return [_err("get_semantic_scholar_author_papers", e)]
 
 
-@mcp.tool()
+@tool_for("semantic_scholar")
 async def get_semantic_scholar_paper_recommendations(
     paper_id: str, limit: int = 10
 ) -> list[dict[str, Any]]:
@@ -590,7 +664,7 @@ async def get_semantic_scholar_paper_recommendations(
         return [_err("get_semantic_scholar_paper_recommendations", e)]
 
 
-@mcp.tool()
+@tool_for("semantic_scholar")
 async def search_semantic_scholar_snippets(
     query: str, limit: int = 10
 ) -> list[dict[str, Any]]:
@@ -606,7 +680,8 @@ async def search_semantic_scholar_snippets(
 
     Args:
         query: Free-form query describing the content to find.
-        limit: Max snippets (1-100, default 10).
+        limit: Max snippets (1-50, default 10). Each is about 500 words, so
+            50 already puts roughly 25,000 words in front of you.
 
     Returns:
         List of dicts with keys: text, section, snippetKind, score, and paper
@@ -624,7 +699,7 @@ async def search_semantic_scholar_snippets(
 
 # ---------- Google Scholar -------------------------------------------------
 
-@mcp.tool()
+@tool_for("google_scholar")
 async def search_google_scholar(query: str, num_results: int = 5) -> list[dict[str, Any]]:
     """Search Google Scholar for broader academic coverage.
 
@@ -653,7 +728,7 @@ async def search_google_scholar(query: str, num_results: int = 5) -> list[dict[s
         return [_err("search_google_scholar", e)]
 
 
-@mcp.tool()
+@tool_for("google_scholar")
 async def search_google_scholar_advanced(
     query: str,
     author: str | None = None,
@@ -694,7 +769,7 @@ async def search_google_scholar_advanced(
         return [_err("search_google_scholar_advanced", e)]
 
 
-@mcp.tool()
+@tool_for("google_scholar")
 async def get_google_scholar_author_info(author_name: str) -> dict[str, Any]:
     """Fetch a Google Scholar author profile.
 
@@ -722,6 +797,133 @@ async def get_google_scholar_author_info(author_name: str) -> dict[str, Any]:
         return _err("get_google_scholar_author_info", e)
 
 
+# ---------- Zenodo ----------------------------------------------------------
+
+@tool_for("zenodo")
+async def search_zenodo(
+    query: str, limit: int = 10, resource_type: str = "software",
+) -> list[dict[str, Any]]:
+    """Find released code, datasets and other research artifacts on Zenodo.
+
+    **This does not find papers. Do not use it in a literature round.**
+
+    It answers one question the other tools cannot: *did the authors actually
+    release their code and data?* Most review forms ask for that, and it can
+    only be checked by looking. Search the paper's title, its method name, or
+    the authors' names, and see whether anything with a DOI comes back.
+
+    An empty result is meaningful here — it is evidence that nothing was
+    deposited on Zenodo. It is not proof: code often lives only on GitHub, so
+    say "nothing found on Zenodo", not "the authors released nothing".
+
+    Args:
+        query: Paper title, method name, or author names.
+        limit: Maximum results (1-50, default 10).
+        resource_type: One of software, dataset, publication, poster,
+            presentation, image, video, lesson, physicalobject, other.
+            Pass an empty string to search all types.
+
+    Returns:
+        List of dicts with keys: id, doi, title, type, subtype,
+        publicationDate, description, creators, license, version, url,
+        relatedIdentifiers (where the code actually lives, e.g. a GitHub
+        URL), fileCount.
+        Returns [{"error": "...", "reason": "..."}] on failure.
+    """
+    log.info("search_zenodo(query=%r, limit=%d, type=%s)",
+             query, limit, resource_type)
+    try:
+        return await _run(zenodo_provider.search, query, limit,
+                          resource_type or None)
+    except Exception as e:
+        return [_err("search_zenodo", e)]
+
+
+# ---------- OpenAlex --------------------------------------------------------
+
+@tool_for("openalex")
+async def search_openalex(
+    query: str,
+    limit: int = 10,
+    from_year: int | None = None,
+    to_year: int | None = None,
+    open_access_only: bool = False,
+    exclude_retracted: bool = False,
+    work_type: str | None = None,
+    sort: str | None = None,
+) -> list[dict[str, Any]]:
+    """Search OpenAlex — an open index of roughly 327 million works.
+
+    Broad coverage across every field, with two things the other search tools
+    do not give you: a **retraction flag** on every record, and `fwci`, which
+    compares a paper's citations against the average for its own field, year
+    and type. Above 1 is above average, so it is a fairer measure than a raw
+    citation count when comparing across fields.
+
+    Abstracts are returned as ordinary readable text. OpenAlex stores them
+    inverted, as word positions; that is rebuilt here.
+
+    Works without a key. A key raises the daily budget a long way, and keyless
+    access is small enough to run out during a heavy review — set
+    OPENALEX_API_KEY in .env if you hit a rate-limit error.
+
+    Args:
+        query: Free-form search query.
+        limit: Maximum results (1-50, default 10).
+        from_year: Earliest publication year.
+        to_year: Latest publication year.
+        open_access_only: Only works with a free full text.
+        exclude_retracted: Drop retracted works from the results.
+        work_type: e.g. "article", "review", "preprint", "dataset".
+        sort: e.g. "cited_by_count:desc", "publication_date:desc".
+
+    Returns:
+        List of dicts with keys: id, doi, title, year, publicationDate, type,
+        venue, authors (with institutions), abstract, citedByCount, fwci,
+        topics, isOpenAccess, oaUrl, isRetracted, referencedWorksCount,
+        referencedWorks.
+        Returns [{"error": "...", "reason": "..."}] on failure.
+    """
+    log.info("search_openalex(query=%r, limit=%d, years=%s-%s)",
+             query, limit, from_year, to_year)
+    try:
+        return await _run(openalex_provider.search, query, limit, from_year,
+                          to_year, open_access_only, exclude_retracted,
+                          work_type, sort)
+    except Exception as e:
+        return [_err("search_openalex", e)]
+
+
+@tool_for("openalex")
+async def get_openalex_work(identifier: str) -> dict[str, Any]:
+    """Look up one work, and find out whether it has been RETRACTED.
+
+    This is the retraction check. Nothing else in this toolset can tell you
+    that a cited paper was withdrawn, and recommending "accept" on a paper
+    that leans on retracted work is exactly the failure it prevents. Give it
+    the DOI from a bibliography line and read `isRetracted`.
+
+    Worth doing for any citation the paper's argument rests on, and for any
+    reference that looks unusually old, unusually central, or biomedical.
+
+    Args:
+        identifier: A DOI ("10.1038/nature14539"), a doi.org URL, an OpenAlex
+            id ("W2741809807"), or a PMID (bare digits). **Not an arXiv id** —
+            OpenAlex has no arXiv namespace. Get the DOI first, from
+            get_arxiv_paper_details or get_semantic_scholar_paper.
+
+    Returns:
+        Dict with the same keys as search_openalex, for that one work.
+        `isRetracted` is the field to read. Returns
+        {"error": "...", "reason": "..."} when there is no such work.
+    """
+    log.info("get_openalex_work(identifier=%r)", identifier)
+    try:
+        return await _run(openalex_provider.get_work, identifier)
+    except Exception as e:
+        return _err("get_openalex_work", e)
+
+
 # ---------- Server entrypoint ----------------------------------------------
 
 if __name__ == "__main__":
@@ -729,5 +931,11 @@ if __name__ == "__main__":
         log.info("Semantic Scholar API key detected — higher rate limits enabled.")
     else:
         log.info("No SEMANTIC_SCHOLAR_API_KEY in env — Semantic Scholar will use anonymous limits.")
+    if os.environ.get("OSP_SOURCES", "").strip():
+        log.info("Databases enabled by OSP_SOURCES: %s",
+                 ", ".join(sorted(_ENABLED)))
+    else:
+        log.info("OSP_SOURCES not set — all %d databases enabled.",
+                 len(_ALL_SOURCES))
     log.info("Starting Open ScholarPeer MCP server (osp_mcp), timeout=%ds", _TIMEOUT)
     mcp.run(transport="stdio")

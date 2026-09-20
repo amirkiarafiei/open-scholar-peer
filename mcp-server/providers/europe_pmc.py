@@ -12,6 +12,7 @@ Docs: https://europepmc.org/RestfulWebService
 from __future__ import annotations
 
 import re
+import threading
 import time
 import xml.etree.ElementTree as ET
 from typing import Any
@@ -22,12 +23,24 @@ from . import window as _window
 
 BASE = "https://www.ebi.ac.uk/europepmc/webservices/rest"
 UA = "open-scholar-peer/1.0 (https://github.com/amirkiarafiei/open-scholar-peer)"
-_TIMEOUT = 20       # per socket operation
-_BUDGET = 55        # whole transfer, inside the 90 s OSP_CALL_TIMEOUT
+# Same arithmetic as arxiv.py: requests spends `timeout` on the connect AND
+# again on each read, and an in-loop deadline check overshoots by one read.
+# Worst case: connect 10 + budget 35 + one overshooting read 15 = 60 s.
+_CONNECT_TIMEOUT = 10
+_READ_TIMEOUT = 15
+_BUDGET = 35
 
 # Hard ceiling on a single download. Full articles run to a few hundred KB;
 # anything past this is not an article we want to hold in memory.
 _MAX_BYTES = 12 * 1024 * 1024
+
+
+class _Deadline(threading.local):
+    """Per-thread transfer deadline, set by _get and read by _read_capped."""
+    value: float = 0.0
+
+
+_deadline = _Deadline()
 
 
 class EuropePmcError(RuntimeError):
@@ -40,10 +53,13 @@ class EuropePmcNotFound(EuropePmcError):
 
 def _get(path: str, params: dict[str, Any] | None = None,
          missing_is_not_found: bool = False) -> requests.Response:
+    # Started before the request so a slow connect counts against it too.
+    _deadline.value = time.time() + _BUDGET
     try:
         resp = requests.get(
             f"{BASE}/{path}", params=params,
-            headers={"User-Agent": UA}, timeout=_TIMEOUT, stream=True,
+            headers={"User-Agent": UA},
+            timeout=(_CONNECT_TIMEOUT, _READ_TIMEOUT), stream=True,
         )
     except requests.RequestException as e:
         raise EuropePmcError(f"Europe PMC request failed: {e}") from e
@@ -77,7 +93,7 @@ def _read_capped(resp: requests.Response) -> str:
     Content-Length is absent on chunked replies, so the cap is also applied
     while reading.
     """
-    deadline = time.time() + _BUDGET
+    deadline = _deadline.value or (time.time() + _BUDGET)
     chunks, total = [], 0
     for chunk in resp.iter_content(chunk_size=65536):
         total += len(chunk)
@@ -148,7 +164,7 @@ def search(
     limit = max(1, min(int(limit), 100))
     full_query = build_query(query, open_access_only)
     if not full_query:
-        return [{"error": "search_europe_pmc needs a query"}]
+        raise ValueError("search_europe_pmc needs a query")
 
     params = {
         "query": full_query,
@@ -183,10 +199,39 @@ _DROP_TAGS = {"ref-list", "fn-group", "table-wrap-foot"}
 
 _BLOCK_TAGS = ("p", "caption", "list-item", "statement", "disp-quote")
 
+# Sections nest, and Python's recursion limit is about 1000 frames. 500 levels
+# of <sec> raised RecursionError, which surfaced as an unactionable "failed".
+# No real article is anywhere near this.
+_MAX_DEPTH = 100
+
 
 def _local(tag: str) -> str:
     """Strip the namespace: ElementTree gives '{uri}sec' for namespaced XML."""
     return tag.rsplit("}", 1)[-1]
+
+
+def _find(root: ET.Element, name: str) -> ET.Element | None:
+    """First descendant with this local name, namespace or not.
+
+    `root.find(".//article-title")` matches nothing when the document carries
+    a default namespace, because the real tag is
+    `{http://jats.nlm.nih.gov/...}article-title`. JATS is served both ways,
+    and the namespaced version was losing the whole article — and then
+    reporting it as "probably not open access", which is worse than losing it.
+    """
+    if _local(root.tag) == name:
+        return root
+    for node in root.iter():
+        if _local(node.tag) == name:
+            return node
+    return None
+
+
+def _child(node: ET.Element, name: str) -> ET.Element | None:
+    for child in node:
+        if _local(child.tag) == name:
+            return child
+    return None
 
 
 def _node_text(node: ET.Element) -> str:
@@ -199,8 +244,9 @@ def _placeholder(node: ET.Element, kind: str) -> str:
     JATS <label> already reads "Table 1", so prefixing the word again gave
     "[Table Table 1: ...]".
     """
-    label = (node.findtext("label") or "").strip().rstrip(".")
-    cap = node.find("caption")
+    label_el = _child(node, "label")
+    label = (label_el.text or "" if label_el is not None else "").strip().rstrip(".")
+    cap = _child(node, "caption")
     caption = _node_text(cap) if cap is not None else ""
     if not label:
         label = kind
@@ -217,6 +263,8 @@ def _render(node: ET.Element, depth: int) -> list[str]:
     section's title used to survive as a bare "## References", which reads as
     "this article has no bibliography".
     """
+    if depth > _MAX_DEPTH:
+        return ["[section nesting too deep to render]"]
     out: list[str] = []
     for child in node:
         tag = _local(child.tag)
@@ -245,6 +293,11 @@ def _render(node: ET.Element, depth: int) -> list[str]:
 
 def _render_sec(sec: ET.Element, depth: int) -> list[str]:
     """A section, with its heading only if it actually has content."""
+    if depth > _MAX_DEPTH:
+        # Say so. Returning nothing made the caller conclude the article had
+        # no body, and report it as "probably not open access" — the wrong
+        # reason, sent to someone who would then go looking in the wrong place.
+        return ["[section nesting too deep to render]"]
     title_el = None
     rest: list[str] = []
     for child in sec:
@@ -252,7 +305,7 @@ def _render_sec(sec: ET.Element, depth: int) -> list[str]:
         if tag == "title" and title_el is None:
             title_el = child
             continue
-        rest.extend(_render(ET.Element("wrap") if False else _wrap(child), depth))
+        rest.extend(_render(_wrap(child), depth))
     if not rest:
         return []
     heading: list[str] = []
@@ -293,11 +346,11 @@ def jats_to_text(xml: str) -> str:
 
     parts: list[str] = []
 
-    title = root.find(".//article-title")
+    title = _find(root, "article-title")
     if title is not None and _node_text(title):
         parts.append(f"# {_node_text(title)}")
 
-    abstract = root.find(".//abstract")
+    abstract = _find(root, "abstract")
     if abstract is not None:
         # Its own <title> child is usually the word "Abstract" again, which
         # produced a heading directly under the one we just wrote.
@@ -307,11 +360,14 @@ def jats_to_text(xml: str) -> str:
             parts.append("## Abstract")
             parts.extend(blocks)
 
-    body = root.find(".//body")
+    body = _find(root, "body")
     if body is not None:
         parts.extend(_render(body, 0))
 
-    if len(parts) <= 1:
+    # Judge on whether there is prose, not on how many blocks came back. A
+    # body with one paragraph and no article title is a real article.
+    prose = [p for p in parts if p.strip() and not p.lstrip().startswith("#")]
+    if not prose:
         raise EuropePmcError(
             "Europe PMC returned a record with no readable body — it is "
             "probably not open access. Try the links in fullTextUrls.")

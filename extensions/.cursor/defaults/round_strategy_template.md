@@ -9,6 +9,7 @@
   worth a call only when the paper touches medicine, biology, public health or
   psychology. Firing it on a CS paper pollutes the corpus.
   - `<tool>` — `<why it was in scope this round>`
+  (`osp-mcp.search_zenodo` is never in scope here — it finds code, not papers.)
 - **Tools not called:** `<tool>` — `not installed in this project` | `out of scope: <reason>`
 - **Tools that failed:** `<tool>` — `<the reason from the error record>`.
   An `error` key means the provider failed and you did not get to look. An

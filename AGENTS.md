@@ -90,7 +90,8 @@ extensions/.{claude,cursor,gemini,agent,agents,github,
 
 mcp-server/
   ├── osp_mcp.py                 FastMCP server entrypoint
-  └── providers/                 arxiv / semantic_scholar / google_scholar
+  └── providers/                 arxiv / semantic_scholar / google_scholar /
+                                 europe_pmc / zenodo / openalex
                                  (drop a new module here to add a provider)
 
 scripts/

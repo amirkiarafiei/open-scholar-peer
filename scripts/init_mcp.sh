@@ -118,8 +118,8 @@ else
   echo -e "  ${GREEN}✅ Created .gitignore with .open-scholar-peer/ entry${NC}"
 fi
 
-# Optional: prompt for Semantic Scholar API key
-if [[ -z "$SEMANTIC_SCHOLAR_API_KEY" ]]; then
+# Optional: mention the Semantic Scholar key, unless install.sh already took one
+if [[ -z "$SEMANTIC_SCHOLAR_API_KEY" && "$OSP_KEY_NAMES" != *SEMANTIC_SCHOLAR_API_KEY* ]]; then
   echo ""
   echo -e "  ${YELLOW}ℹ️  Semantic Scholar API key not set — anonymous rate limits will apply.${NC}"
   echo "     Get a free key at https://www.semanticscholar.org/product/api#api-key"
@@ -136,22 +136,84 @@ if [[ ! -f "$ENV_FILE" ]]; then
 
 # --- API keys ---------------------------------------------------------------
 
-# Semantic Scholar API key — free at https://www.semanticscholar.org/product/api
-# Without this, anonymous rate limits apply (~100 req / 5 min, bursty 429s).
+# Every database works without a key. A key only lifts a rate limit.
+
+# Semantic Scholar — free at https://www.semanticscholar.org/product/api
+# Anonymous access is one pool shared by every unauthenticated caller
+# everywhere, so it is throttled unpredictably and can refuse outright.
 # SEMANTIC_SCHOLAR_API_KEY=sk-...
+
+# OpenAlex — free at https://openalex.org. Keyless works but the daily
+# budget is small enough to run out during one heavy review.
+# OPENALEX_API_KEY=...
+
+# OpenAlex asks callers to identify themselves, and gives them a faster
+# lane for doing it.
+# OPENALEX_MAILTO=you@example.org
+
+# Zenodo — free at https://zenodo.org. Anonymous callers get roughly
+# 30-60 requests a minute and 2,000 an hour; a token raises that.
+# ZENODO_API_TOKEN=...
+
+# Google Scholar has no key. If it blocks your address, a proxy is the
+# only thing that helps — rotating the User-Agent was measured to do
+# nothing.
+# GOOGLE_SCHOLAR_PROXY_URL=http://user:pass@host:port
+
+# --- Databases --------------------------------------------------------------
+
+# Which paper databases the agent may search, as a comma-separated list.
+# Only the ones named here have their tools registered, which keeps the
+# agent's tool list short. Remove the line entirely to enable all of them.
+# Known: arxiv, semantic_scholar, google_scholar, europepmc, zenodo, openalex
+# OSP_SOURCES=arxiv,semantic_scholar,google_scholar,europepmc,zenodo,openalex
 
 # --- Tunables ---------------------------------------------------------------
 
-# Per-tool-call timeout in seconds. Applies uniformly to arXiv,
-# Semantic Scholar, and Google Scholar requests. Bump higher if you
-# routinely see TimeoutError on slow networks; lower if you'd rather
-# fail fast. Default: 90.
+# Per-tool-call timeout in seconds. Applies to every provider. Bump higher
+# if you routinely see TimeoutError on slow networks; lower if you would
+# rather fail fast. Default: 90.
 # OSP_CALL_TIMEOUT=90
 ENVEOF
   echo -e "  ${GREEN}✅ Created .env at project root — add your API keys there${NC}"
 else
   echo -e "  ${YELLOW}ℹ️  .env already exists at project root${NC}"
 fi
+
+# Write the choices install.sh collected into .env, touching only the lines
+# OSP owns. A re-install must not disturb anything the user put there, and
+# this runs once per selected tool, so it has to be idempotent.
+osp_env_set() {
+  local key=$1 value=$2
+  [[ -z "$value" ]] && return 0
+  if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
+    # Rewrite in place without sed -i, which differs on BSD and GNU.
+    local tmp
+    tmp=$(mktemp "${ENV_FILE}.XXXXXX") || return 1
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      if [[ "$line" == "${key}="* ]]; then
+        printf '%s=%s\n' "$key" "$value"
+      else
+        printf '%s\n' "$line"
+      fi
+    done < "$ENV_FILE" > "$tmp"
+    mv "$tmp" "$ENV_FILE"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+  fi
+}
+
+if [[ -n "$OSP_SOURCES" ]]; then
+  osp_env_set "OSP_SOURCES" "$OSP_SOURCES"
+fi
+for _osp_var in $OSP_KEY_NAMES; do
+  eval "_osp_val=\${OSP_KEY_$_osp_var:-}"
+  osp_env_set "$_osp_var" "$_osp_val"
+done
+unset _osp_var _osp_val
+
+# .env holds API keys. Nobody else needs to read it.
+chmod 600 "$ENV_FILE" 2>/dev/null || true
 
 # Add .env to .gitignore if not already there
 if [[ -f "$GITIGNORE" ]]; then

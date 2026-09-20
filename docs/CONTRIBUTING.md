@@ -101,18 +101,25 @@ The MCP server at `mcp-server/osp_mcp.py` is intentionally modular. To add a new
            return [{"error": f"search_pubmed failed: {e}"}]
    ```
 
-3. **Update `requirements.txt`** with any new dependencies.
+3. **Register it behind `@tool_for("<source>")`, not `@mcp.tool()`**, and add the source name to `_ALL_SOURCES` in `osp_mcp.py` and to the `DB_*` arrays in `install.sh`. A tool that cannot be switched off is a cost the agent pays on every request, whether or not the user wanted that database.
 
-4. **Document the new tool** in `mcp-server/README.md`. If the provider needs an API key, document the env var and the link to obtain one.
+4. **Update `requirements.txt`** with any new dependencies, **with an upper bound**. An unbounded pin has broken this project twice: `arxiv>=2.1.0` resolved two majors up, and `mcp>=1.2.0` resolved to a version that had removed the import the server needs.
 
-5. **Update `osp-literature-review-agent` and related skills** to mention the new tool if it should be used in the 3-round retrieval. Re-sync.
+5. **Give failures their own exception type**, and never return `[]` for one. Map it to a `reason` in `_err()`.
+
+6. **Add tests.** Offline checks for the pure logic in `scripts/test_providers_unit.py`, and a live check in `scripts/test_providers.py`. Nothing else in the repository loads `mcp-server/providers/`, so an untested provider is an unchecked one.
+
+7. **Document the new tool** in `mcp-server/README.md`, and keep the tool list honest — it was once listing three tools that did not exist. If the provider takes an API key, document the env var and where to get one. **A key must never be required**; every source here answers without one (MANIFESTO rule 1).
+
+8. **Update `osp-literature-review-agent` and related skills** to mention the new tool if it should be used in the 3-round retrieval. Re-sync. A tool nobody is told about changes nothing — and put it in the output *template*, not only the prose, because an agent fills the template it is given.
 
 ### Design constraints for new providers
 
-- **Dumb tools only.** Each tool is atomic and stateless. No orchestration logic, no retries that hide failures, no implicit caching.
+- **Dumb tools only.** Each tool is atomic and stateless. No orchestration logic, no retries that hide failures. A transport-level cache (an HTTP client, parsed text for paging) is allowed, because it changes *when* an answer arrives and never *what* it is — anything that changes the answer is not.
 - **Rich docstrings.** The MCP host shows the docstring to the LLM. Vague descriptions cause the agent to call the wrong tool.
-- **Consistent error envelope.** Search-style tools return `[{"error": "..."}]` on failure; single-record tools return `{"error": "..."}`.
-- **No secrets in the registered config.** API keys are read from env vars at runtime, never written into `.mcp.json`.
+- **Consistent error envelope.** Search-style tools return `[{"error": "...", "reason": "..."}]` on failure; single-record tools return `{"error": "...", "reason": "..."}`. **An empty list means the search ran and matched nothing — never use it to report a failure.** Getting this wrong is not cosmetic: a Google Scholar block returned `[]` for months, so the agent reported "no papers found" when the truth was "we were shut out".
+- **No secrets in the registered config.** API keys are read from env vars at runtime, never written into `.mcp.json`. They belong in `.env`, which is gitignored and chmod 600.
+- **Bound your own time.** `OSP_CALL_TIMEOUT` (90 s) cannot cancel a running thread, so a provider that hangs keeps working after the caller has given up. Cap your retries and your transfers from the inside, and pin the budget with a test.
 
 ---
 

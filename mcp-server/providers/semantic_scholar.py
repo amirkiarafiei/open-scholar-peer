@@ -30,6 +30,8 @@ import os
 import threading
 from typing import Any
 
+from urllib.parse import quote
+
 from semanticscholar import SemanticScholar
 
 
@@ -79,6 +81,16 @@ def _is_rate_limit(exc: BaseException) -> bool:
             return True
         node = node.__cause__ or node.__context__
     return False
+
+
+def _encode(query: str) -> str:
+    """Percent-encode a query before the package pastes it into a URL.
+
+    The client concatenates the query straight into a query string, so an
+    ampersand ends it: searching for "Q&A over documents" actually searched
+    for "Q". Titles from a bibliography hit this constantly.
+    """
+    return quote(query or "", safe="")
 
 
 def _call(fn, *args, **kwargs):
@@ -260,17 +272,23 @@ def search_papers(
         # The package refuses `sort` unless `bulk` is set: sorting is only
         # offered by the bulk endpoint, which does not rank by search
         # relevance.
+        #
+        # And /paper/search/bulk does not support `tldr`. Leaving it in the
+        # field list made every sorted search fail with
+        # "Unrecognized or unsupported fields: [tldr]" — sort was broken
+        # 100% of the time, and nothing tested it.
         kwargs["sort"] = sort
         kwargs["bulk"] = True
+        kwargs["fields"] = [f for f in _PAPER_FIELDS if f != "tldr"]
 
-    results = _call(_get_client().search_paper, query, **kwargs)
+    results = _call(_get_client().search_paper, _encode(query), **kwargs)
     return [_paper_to_dict(p) for p in _take(results, limit)]
 
 
 def match_paper_title(title: str) -> dict[str, Any]:
     """Resolve a title to the single closest paper, with a match score."""
     paper = _call(
-        _get_client().search_paper, title, match_title=True,
+        _get_client().search_paper, _encode(title), match_title=True,
         fields=_PAPER_FIELDS,
     )
     record = _paper_to_dict(paper)
@@ -331,7 +349,8 @@ def get_author(author_id: str) -> dict[str, Any]:
 
 def search_authors(query: str, limit: int = 10) -> list[dict[str, Any]]:
     limit = max(1, min(int(limit), 100))
-    results = _call(_get_client().search_author, query, limit=limit, fields=_AUTHOR_FIELDS)
+    results = _call(_get_client().search_author, _encode(query), limit=limit,
+                    fields=_AUTHOR_FIELDS)
     return [_author_to_dict(a) for a in _take(results, limit)]
 
 
@@ -354,7 +373,7 @@ def search_snippets(query: str, limit: int = 10) -> list[dict[str, Any]]:
     # 50 already puts roughly 25,000 words in front of the agent. The cost is
     # paid in context, which nothing here meters.
     limit = max(1, min(int(limit), 50))
-    results = _call(_get_client().search_snippet, query, limit=limit)
+    results = _call(_get_client().search_snippet, _encode(query), limit=limit)
     out: list[dict[str, Any]] = []
     for s in _take(results, limit):
         inner = getattr(s, "snippet", None)

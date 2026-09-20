@@ -576,6 +576,7 @@ Intro text. 50\\% of cases.
     # for a long paper, each paying the three-second gap. The cache is read
     # from worker threads, so it has a lock of its own.
     import threading as _t
+    import time
     ax._cache_put("A", "text-A")
     ax._cache_put("B", "text-B")
     check("a cached entry comes back", ax._cache_get("A"), "text-A")
@@ -598,6 +599,52 @@ Intro text. 50\\% of cases.
     check("concurrent readers never see another paper's text", bleed, [])
     check_true("the cache stays bounded",
                len(ax._TEXT_CACHE) <= ax._TEXT_CACHE_MAX)
+
+    # At 2 entries a phase reading three papers in turn missed every time —
+    # 0% hit rate, and each miss also pays the three-second gap.
+    check_true(f"the cache holds a working set, not one paper "
+               f"({ax._TEXT_CACHE_MAX} entries)", ax._TEXT_CACHE_MAX >= 8)
+
+    # One download per paper, however many callers ask at once. Without this
+    # nine concurrent readers of one id caused six downloads and three of
+    # them were refused with ArxivBusy — for a paper already being fetched.
+    import gzip as _gzip
+    from unittest import mock as _mock
+
+    ax._TEXT_CACHE.clear()
+    downloads = []
+
+    def _fake_download(url):
+        downloads.append(url)
+        time.sleep(0.3)
+        return _gzip.compress(
+            b"\\documentclass{a}\\begin{document}BODY\\end{document}")
+
+    errors = []
+
+    def _reader():
+        try:
+            ax.read_paper("single-flight-probe", max_chars=100)
+        except Exception as e:
+            errors.append(type(e).__name__)
+
+    with _mock.patch.object(ax, "_download", _fake_download):
+        readers = [_t.Thread(target=_reader) for _ in range(9)]
+        for r in readers:
+            r.start()
+        for r in readers:
+            r.join()
+    check("nine concurrent readers cause one download", len(downloads), 1)
+    check("and none of them is refused as busy", errors, [])
+
+    ax._TEXT_CACHE.clear()
+    downloads.clear()
+    with _mock.patch.object(ax, "_download", _fake_download):
+        for i in range(30):
+            ax.read_paper(f"rr-probe-{i % 3}", max_chars=50)
+    check("a three-paper round robin downloads three times, not thirty",
+          len(downloads), 3)
+    ax._TEXT_CACHE.clear()
 
     # A PDF-only submission has no .tex at all and must say so, not return "".
     pdf_only = _make_tarball({"paper.pdf": b"%PDF-1.4 fake"})
@@ -703,11 +750,22 @@ def test_europe_pmc() -> None:
     check_true("namespaced JATS still yields text", "Hello [1] world." in got)
 
     # Deep nesting must not exhaust the stack and kill the server.
-    deep = ("<article><body>" + "<sec><title>S</title>" * 300
-            + "<p>bottom</p>" + "</sec>" * 300 + "</body></article>")
+    # Nesting below _MAX_DEPTH must render normally...
+    shallow = ("<article><body>" + "<sec><title>S</title>" * 20
+               + "<p>bottom</p>" + "</sec>" * 20 + "</body></article>")
+    check_true("ordinary nesting renders through to the deepest paragraph",
+               "bottom" in ep.jats_to_text(shallow))
+
+    # ...and pathological nesting must stop without killing the process, and
+    # must SAY it stopped. Returning nothing made the caller report the
+    # article as "probably not open access", which is the wrong reason.
+    deep = ("<article><body>" + "<sec><title>S</title>" * 500
+            + "<p>bottom</p>" + "</sec>" * 500 + "</body></article>")
     try:
-        check_true("400 levels of nesting does not blow the stack",
-                   "bottom" in ep.jats_to_text(deep))
+        got = ep.jats_to_text(deep)
+        check_true("500 levels of nesting does not blow the stack", bool(got))
+        check_true("and says why it stopped rather than looking empty",
+                   "too deep" in got)
     except RecursionError:
         FAIL.append("deeply nested XML raised RecursionError")
 
@@ -801,6 +859,271 @@ def test_window() -> None:
     check_false("and is not truncated", short["truncated"])
 
 
+# ---------------------------------------------------------------------------
+# OpenAlex — the inverted index (M13 S4)
+# ---------------------------------------------------------------------------
+
+def test_openalex() -> None:
+    from providers import openalex as oa
+
+    check("inverted index is rebuilt in word order",
+          oa.invert_abstract({"the": [0, 3], "cat": [1], "sat": [2], "mat": [4]}),
+          "the cat sat the mat")
+    check("no abstract gives None", oa.invert_abstract(None), None)
+    check("an empty index gives None", oa.invert_abstract({}), None)
+    check("a word with no positions is skipped",
+          oa.invert_abstract({"a": [0], "b": []}), "a")
+    check("positions out of order are still sorted",
+          oa.invert_abstract({"world": [1], "hello": [0]}), "hello world")
+
+    # A word may legitimately repeat; every position must be filled.
+    check("a repeated word lands at every position it has",
+          oa.invert_abstract({"a": [0, 2], "b": [1]}), "a b a")
+
+
+# ---------------------------------------------------------------------------
+# Zenodo (M13 S1/S2)
+# ---------------------------------------------------------------------------
+
+def test_zenodo() -> None:
+    from providers import zenodo as zn
+
+    # These raise rather than returning an error dict, so the tool layer
+    # gives them reason: "bad_request" like every other input error.
+    try:
+        zn.search("x", resource_type="nonsense")
+        FAIL.append("an unknown resource_type was accepted")
+    except ValueError as e:
+        check_true("an unknown resource_type is refused, and lists the valid ones",
+                   "software" in str(e))
+    try:
+        zn.search("   ")
+        FAIL.append("an empty query was accepted")
+    except ValueError:
+        PASS.append("an empty query is refused")
+    check_true("software is one of the known types", "software" in zn.RESOURCE_TYPES)
+    check_true("so is dataset", "dataset" in zn.RESOURCE_TYPES)
+    check_true("ZenodoError is its own type", issubclass(zn.ZenodoError, Exception))
+
+
+# ---------------------------------------------------------------------------
+# Source gating (M13 S5) — the picker is only real if it shortens the list
+# ---------------------------------------------------------------------------
+
+def test_source_gating() -> None:
+    import importlib.util, os, logging
+    logging.disable(logging.WARNING)
+
+    def tools_for(value):
+        before = os.environ.get("OSP_SOURCES")
+        if value is None:
+            os.environ.pop("OSP_SOURCES", None)
+        else:
+            os.environ["OSP_SOURCES"] = value
+        try:
+            path = REPO_ROOT / "mcp-server" / "osp_mcp.py"
+            spec = importlib.util.spec_from_file_location("osp_probe", path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return set(mod.mcp._tool_manager._tools)
+        finally:
+            if before is None:
+                os.environ.pop("OSP_SOURCES", None)
+            else:
+                os.environ["OSP_SOURCES"] = before
+
+    every = tools_for(None)
+    check("unset means every tool is on", len(every), 22)
+
+    three = tools_for("arxiv,semantic_scholar,google_scholar")
+    check("three sources give a shorter list", len(three), 17)
+    check_true("and it is a subset of everything", three < every)
+
+    just_arxiv = tools_for("arxiv")
+    check("one source gives only its tools", len(just_arxiv), 3)
+    check_true("all of them arXiv",
+               all("arxiv" in t for t in just_arxiv))
+
+    # A typo must not silently disable everything.
+    check("an unknown name alone falls back to all", len(tools_for("nonsense")), 22)
+    check("an empty value falls back to all", len(tools_for("")), 22)
+    check("a known name survives an unknown one beside it",
+          len(tools_for("arxiv,nonsense")), 3)
+    # Spellings a human would plausibly type.
+    check("the europe_pmc spelling is understood",
+          len(tools_for("europe_pmc")), 2)
+    check("so is epmc", len(tools_for("epmc")), 2)
+    check("so is s2", len(tools_for("s2")), 11)
+    check("case and spacing do not matter",
+          len(tools_for("  ArXiv , OPENALEX ")), 5)
+
+    # Things a person actually types when editing .env by hand. A plain
+    # environment variable keeps the quotes that python-dotenv would strip.
+    check("a quoted value works", len(tools_for("'arxiv'")), 3)
+    check("a double-quoted list works", len(tools_for('"arxiv, openalex"')), 5)
+    check("spaces work as a separator", len(tools_for("arxiv openalex")), 5)
+    check("a trailing comma is harmless", len(tools_for("arxiv,")), 3)
+    check("empty entries are harmless", len(tools_for(",,arxiv,,")), 3)
+    check("a repeated name counts once", len(tools_for("openalex,openalex")), 2)
+
+    # Nothing in the value is ever executed or matched loosely.
+    check("shell metacharacters do not match anything",
+          len(tools_for("arxiv;rm -rf /")), 22)
+    check("a prefix of a real name is not accepted", len(tools_for("arx")), 22)
+    check("a long junk list still finds the one real name",
+          len(tools_for(",".join(["x"] * 500 + ["arxiv"]))), 3)
+
+
+# ---------------------------------------------------------------------------
+# Regressions found by the M11 and M12 audits on 2026-09-20. Every one of
+# these shipped, and several were the exact inverse of a bug the milestone
+# had just fixed.
+# ---------------------------------------------------------------------------
+
+def test_audit_regressions() -> None:
+    from providers import google_scholar as gs
+    from providers import semantic_scholar as ss
+    from providers import openalex as oa
+    from providers import zenodo as zn
+    from providers import arxiv as ax
+    import gzip, io, time
+
+    # --- the block detector matched PROSE, and Google echoes your query ----
+    # A results page for a paper about CAPTCHAs was reported as a block: B9
+    # inverted, telling the agent the provider was down when it answered.
+    for label, html in [
+        ("a paper titled about robots",
+         '<div class="gs_ri"><h3 class="gs_rt"><a>I am not a robot: Learning '
+         'to Break Semantic Image CAPTCHAs</a></h3></div>'),
+        ("a paper about unusual traffic",
+         '<div class="gs_ri"><h3 class="gs_rt"><a>Detecting unusual traffic '
+         'patterns in backbone networks</a></h3></div>'),
+        ("a snippet mentioning reCAPTCHA",
+         '<div class="gs_ri"><div class="gs_rs">We evaluate reCAPTCHA v3 and '
+         'our systems have detected drift.</div></div>'),
+        ("a zero-hit page for such a query",
+         '<html><title>unusual traffic - Google Scholar</title>'
+         '<div class="gs_med">did not match any articles</div></html>'),
+    ]:
+        check_false(f"not a block: {label}", gs.is_block_page(200, html, ""))
+
+    for label, status, html, url in [
+        ("429", 429, "", ""),
+        ("403", 403, "", ""),
+        ("503", 503, "", ""),
+        ("the captcha container", 200, '<div id="gs_captcha_ccl"></div>', ""),
+        ("a g-recaptcha widget", 200, '<div class="g-recaptcha"></div>', ""),
+        ("the denial-of-service body", 200, '<div id="rc-doscaptcha-body">', ""),
+        ("a /sorry/ redirect", 200, "<html></html>",
+         "https://www.google.com/sorry/index?continue=x"),
+        ("a CaptchaRedirect form", 200, '<form action="/sorry/CaptchaRedirect">', ""),
+    ]:
+        check_true(f"still a block: {label}", gs.is_block_page(status, html, url))
+
+    # --- sort was broken 100% of the time: bulk rejects tldr ---------------
+    fake = _FakeClient()
+    real = ss._get_client
+    ss._get_client = lambda: fake
+    try:
+        ss.search_papers("q", sort="citationCount:desc")
+        kw = fake.calls[-1][2]
+        check("sort forces bulk", kw.get("bulk"), True)
+        check_false("and drops tldr, which the bulk endpoint rejects",
+                    "tldr" in kw.get("fields", []))
+        check_true("while keeping the rest", "title" in kw.get("fields", []))
+        fake.calls.clear()
+        ss.search_papers("q")
+        check_true("an unsorted search still asks for tldr",
+                   "tldr" in fake.calls[-1][2].get("fields", []))
+    finally:
+        ss._get_client = real
+
+    # --- an & ended the query string, so "Q&A ..." searched for "Q" --------
+    check("an ampersand is encoded", ss._encode("Q&A over documents"),
+          "Q%26A%20over%20documents")
+    check_false("and nothing is left bare", "&" in ss._encode("a&b"))
+
+    # --- a crafted category could undo the AND that B2 added ---------------
+    try:
+        ax.build_query("x", categories=["cs.CL) OR (cat:quant-ph"])
+        FAIL.append("a category that closes the group was accepted")
+    except ValueError:
+        PASS.append("a category that would re-open the boolean is refused")
+    check("real categories still work",
+          ax.build_query("x", categories=["cs.CL", "hep-th", "math.AG"]),
+          "(x) AND (cat:cs.CL OR cat:hep-th OR cat:math.AG)")
+
+    # --- a missing record is not an outage ---------------------------------
+    check_true("OpenAlexNotFound is a kind of OpenAlexError",
+               issubclass(oa.OpenAlexNotFound, oa.OpenAlexError))
+    check_true("ZenodoNotFound is a kind of ZenodoError",
+               issubclass(zn.ZenodoNotFound, zn.ZenodoError))
+
+    # --- identifier routing ------------------------------------------------
+    import re as _re
+    for ident, want in [("HTTPS://DOI.ORG/10.1038/x", "works/doi:10.1038/x"),
+                        ("http://dx.doi.org/10.1/y", "works/doi:10.1/y"),
+                        ("10.1038/z", "works/doi:10.1038/z"),
+                        ("34265844", "works/pmid:34265844")]:
+        stripped = _re.sub(r"(?i)^https?://(?:dx\.)?doi\.org/", "", ident)
+        if stripped != ident:
+            got = f"works/doi:{stripped}"
+        elif ident.lower().startswith("10."):
+            got = f"works/doi:{ident}"
+        elif _re.fullmatch(r"\d+", ident):
+            got = f"works/pmid:{ident}"
+        else:
+            got = f"works/{ident}"
+        check(f"{ident!r} routes correctly", got, want)
+
+    # --- input errors must raise, so they pick up a reason -----------------
+    for label, call in [("zenodo empty query", lambda: zn.search("  ")),
+                        ("zenodo bad type", lambda: zn.search("x", resource_type="bogus")),
+                        ("openalex empty id", lambda: oa.get_work(""))]:
+        try:
+            call()
+            FAIL.append(f"{label}: returned instead of raising")
+        except ValueError:
+            PASS.append(f"{label} raises ValueError, so it becomes bad_request")
+
+    # --- the gzip bomb: 4.7 MB became 1.07 billion characters --------------
+    bomb = gzip.compress(b"\\documentclass{a}\\begin{document} "
+                         + b"A" * (ax._MAX_UNPACKED + 4096), 1)
+    try:
+        ax._tex_members(bomb)
+        FAIL.append("a gzip bomb was accepted on the single-file branch")
+    except ax.ArxivFullTextError as e:
+        check_true("a gzip bomb is refused by the unpacked-size cap",
+                   "unpacked" in str(e))
+
+    # --- the quadratic scans: both were hours at the per-file cap ----------
+    start = time.time()
+    ax._braced("\\title{ " * (64 * 1024 // 8), "title")
+    took = time.time() - start
+    check_true(f"_braced on 64 KB of unclosed titles is fast ({took:.2f}s)",
+               took < 1.0)
+
+    start = time.time()
+    ax._body_only("\\begin{thebibliography}{9} " * (512 * 1024 // 27))
+    took = time.time() - start
+    check_true(f"_body_only on 512 KB of unclosed bibliographies is fast "
+               f"({took:.2f}s)", took < 1.0)
+
+    # --- every transfer budget must fit inside OSP_CALL_TIMEOUT ------------
+    from providers import europe_pmc as ep
+    budgets = {
+        "arxiv": ax._LOCK_WAIT + ax._MIN_GAP + ax._CONNECT_TIMEOUT
+                 + ax._DOWNLOAD_BUDGET + ax._READ_TIMEOUT,
+        "europe_pmc": ep._CONNECT_TIMEOUT + ep._BUDGET + ep._READ_TIMEOUT,
+        "openalex": oa._CONNECT_TIMEOUT + oa._READ_TIMEOUT,
+        "zenodo": zn._CONNECT_TIMEOUT + zn._READ_TIMEOUT,
+        "google_scholar": gs._TIMEOUT * gs._MAX_ATTEMPTS
+                          + sum(2 ** i for i in range(gs._MAX_ATTEMPTS - 1)),
+    }
+    for name, worst in budgets.items():
+        check_true(f"{name} worst case {worst}s fits inside 90s", worst < 90)
+
+
 TESTS = [
     ("google_scholar", test_google_scholar),
     ("arxiv query builder", test_arxiv_query),
@@ -810,6 +1133,10 @@ TESTS = [
     ("arxiv full text", test_arxiv_fulltext),
     ("europe pmc", test_europe_pmc),
     ("windowing", test_window),
+    ("openalex", test_openalex),
+    ("zenodo", test_zenodo),
+    ("source gating", test_source_gating),
+    ("audit regressions", test_audit_regressions),
 ]
 
 

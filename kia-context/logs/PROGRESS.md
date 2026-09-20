@@ -604,6 +604,35 @@ list is now cross-checked against the source.
 
 ---
 
+### Second review round — 2026-09-20 (late)
+
+The live-API reviewer reported after M11 was already committed. It found one defect that made a
+documented feature fail **every single time**, and one that inverted the milestone's headline fix.
+
+| | Defect | Fix |
+|---|---|---|
+| 1 | **`sort=` was broken 100% of the time.** It forces the bulk endpoint, and `/paper/search/bulk` does not accept `tldr` — which B6 had just added to the field list. Every sorted search returned `Unrecognized or unsupported fields: [tldr]`. Nothing tested `sort`. | `tldr` is dropped when `bulk` is set. Verified live: `sort="citationCount:desc"` now returns `[193201, 121183, 69949, 62710, 35738]`. |
+| 2 | **The block detector matched prose, and Google echoes your query.** `"unusual traffic"`, `"not a robot"` and `"our systems have detected"` appear in real papers — a results page for *"I'm not a robot: (Deep) Learning to Break Semantic Image CAPTCHAs"* was reported as a block. **This is B9 inverted**: telling the agent the provider is down when it answered perfectly, and doing it to exactly the reviews most likely to search those words. | Detection is now structural — HTTP status, the `/sorry/` redirect, and interstitial element ids matched in attribute position. A paper that merely discusses reCAPTCHA cannot trip it. Both directions are tested. |
+| 3 | **An `&` in a query silently truncated it.** The package pastes the query into a URL, so `"Q&A over documents"` searched for **"Q"**. Bibliography titles hit this constantly. | Percent-encoded before the package sees it. |
+| 4 | **A crafted category re-opened the boolean group.** `categories=["cs.CL) OR (cat:quant-ph"]` produced `(x) AND (cat:cs.CL) OR (cat:quant-ph)`, where the AND binds nothing — **the exact failure B2 existed to fix**. | Categories are validated against arXiv's own shape. |
+| 5 | **`num_results` never reached Google** — no `num` parameter was sent, so the documented 1–20 was capped at Google's default 10. | Sent. |
+
+**The instrument was lying too.** `scripts/test_providers.py` printed "✅ every check that could run
+passed" and exited 0 when Semantic Scholar had verified *nothing* — and S2 was rate-limiting this
+machine for most of the session, which is precisely when defect 1 would have been caught. It now says
+**"NOTHING WAS PROVED"** in a banner, reports how many checks actually ran, and takes `--strict` to make
+it an exit code. A run that proves nothing must not look like a run that passed.
+
+**Cleared by that review**, worth recording because re-deriving it is the expensive half: B4 was checked
+at **all 13 paging call sites** with the HTTP layer stubbed to always advertise another page — every one
+makes exactly one request, and the control without `islice` reached 1,201 items over 13 requests and was
+still going. B3's shared client was verified by identity under four concurrent threads: minimum gap
+3.68 s, never more than one `Client.results()` in flight, no deadlock. The session-timeout patch does not
+break the package's own retry. Every name in all three `fields=` lists is valid; `tldr` on bulk was the
+only 400.
+
+---
+
 ## 🏁 Milestone M12: Read the paper, not just its title
 
 **Target.** Every OSP tool today returns metadata only. The Baseline Scout and the Q&A engine cannot check
@@ -756,6 +785,49 @@ cross-checked against the source.
 
 ---
 
+### Second review round — 2026-09-20 (resource safety)
+
+The safety reviewer ran the providers rather than reading them, and found **four ways to take the
+server down** with a file small enough to slip under every existing cap.
+
+| | Defect | Measured | Fix |
+|---|---|---|---|
+| 1 | **gzip bomb.** The single-file branch called `gzip.decompress()` with no ceiling. Only `_MAX_DOWNLOAD` applied, and gzip reaches about 1030:1. | a **4.7 MB** e-print expanded to **1,073,741,864 characters and 3.1 GB of RSS** — and returned *successfully*. At 4 GiB it raised MemoryError. | read through the unpacked cap instead. Refused in 0.1 s. |
+| 2 | **`tf.getmembers()` built the whole index** before `_MAX_MEMBERS` was ever consulted. | 2M empty members → 914 MB and 34.9 s; 9M → **4 GB and 157 s**, well past the call timeout, on a thread that cannot be cancelled. | iterate the archive lazily, with a parse budget. 0.04 s. |
+| 3 | **Quadratic bibliography regex.** `\begin{...}.*?\end{...}` with `re.S` rescans to end-of-file for every unmatched opener. | 508 KB → 10.6 s; at the per-file cap, about **1.8 hours**. | `find()` instead of a regex. 0.00 s. |
+| 4 | **Quadratic `_braced`**, and it runs first. | 64 KB of unclosed `\title{` → 22.1 s; at the cap, roughly **ten days**. The archive compressed to 2.5 KB. | bounded on both axes. 0.03 s. |
+
+Any twenty of these would have filled the default thread pool and wedged every later call.
+
+Six smaller ones in the same pass: `read_paper` returned `total_chars: 0` with **no error** for a body
+that was entirely comments, which reads as "this paper is empty"; namespaced JATS lost the whole
+article, because `.//article-title` does not match `{ns}article-title` — and then reported it as
+"probably not open access", the wrong reason sent to someone who would go looking in the wrong place;
+an article with one paragraph and no title was rejected the same way; 500 nested sections raised
+`RecursionError`; two input errors bypassed `_err` and carried no `reason`; and the transfer budget was
+**wrong by measurement** — 76.1 s against a slow server, because `requests` spends its timeout on the
+connect *and* on each read, and an in-loop deadline check overshoots by one read. The deadline now
+starts before the request. Re-measured: 42.0 s against a 35 s budget, inside the margin the comment
+claims.
+
+**The cache added in M12 was two-thirds wrong.** A re-audit measured it: nine concurrent readers of the
+*same* paper caused **six downloads**, and three of them were refused with `ArxivBusy` for a paper
+already being fetched — reachable whenever the Q&A engine runs subagents in parallel on one paper. And
+at two entries, a phase reading three papers in turn missed on **every single read** (41/41/40 downloads
+over 200 reads) while still paying the three-second gap on each miss. Now one download per paper however
+many callers ask at once, and eight entries: nine threads → **1 download, no refusals**; the round robin
+→ **3 downloads instead of 30**.
+
+**What the safety pass cleared**, and it is the half worth not re-deriving: **nothing is written to
+disk**, proved by `strace` on real reads — zero non-read file operations — and independently by patching
+`open`/`os.open`. Hostile member names (`../../etc/...`, absolute paths, symlinks, device nodes) write
+nothing. XML entity expansion is refused, and pushing the DOCTYPE past the sniff window does not get
+through either. The windowing has **no off-by-one**: consecutive windows partition the text whatever the
+snap does, checked over 18 adversarial shapes × 9 sizes, 3,000 random texts and 2,000 random offsets,
+with zero failures.
+
+---
+
 ## 🏁 Milestone M13: More open sources, and let the user pick them
 
 **Target.** Add the two remaining agreed sources, and give the installer a way to choose databases —
@@ -764,13 +836,13 @@ before installing. Decisions: `BRAINSTORM.md` D19 and D21.
 
 ### Deliverables
 
-- [ ] **S1 — Zenodo provider.** Open, no key. Verified 2026-09-19: `https://zenodo.org/api/records?q=<q>&size=<n>&type=software` returned HTTP 200 and **12,570** software records for a test query. Docs: `https://developers.zenodo.org/`.
-- [ ] **S2 — use Zenodo for the right question.** It does not find papers. It finds code, datasets and software releases. Give it its own job: *"did the authors release their code and data?"* — a reproducibility criterion on most venue review forms that the agent currently cannot check at all. Do **not** put it in the literature rounds.
-- [ ] **S3 — OpenAlex provider.** ~**327,426,920** works (live `meta.count`, 2026-09-19). Its unique value is **`is_retracted`** — **135,702** flagged works. Nothing else we have can tell the agent that a cited paper was retracted, and recommending "accept" on a paper leaning on retracted work is exactly the failure that catches. Also gives `referenced_works`, `topics`, ROR-linked institutions, `best_oa_location`, `fwci`.
-- [ ] **S4 — OpenAlex key handling.** OpenAlex moved to free API keys on **2026-02-13**. Keyless still answers but is capped at **100 credits/day**, and a list call costs **10** — about **10 searches a day**, which is unusable. A free key gives **100,000/day at 100 req/s**. So OpenAlex is *optional-key* in the same sense as Semantic Scholar, and must be labelled that way in the installer. One gotcha: **OpenAlex returns abstracts as an inverted index** and they must be reconstructed into text.
-- [ ] **S5 — installer database picker** (owner's design). Extend the M9 TUI so the user explicitly selects which paper-search databases to enable. Show a readable table with, per database: **free / key required / optional key**, and **which domain it covers**. Keep the existing keyboard model — arrows, space to toggle, the framed Install button.
-- [ ] **S6 — optional key entry during install.** After selecting, offer to type each key right there, with a clear skip. If skipped, tell the user the `.env` file exists and they can add keys later. Never require a key to finish the install.
-- [ ] **S7 — the table content** (as agreed 2026-09-19): arXiv — free, preprints, CS/physics/maths. Semantic Scholar — optional key (speed only), all fields. Google Scholar — free, broad, best-effort scraping. Europe PMC — free, biomedical, full text. Zenodo — free, code/data/software. OpenAlex — optional key, all fields, retraction flags.
+- [x] **S1 — Zenodo provider.** Open, no key. Verified 2026-09-19: `https://zenodo.org/api/records?q=<q>&size=<n>&type=software` returned HTTP 200 and **12,570** software records for a test query. Docs: `https://developers.zenodo.org/`.
+- [x] **S2 — use Zenodo for the right question.** It does not find papers. It finds code, datasets and software releases. Give it its own job: *"did the authors release their code and data?"* — a reproducibility criterion on most venue review forms that the agent currently cannot check at all. Do **not** put it in the literature rounds.
+- [x] **S3 — OpenAlex provider.** ~**327,426,920** works (live `meta.count`, 2026-09-19). Its unique value is **`is_retracted`** — **135,702** flagged works. Nothing else we have can tell the agent that a cited paper was retracted, and recommending "accept" on a paper leaning on retracted work is exactly the failure that catches. Also gives `referenced_works`, `topics`, ROR-linked institutions, `best_oa_location`, `fwci`.
+- [x] **S4 — OpenAlex key handling.** OpenAlex moved to free API keys on **2026-02-13**. Keyless still answers but is capped at **100 credits/day**, and a list call costs **10** — about **10 searches a day**, which is unusable. A free key gives **100,000/day at 100 req/s**. So OpenAlex is *optional-key* in the same sense as Semantic Scholar, and must be labelled that way in the installer. One gotcha: **OpenAlex returns abstracts as an inverted index** and they must be reconstructed into text.
+- [x] **S5 — installer database picker** (owner's design). Extend the M9 TUI so the user explicitly selects which paper-search databases to enable. Show a readable table with, per database: **free / key required / optional key**, and **which domain it covers**. Keep the existing keyboard model — arrows, space to toggle, the framed Install button.
+- [x] **S6 — optional key entry during install.** After selecting, offer to type each key right there, with a clear skip. If skipped, tell the user the `.env` file exists and they can add keys later. Never require a key to finish the install.
+- [x] **S7 — the table content** (as agreed 2026-09-19): arXiv — free, preprints, CS/physics/maths. Semantic Scholar — optional key (speed only), all fields. Google Scholar — free, broad, best-effort scraping. Europe PMC — free, biomedical, full text. Zenodo — free, code/data/software. OpenAlex — optional key, all fields, retraction flags.
 
 ### Acceptance criteria
 
@@ -781,6 +853,129 @@ before installing. Decisions: `BRAINSTORM.md` D19 and D21.
 5. Tool count stays manageable — see O12 on tool-list growth.
 
 **Depends on:** M12.
+
+---
+
+### Report — 2026-09-20
+
+Two databases, three tools, and a picker that actually does something. 19 to 22 with everything on —
+and, for the first time, a project can carry fewer.
+
+| | Measured 2026-09-20 |
+|---|---|
+| **S1/S2 Zenodo** | `type=software` search returns typed records, every one with a DOI, many with a GitHub link in `relatedIdentifiers` |
+| **S3 OpenAlex** | the Wakefield 1998 MMR paper returns `isRetracted: true`; *Deep Learning* returns `false`; **135,737** flagged works in the index |
+| **S4 inverted index** | abstracts come back as readable text on 3 of 3 — OpenAlex stores them as `{word: [positions]}` |
+| **S5/S6/S7 the picker** | a real install with `--sources arxiv,openalex,europepmc` wrote `.env` and the server registered **7 tools, not 22** |
+
+**The picker had to shorten the tool list, or it was theatre.** D21 rejected "always on" precisely
+because a longer tool list costs the agent on every request, so recording the choice and ignoring it
+would have missed the point. `install.sh` writes `OSP_SOURCES` to `.env`; `osp_mcp.py` reads it once at
+start-up and registers only those tools, through a `@tool_for("<source>")` decorator in place of
+`@mcp.tool()`.
+
+Measured across the range: unset → 22 tools, three sources → 17, one source → 3. An unknown name warns
+and is ignored but does not disable a valid name beside it (`arxiv,nonsense` → 3). A value naming
+nothing valid falls back to **all** rather than leaving the agent with no tools at all. `europe_pmc`,
+`epmc`, `s2` and `scholar` are understood, and case and spacing do not matter.
+
+**Unset means everything**, so an install made before today is untouched, as is anyone running a
+per-tool script directly.
+
+### The installer
+
+The database picker is step 2 of 3, ahead of the tool menu so that menu's Install button stays the last
+thing pressed. `menu_databases()` follows `menu_tools()` exactly — index-aligned arrays, marks as a
+`0`/`1` string for bash 3.2, the framed button as index `n`, and **geometry re-measured every frame**,
+which is the defect the M9 review found and the reason that comment exists. The rows carry two extra
+columns, key status and domain, which is S7's table.
+
+Keys are offered once, before anything is installed, read with `read -rs` so they are never echoed and
+never reach a log. Skipping is a keypress and the install finishes regardless: no database here needs a
+key, and requiring one would break MANIFESTO rule 1.
+
+`scripts/init_mcp.sh` is **sourced once per selected tool**, up to fourteen times in one install, so it
+cannot prompt. Everything is collected once in `install.sh` and exported. `init_mcp.sh` then upserts
+only the lines OSP owns — verified: a user's own `.env` content survives byte for byte, a stale
+`OSP_SOURCES` is replaced rather than duplicated, and the file ends up `chmod 600` because it holds
+keys.
+
+`--sources` mirrors `--tool` for scripted use, rejects an unknown name with exit 2 and a list of the
+valid ones, and defaults to all six when only `--tool` is given.
+
+### What the agents were told
+
+A tool nobody is told about changes nothing. OpenAlex joins the literature rounds as a general source.
+Zenodo explicitly does **not** — it finds code, not papers, and the literature skill says so, because an
+agent that searches Zenodo for papers pollutes the corpus.
+
+Both new checks went to the Baseline Scout, which is the adversarial persona and the right home for
+them:
+
+- *Was the code or data released?* Most review forms ask, and nothing in this system could check it.
+- *Has anything the paper leans on been retracted?* One retracted load-bearing citation changes a
+  verdict, and `isRetracted` is the only way to see it.
+
+Each has a slot in the output template and its own table, not just a paragraph — the M12 review's
+lesson was that an agent fills the template it is given.
+
+### The numbers in ARCHITECTURE were all stale, and are now measured
+
+§9 said "15 MCP tools over three providers" with a per-provider table and a self-verifying grep. All of
+it was wrong, and nothing in the repository checks such a claim. Re-measured against the code:
+22 tools, 3/11/3/2/1/2 across six databases, 1,455 lines of canonical prompt markdown against 5,226 of
+Python and 2,254 of shell. The grep in the file now reads `grep -c '^@tool_for('`, which is the honest
+command.
+
+The section's "what this section claims, and where the code does not deliver it" table — three
+admissions written on 2026-09-19 — is replaced by a then/now table, because M11 fixed all three. The
+warning that **an API key made OSP slower** is gone with them: that was the auto-pagination issuing
+100–200 requests where one was asked for.
+
+**Verified:** 179 offline checks, every live check for both new providers, a real end-to-end install
+proving the gate, all 14 installer smoke tests, `sync_adapters.py --check`, `test_parity.py`, and every
+count in `ARCHITECTURE.md` re-derived from the source programmatically rather than by hand.
+
+---
+
+### Review round — 2026-09-20
+
+Two reviewers: one on the two new providers and the gate, one on the installer.
+
+**The gate came through clean**, which matters because it is the milestone. 45 values were probed and
+every source's tool set checked for exact equality: arXiv 3, Semantic Scholar 11, Google Scholar 3,
+Europe PMC 2, Zenodo 1, OpenAlex 2 — summing to 22 with no overlap and no gap, and all 15 pairs giving
+exactly the union. Every one of the 22 tools was checked against the provider its body actually calls;
+none is filed under the wrong source. Aliases, case, whitespace, tabs, newlines, outer quotes, an
+unbalanced quote, doubled commas, duplicates and a 5,000-item list all resolve correctly. `nonsense`,
+`arx`, `all`, `*`, `arxiv;rm -rf /` and 20,000 junk characters all warn and fall back to every source —
+**never toolless**. Warnings go to stderr, so they cannot corrupt the stdio protocol.
+
+Six findings, all in the new providers:
+
+| | Defect | Fix |
+|---|---|---|
+| 1 | **A missing record was reported as an outage.** `OpenAlexError` covered 404 too, so it landed in `reason: unavailable` — which by our own definition means "record the provider as unavailable and carry on without it". The headline use of this milestone is feeding it every DOI in a bibliography, so **the first un-indexed DOI would stop the agent checking retractions for the rest of the review**. | `OpenAlexNotFound` and `ZenodoNotFound`, both mapped to `not_found`. |
+| 2 | **Bare PMIDs and arXiv ids did not work, and both docstrings promised them.** OpenAlex needs the `pmid:` namespace and has no arXiv one at all. | digits route to `pmid:`; the docstring stops promising arXiv ids and says where to get the DOI. |
+| 3 | **An upper-case `doi.org` URL raised `IndexError`** — the test lower-cased but the split did not — surfacing as "failed: list index out of range". `dx.doi.org` was not recognised at all. | one case-insensitive regex. |
+| 4 | Three input errors returned straight from the provider and carried no `reason`. | they raise, so `_err` tags them `bad_request`. |
+| 5 | The Zenodo rate-limit message quoted the documented 60/minute; the live API reports **30**, and the cap a long review actually reaches is 2,000/hour. | both stated, with `Retry-After` when Zenodo sends it. |
+| 6 | The 429 message pointed at `ZENODO_API_TOKEN`, which the generated `.env` never mentioned. | documented in the template. |
+
+Found while fixing: both new providers had a single 60-second `timeout`, which on its own could outlast
+the 90-second call ceiling. Given the same budget as the others — 30 s worst case.
+
+**The installer was driven, not read.** Through a pty at nine terminal heights from 40 down to 6: the
+title and the Continue button are reachable at every one, and the scroll window engages correctly below
+12 rows. **Resizing 40 → 14 mid-menu recovers** — the M9 defect is not reintroduced, which was the main
+risk in copying that function. Under `LANG=C` the rendered screen contains **zero non-ASCII bytes** and
+falls back to `[x]`/`[ ]`. The cursor is balanced on every exit path. The `eval` used to hold a typed
+key is not injectable: `$(...)`, backticks, quotes, backslashes and pipes are all stored literally, with
+nothing executed.
+
+`.env` handling survives a two-tool install, where `init_mcp.sh` is sourced twice: `OSP_SOURCES` is
+written **once**, a stale value is replaced rather than duplicated, the user's own lines come through
+byte-identical, the file ends up `chmod 600`, and no `.env.XXXXXX` is left behind.
 
 ---
 

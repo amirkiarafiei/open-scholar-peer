@@ -20,15 +20,17 @@ These are limitations users should know about going in. None block normal operat
 
 ## 2. Semantic Scholar anonymous rate limits are aggressive
 
-**What:** The `osp_mcp.search_semantic_scholar` and related tools use the official Semantic Scholar API. Without an API key, anonymous limits apply (~100 requests / 5 min, frequently bursty 429s).
+**What:** The `osp_mcp.search_semantic_scholar` and related tools use the official Semantic Scholar API. Anonymous access is not a per-user allowance — it is **one pool shared by every unauthenticated caller everywhere**, so how much you get depends on what strangers are doing. During testing on 2026-09-20 it stopped answering altogether for long stretches and refused connections outright.
 
-**Impact:** During the 3-round literature retrieval (`/2-osp-literature`), an anonymous user may hit rate limits mid-round, causing partial corpora.
+**Impact:** During the 3-round literature retrieval (`/2-osp-literature`), an anonymous user may hit rate limits mid-round, causing partial corpora. The tool reports this as an error with `reason: rate_limited`, not as an empty result, so the agent records Semantic Scholar as unavailable rather than writing "no papers found".
 
-**Workaround:** Get a free API key at https://www.semanticscholar.org/product/api#api-key and export it before launching your AI tool:
+**Workaround:** Get a free API key at https://www.semanticscholar.org/product/api#api-key. The installer offers to take it, or add it to `.env` yourself:
 
 ```bash
-export SEMANTIC_SCHOLAR_API_KEY=sk-...
+SEMANTIC_SCHOLAR_API_KEY=sk-...
 ```
+
+A key gives you a documented 1 request per second of your own. Note this used to be a bad trade — before M11, one search issued 100-200 requests through auto-pagination, so a 1 rps key was slower than the shared pool. One search is now one request.
 
 The MCP server reads the env var at startup. Add it to your shell profile to persist.
 
@@ -93,11 +95,17 @@ mv .brain .brain.archive-$(date +%F)
 
 **What:** Google Scholar has no public API. The `osp_mcp.search_google_scholar` tools scrape HTML.
 
-**Limitation:** Subject to Google's rate limits and HTML structure changes. Results may be empty or stale during heavy usage.
+**Limitation:** Subject to Google's rate limits and HTML structure changes. Google blocks by **address**, not by client: on 2026-09-20, five requests eight seconds apart all returned HTTP 429, and four different User-Agent strings — plus none at all — produced byte-identical responses. Rotating the User-Agent achieves nothing. Later in the same session Google stopped answering entirely.
 
-**Impact:** The Literature Agent and Baseline Scout still have arXiv and Semantic Scholar as primary sources; Google Scholar adds breadth (blog posts, theses, workshop papers) but isn't load-bearing.
+**Impact:** Small. The other five databases are unaffected, and Google Scholar adds breadth (blog posts, theses, workshop papers) rather than carrying the review. A block is now reported as an error with `reason: blocked` — it used to return an empty list, indistinguishable from a search that genuinely found nothing, which meant the agent wrote "no papers found" when the truth was "we were shut out".
 
-**Workaround:** None needed unless Google Scholar is your primary source, in which case consider running searches at off-peak times.
+**Workaround:** A proxy is the only thing that helps, because the block is on your address:
+
+```bash
+GOOGLE_SCHOLAR_PROXY_URL=http://user:pass@host:port
+```
+
+Or leave Google Scholar out at install time — the picker lets you. Retrying does not help and is not attempted: a refusal was measured to persist, and retrying it only spends the 90-second call budget that the other providers could have used.
 
 ---
 

@@ -28,7 +28,8 @@ take up to ~75 seconds on its own.
 2. Activate the `osp-baseline-scout-agent` skill.
 3. The skill identifies the paper's task and the baselines actually used (from the structured summary's Evidence section).
 4. The skill independently searches for state-of-the-art methods on the same task and benchmarks. Tools: `osp-mcp.search_*`, `osp-mcp.read_arxiv_paper`,
-   `osp-mcp.get_europe_pmc_full_text`, native Web Search. Targeted queries include leaderboards, benchmark suites, and recent SOTA claims.
+   `osp-mcp.get_europe_pmc_full_text`, `osp-mcp.get_openalex_work` (retraction
+   check), `osp-mcp.search_zenodo` (code and data release), native Web Search. Targeted queries include leaderboards, benchmark suites, and recent SOTA claims.
 5. The skill produces a table of missing baselines and missing datasets with severity ratings (high/medium/low).
 6. Where a reported number decides the finding, the skill opens the source and
    checks it, rather than trusting the abstract.

@@ -125,7 +125,11 @@ def fail(msg: str) -> None:
     print(f"      ✗ {msg}")
 
 
+PASS_COUNT: list[str] = []
+
+
 def ok(msg: str) -> None:
+    PASS_COUNT.append(msg)
     print(f"      ✓ {msg}")
 
 
@@ -452,12 +456,95 @@ def check_europe_pmc() -> None:
         ok("a missing article raises rather than returning empty text")
 
 
+def check_openalex() -> None:
+    from providers import openalex as oa
+
+    rows = oa.search("retrieval augmented generation", limit=3, from_year=2023)
+    if is_error_envelope(rows):
+        fail(f"search errored: {rows[0]['error']}")
+        return
+    if len(rows) == 3:
+        ok("search returned 3 works")
+    else:
+        fail(f"search returned {len(rows)}, expected 3")
+
+    # OpenAlex stores abstracts as {word: [positions]}; handed over raw they
+    # are unreadable.
+    with_abs = [r for r in rows if r.get("abstract")]
+    if with_abs and all(isinstance(r["abstract"], str) for r in with_abs):
+        ok(f"abstracts come back as text on {len(with_abs)}/{len(rows)}")
+    else:
+        fail("abstracts are not plain text")
+
+    years = [r.get("year") for r in rows if r.get("year")]
+    if years and min(years) >= 2023:
+        ok(f"the year filter holds: {sorted(set(years))}")
+    else:
+        fail(f"from_year leaked earlier work: {years}")
+
+    # The reason this provider exists.
+    retracted = oa.get_work("10.1016/s0140-6736(97)11096-0")   # Wakefield 1998
+    if retracted.get("isRetracted") is True:
+        ok("a known retracted paper is flagged isRetracted=True")
+    else:
+        fail(f"a known retracted paper was not flagged: {retracted.get('isRetracted')}")
+
+    clean = oa.get_work("10.1038/nature14539")                 # Deep Learning
+    if clean.get("isRetracted") is False:
+        ok("a normal paper is flagged isRetracted=False")
+    else:
+        fail(f"a normal paper reported isRetracted={clean.get('isRetracted')}")
+
+    try:
+        oa.get_work("10.0000/definitely-not-a-real-doi")
+        fail("a nonsense DOI returned a record")
+    except oa.OpenAlexError:
+        ok("a nonsense DOI raises rather than returning an empty record")
+
+
+def check_zenodo() -> None:
+    from providers import zenodo as zn
+
+    rows = zn.search("machine learning", limit=3, resource_type="software")
+    if is_error_envelope(rows):
+        fail(f"search errored: {rows[0]['error']}")
+        return
+    if rows:
+        ok(f"software search returned {len(rows)} records")
+    else:
+        fail("software search returned nothing")
+
+    typed = [r for r in rows if r.get("type") == "software"]
+    if len(typed) == len(rows):
+        ok("every record is of the requested type")
+    else:
+        fail(f"resource_type leaked: {[r.get('type') for r in rows]}")
+
+    if all(r.get("doi") for r in rows):
+        ok("every record carries a DOI")
+    else:
+        fail("a record came back with no DOI")
+
+    # Raises rather than returning an envelope, so the tool layer tags it
+    # bad_request like every other input error.
+    try:
+        zn.search("x", resource_type="nonsense")
+        fail("an unknown resource_type was accepted")
+    except ValueError as e:
+        if "software" in str(e):
+            ok("an unknown resource_type is refused, and lists the valid ones")
+        else:
+            fail(f"refused, but unhelpfully: {e}")
+
+
 PROVIDERS = {
     "arxiv": check_arxiv,
     "arxiv_fulltext": check_arxiv_fulltext,
     "europe_pmc": check_europe_pmc,
     "semantic_scholar": check_semantic_scholar,
     "google_scholar": check_google_scholar,
+    "openalex": check_openalex,
+    "zenodo": check_zenodo,
 }
 
 
@@ -465,10 +552,13 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--only", help="comma-separated provider names")
     ap.add_argument("--list", action="store_true", help="list providers and exit")
+    ap.add_argument("--strict", action="store_true",
+                    help="exit 1 when a provider could not be reached")
     ap.add_argument("--budget", type=int, default=PROVIDER_BUDGET_S,
                     help=f"seconds allowed per provider (default {PROVIDER_BUDGET_S})")
     args = ap.parse_args()
     budget = max(10, args.budget)
+    strict = args.strict
 
     if args.list:
         for name in PROVIDERS:
@@ -514,12 +604,26 @@ def main() -> int:
         return 1
 
     if UNVERIFIED:
-        print(f"  ⚠  {len(UNVERIFIED)} provider(s) could not be reached, so "
-              f"they are neither proved nor disproved:")
+        # Saying "everything passed" here would be the same mistake this
+        # whole milestone is about: reporting "we did not get to look" as a
+        # good result. The API that cannot be reached is usually the one
+        # whose bug is still hiding — a sorted Semantic Scholar search was
+        # broken 100% of the time and went unseen for exactly this reason.
+        print("  " + "!" * 66)
+        print(f"  !!  NOTHING WAS PROVED for {len(UNVERIFIED)} provider(s). "
+              f"This run did NOT pass.")
         for u in UNVERIFIED:
-            print(f"     - {u}")
-        print()
-    print(f"  ✅ every check that could run passed "
+            print(f"  !!    - {u}")
+        print("  !!  Re-run when the API answers. Use --strict to make this "
+              "a failure.")
+        print("  " + "!" * 66)
+        if strict:
+            return 1
+        print(f"\n  ✅ {len(PASS_COUNT)} check(s) ran and passed; "
+              f"{len(UNVERIFIED)} provider(s) unverified.")
+        return 0
+
+    print(f"  ✅ all {len(PASS_COUNT)} live checks pass "
           f"({len(NOTES)} note(s) above)")
     return 0
 

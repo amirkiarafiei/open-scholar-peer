@@ -40,6 +40,21 @@ Both return text in windows; while `next_offset` is not null, call again with
 `offset` set to it. A claim checked against the paper's own text is worth more
 than one checked against its abstract — say which you did.
 
+**Two checks nothing else in this system can make.**
+
+*Was the code or data actually released?* Most review forms ask. Search
+`osp-mcp.search_zenodo(query, resource_type="software")` — and `"dataset"` —
+for the paper's title, its method name, and the authors' names. A hit gives
+you a DOI and often a GitHub link in `relatedIdentifiers`. Nothing found is
+worth reporting, but write it as *"nothing found on Zenodo"*: code often lives
+only on GitHub, so this is evidence, not proof.
+
+*Has anything it leans on been retracted?* Take the DOI of each citation the
+paper's argument rests on and call `osp-mcp.get_openalex_work(doi)`. Read
+`isRetracted`. One retracted load-bearing citation changes a review's verdict,
+and nothing else here can see it. Worth doing for the central references, and
+for any that look unusually old or unusually convenient.
+
 **When there is no arXiv id and no PMCID**, in order:
 1. `match_semantic_scholar_title(title)` → read `externalIds.ArXiv` → `read_arxiv_paper`.
 2. Still nothing? Take `openAccessPdf.url` from the Semantic Scholar record and
@@ -65,6 +80,8 @@ Write **exactly one file**: `.brain/raw/04_missing_baselines.md`.
 - **Benchmarks the paper used:** <list — copied from `01_structured_summary.md`'s Evidence section>
 - **Adversarial search strategy:** <how you searched — keywords, leaderboards consulted, year filter>
 - **Papers read in full:** <arXiv id or PMCID, and what you checked in each — or "none">
+- **Code / data release:** <what Zenodo returned for the paper, method and authors — or "nothing found on Zenodo">
+- **Retraction check:** <which cited DOIs you checked, and the result — or "not run">
 
 ## Output
 
@@ -80,6 +97,14 @@ Write **exactly one file**: `.brain/raw/04_missing_baselines.md`.
 | # | Dataset/Benchmark | Why it should have been used | Severity |
 |---|---|---|---|
 | 1 | ... | ... | ... |
+
+### Retracted or withdrawn work the paper relies on
+
+Only when `isRetracted` came back true. Leave empty otherwise.
+
+| # | Cited work | DOI | Where the paper leans on it |
+|---|---|---|---|
+| 1 | <title> | <doi> | <which claim depends on it> |
 
 ### Misreported comparisons
 
