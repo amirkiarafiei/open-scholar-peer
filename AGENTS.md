@@ -24,11 +24,27 @@ bash scripts/test_install.sh
 # Syntax-check shell scripts:
 for f in install.sh scripts/*.sh; do bash -n "$f" && echo "  ✓ $f" || echo "  ✗ $f"; done
 
-# AST-check Python files (no formal linter configured):
-python3 -c "import ast; [ast.parse(open(f).read()) for f in ['mcp-server/osp_mcp.py','scripts/sync_adapters.py','scripts/merge_mcp_config.py','scripts/test_parity.py']]"
+# Syntax-check Python files (no formal linter configured).
+# Globbed, not listed: the old fixed list left mcp-server/providers/ uncovered,
+# so a syntax error in a provider was caught by nothing at all.
+# compile(), not ast.parse(): ast.parse accepts things Python then refuses,
+# such as reading a module global before declaring `global` in the same
+# function. That exact mistake got past an ast.parse check on 2026-09-20.
+python3 -c "import glob; [compile(open(f).read(), f, 'exec') for f in glob.glob('mcp-server/**/*.py',recursive=True)+glob.glob('scripts/*.py')]"
+
+# Build the dev virtualenv at the REPO ROOT, never inside mcp-server/:
+# init_mcp.sh does `cp -r mcp-server/. .open-scholar-peer/mcp/`, so a venv
+# left in mcp-server/ is copied into every user's project.
+python3 -m venv .venv && .venv/bin/pip install -r mcp-server/requirements.txt
+
+# Provider checks. Nothing else in the repo loads mcp-server/providers/.
+# Both need the venv above — the providers import bs4, arxiv and
+# semanticscholar, so plain `python3` fails with ModuleNotFoundError.
+.venv/bin/python scripts/test_providers_unit.py   # offline, ~1s, every change
+.venv/bin/python scripts/test_providers.py        # live APIs, opt-in
 
 # Run the MCP server standalone (debug mode):
-cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python osp_mcp.py
+cd mcp-server && PYTHONPATH=. ../.venv/bin/python osp_mcp.py
 ```
 
 ## Architecture (one paragraph)

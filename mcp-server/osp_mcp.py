@@ -31,6 +31,29 @@ from providers import arxiv as arxiv_provider
 from providers import semantic_scholar as ss_provider
 from providers import google_scholar as gs_provider
 
+
+def _err(tool: str, exc: Exception) -> dict[str, Any]:
+    """Build the error record, tagged with a reason the agent can branch on.
+
+    Prose alone makes the agent guess. `reason` separates "the provider would
+    not talk to us" from "the call was wrong", because only the first means
+    "record the provider as unavailable and carry on with the others".
+    """
+    reason = "failed"
+    if isinstance(exc, gs_provider.GoogleScholarBlocked):
+        reason = "blocked"
+    elif isinstance(exc, gs_provider.GoogleScholarUnavailable):
+        reason = "unavailable"
+    elif isinstance(exc, ss_provider.SemanticScholarRateLimited):
+        reason = "rate_limited"
+    elif isinstance(exc, arxiv_provider.ArxivBusy):
+        reason = "busy"
+    elif isinstance(exc, TimeoutError):
+        reason = "timeout"
+    elif isinstance(exc, ValueError):
+        reason = "bad_request"
+    return {"error": f"{tool} failed: {exc}", "reason": reason}
+
 try:
     from dotenv import load_dotenv
     load_dotenv()  # loads .env from CWD (project root) at server startup
@@ -86,13 +109,16 @@ async def search_arxiv(
         query: Free-form or field-specific query string.
         max_results: Number of results (1-50, default 10).
         sort_by: "relevance" (default) or "date" (newest first).
-        date_from: Optional start date filter (YYYY-MM-DD).
-        date_to: Optional end date filter (YYYY-MM-DD).
-        categories: Optional list of arXiv category codes.
+        date_from: Optional start date (YYYY-MM-DD). Filtered by arXiv via
+            submittedDate, so a narrow window still returns a full page.
+        date_to: Optional end date (YYYY-MM-DD), inclusive of that whole day.
+        categories: Optional list of arXiv category codes. Matches papers in
+            any of them, including cross-listed ones.
 
     Returns:
         List of dicts with keys: arxiv_id, title, authors, summary, published,
-        updated, link, pdf_url, primary_category, categories, comment.
+        updated, link, pdf_url, primary_category, categories, comment, doi,
+        journal_ref.
         Returns [{"error": "..."}] on failure.
     """
     log.info("search_arxiv(query=%r, max=%d, sort=%s, from=%s, to=%s, cats=%s)",
@@ -101,7 +127,7 @@ async def search_arxiv(
         return await _run(arxiv_provider.search, query, max_results, sort_by,
                           date_from, date_to, categories)
     except Exception as e:
-        return [{"error": f"search_arxiv failed: {e}"}]
+        return [_err("search_arxiv", e)]
 
 
 @mcp.tool()
@@ -112,44 +138,113 @@ async def get_arxiv_paper_details(arxiv_id: str) -> dict[str, Any]:
     and want the full record with abstract, authors, dates, and categories.
 
     Args:
-        arxiv_id: The arXiv identifier (e.g. "2305.14314" or "cs.CL/0306050").
+        arxiv_id: The arXiv identifier. New style "2305.14314", old style
+            "hep-th/9901001", or pinned to a version "1706.03762v5".
+            Without a version you get the latest one.
 
     Returns:
         Dict with keys: arxiv_id, title, authors, summary, published, updated,
-        link, pdf_url, primary_category, categories, comment.
+        link, pdf_url, primary_category, categories, comment, doi, journal_ref.
         Returns {"error": "..."} on failure.
     """
     log.info("get_arxiv_paper_details(arxiv_id=%r)", arxiv_id)
     try:
         return await _run(arxiv_provider.get_details, arxiv_id)
     except Exception as e:
-        return {"error": f"get_arxiv_paper_details failed: {e}"}
+        return _err("get_arxiv_paper_details", e)
 
 
 # ---------- Semantic Scholar -----------------------------------------------
 
 @mcp.tool()
-async def search_semantic_scholar(query: str, limit: int = 10) -> list[dict[str, Any]]:
+async def search_semantic_scholar(
+    query: str,
+    limit: int = 10,
+    year: str | None = None,
+    publication_date_or_year: str | None = None,
+    venue: list[str] | None = None,
+    fields_of_study: list[str] | None = None,
+    publication_types: list[str] | None = None,
+    open_access_pdf: bool = False,
+    min_citation_count: int | None = None,
+    sort: str | None = None,
+) -> list[dict[str, Any]]:
     """Search Semantic Scholar for academic papers across all fields.
 
     Semantic Scholar provides high-quality citation-graph data, abstracts, and
     venue metadata. Use for established publications; for very recent pre-prints,
     prefer search_arxiv. Returns citation counts and author IDs for follow-up.
 
+    Filters (all optional) let you narrow a round without post-filtering:
+      year="2024"            → one year
+      year="2020-2024"       → a range; "2020-" and "-2024" also work
+      publication_date_or_year="2024-01-01:2024-06-30"  → a date window
+      venue=["NeurIPS", "ICML"]
+      fields_of_study=["Computer Science", "Medicine"]
+      publication_types=["JournalArticle", "Review", "Conference"]
+      open_access_pdf=True   → only papers with a free, legal PDF
+      min_citation_count=50  → drop thinly-cited work
+
     Args:
         query: Free-form search query.
         limit: Maximum number of results (1-100, default 10).
+        year: Publication year or range.
+        publication_date_or_year: Date or date range, finer than `year`.
+        venue: Restrict to these venues.
+        fields_of_study: Restrict to these fields.
+        publication_types: Restrict to these publication types.
+        open_access_pdf: If true, only return papers with a free PDF.
+        min_citation_count: Minimum citation count.
+        sort: e.g. "citationCount:desc" or "publicationDate:desc". Sorting
+            switches to the bulk endpoint, which does NOT rank by search
+            relevance — leave it unset for ordinary relevance search.
 
     Returns:
-        List of dicts with keys: paperId, title, abstract, year, authors, url,
-        venue, publicationTypes, citationCount, externalIds.
+        List of dicts with keys: paperId, title, abstract, tldr, year,
+        publicationDate, authors, url, venue, publicationTypes, fieldsOfStudy,
+        citationCount, influentialCitationCount, referenceCount, isOpenAccess,
+        openAccessPdf, externalIds.
         Returns [{"error": "..."}] on failure.
     """
-    log.info("search_semantic_scholar(query=%r, limit=%d)", query, limit)
+    log.info("search_semantic_scholar(query=%r, limit=%d, year=%s, sort=%s)",
+             query, limit, year, sort)
     try:
-        return await _run(ss_provider.search_papers, query, limit)
+        return await _run(
+            ss_provider.search_papers, query, limit,
+            year=year,
+            publication_date_or_year=publication_date_or_year,
+            venue=venue,
+            fields_of_study=fields_of_study,
+            publication_types=publication_types,
+            open_access_pdf=open_access_pdf,
+            min_citation_count=min_citation_count,
+            sort=sort,
+        )
     except Exception as e:
-        return [{"error": f"search_semantic_scholar failed: {e}"}]
+        return [_err("search_semantic_scholar", e)]
+
+
+@mcp.tool()
+async def match_semantic_scholar_title(title: str) -> dict[str, Any]:
+    """Find the ONE paper whose title best matches the text you give.
+
+    Use this to turn a line from a bibliography, or a title mentioned in the
+    paper under review, into a real paperId. Ordinary search returns a ranked
+    list and leaves you to guess; this returns a single record with a
+    `matchScore`, which is the right way to resolve a reference.
+
+    Args:
+        title: The paper title, or the closest text you have to one.
+
+    Returns:
+        Dict with the usual paper keys plus matchScore (higher is a closer
+        title match). Returns {"error": "..."} when nothing matches.
+    """
+    log.info("match_semantic_scholar_title(title=%r)", title)
+    try:
+        return await _run(ss_provider.match_paper_title, title)
+    except Exception as e:
+        return _err("match_semantic_scholar_title", e)
 
 
 @mcp.tool()
@@ -164,15 +259,17 @@ async def get_semantic_scholar_paper(paper_id: str) -> dict[str, Any]:
             ArXiv ID (e.g. "arXiv:1706.03762"), or ACL ID.
 
     Returns:
-        Dict with keys: paperId, title, abstract, year, authors, url, venue,
-        publicationTypes, citationCount, externalIds.
+        Dict with keys: paperId, title, abstract, tldr, year, publicationDate,
+        authors, url, venue, publicationTypes, fieldsOfStudy, citationCount,
+        influentialCitationCount, referenceCount, isOpenAccess, openAccessPdf,
+        externalIds.
         Returns {"error": "..."} on failure.
     """
     log.info("get_semantic_scholar_paper(paper_id=%r)", paper_id)
     try:
         return await _run(ss_provider.get_paper, paper_id)
     except Exception as e:
-        return {"error": f"get_semantic_scholar_paper failed: {e}"}
+        return _err("get_semantic_scholar_paper", e)
 
 
 @mcp.tool()
@@ -190,14 +287,15 @@ async def get_semantic_scholar_paper_references(
         limit: Max references to return (1-100, default 50).
 
     Returns:
-        List of dicts with keys: paperId, title, year, citationCount, authors.
+        List of dicts with keys: paperId, title, year, citationCount,
+        isOpenAccess, openAccessPdf, externalIds, authors.
         Returns [{"error": "..."}] on failure.
     """
     log.info("get_semantic_scholar_paper_references(paper_id=%r, limit=%d)", paper_id, limit)
     try:
         return await _run(ss_provider.get_paper_references, paper_id, limit)
     except Exception as e:
-        return [{"error": f"get_semantic_scholar_paper_references failed: {e}"}]
+        return [_err("get_semantic_scholar_paper_references", e)]
 
 
 @mcp.tool()
@@ -214,14 +312,15 @@ async def get_semantic_scholar_paper_citations(
         limit: Max citations to return (1-100, default 50).
 
     Returns:
-        List of dicts with keys: paperId, title, year, citationCount, authors.
+        List of dicts with keys: paperId, title, year, citationCount,
+        isOpenAccess, openAccessPdf, externalIds, authors.
         Returns [{"error": "..."}] on failure.
     """
     log.info("get_semantic_scholar_paper_citations(paper_id=%r, limit=%d)", paper_id, limit)
     try:
         return await _run(ss_provider.get_paper_citations, paper_id, limit)
     except Exception as e:
-        return [{"error": f"get_semantic_scholar_paper_citations failed: {e}"}]
+        return [_err("get_semantic_scholar_paper_citations", e)]
 
 
 @mcp.tool()
@@ -243,7 +342,7 @@ async def get_semantic_scholar_papers_batch(
     try:
         return await _run(ss_provider.get_papers_batch, paper_ids)
     except Exception as e:
-        return [{"error": f"get_semantic_scholar_papers_batch failed: {e}"}]
+        return [_err("get_semantic_scholar_papers_batch", e)]
 
 
 @mcp.tool()
@@ -265,7 +364,7 @@ async def get_semantic_scholar_author(author_id: str) -> dict[str, Any]:
     try:
         return await _run(ss_provider.get_author, author_id)
     except Exception as e:
-        return {"error": f"get_semantic_scholar_author failed: {e}"}
+        return _err("get_semantic_scholar_author", e)
 
 
 @mcp.tool()
@@ -289,7 +388,7 @@ async def search_semantic_scholar_authors(
     try:
         return await _run(ss_provider.search_authors, query, limit)
     except Exception as e:
-        return [{"error": f"search_semantic_scholar_authors failed: {e}"}]
+        return [_err("search_semantic_scholar_authors", e)]
 
 
 @mcp.tool()
@@ -312,7 +411,7 @@ async def get_semantic_scholar_author_papers(
     try:
         return await _run(ss_provider.get_author_papers, author_id, limit)
     except Exception as e:
-        return [{"error": f"get_semantic_scholar_author_papers failed: {e}"}]
+        return [_err("get_semantic_scholar_author_papers", e)]
 
 
 @mcp.tool()
@@ -335,7 +434,7 @@ async def get_semantic_scholar_paper_recommendations(
     try:
         return await _run(ss_provider.get_paper_recommendations, paper_id, limit)
     except Exception as e:
-        return [{"error": f"get_semantic_scholar_paper_recommendations failed: {e}"}]
+        return [_err("get_semantic_scholar_paper_recommendations", e)]
 
 
 @mcp.tool()
@@ -351,17 +450,20 @@ async def search_semantic_scholar_snippets(
 
     Args:
         query: Free-form query describing the content to find.
-        limit: Max snippets (1-20, default 10).
+        limit: Max snippets (1-100, default 10).
 
     Returns:
-        List of dicts with keys: snippetId, text, paper (slim paper record).
+        List of dicts with keys: text, section, snippetKind, score, and paper
+        (corpusId, title, authors as plain names, openAccessInfo). A snippet
+        record carries no paperId — use match_semantic_scholar_title on the
+        title if you need one.
         Returns [{"error": "..."}] on failure.
     """
     log.info("search_semantic_scholar_snippets(query=%r, limit=%d)", query, limit)
     try:
         return await _run(ss_provider.search_snippets, query, limit)
     except Exception as e:
-        return [{"error": f"search_semantic_scholar_snippets failed: {e}"}]
+        return [_err("search_semantic_scholar_snippets", e)]
 
 
 # ---------- Google Scholar -------------------------------------------------
@@ -375,7 +477,10 @@ async def search_google_scholar(query: str, num_results: int = 5) -> list[dict[s
     other than arXiv. Use as a third retrieval source to catch what arXiv
     and Semantic Scholar miss.
 
-    Note: Uses HTML scraping; results may vary and rate limits may apply.
+    Note: Uses HTML scraping. If Google blocks the request this returns an
+    error, NOT an empty list. An empty list means the search genuinely found
+    nothing. Record a block as "provider unavailable" in Provenance — never as
+    "no papers found".
 
     Args:
         query: Free-form search query.
@@ -389,7 +494,7 @@ async def search_google_scholar(query: str, num_results: int = 5) -> list[dict[s
     try:
         return await _run(gs_provider.search, query, num_results)
     except Exception as e:
-        return [{"error": f"search_google_scholar failed: {e}"}]
+        return [_err("search_google_scholar", e)]
 
 
 @mcp.tool()
@@ -405,6 +510,11 @@ async def search_google_scholar_advanced(
     Use when you need to search within a specific time window (e.g. "last 12
     months" for the temporal-expansion round) or constrain to a specific
     author's body of work.
+
+    Note: Uses HTML scraping. If Google blocks the request this returns an
+    error, NOT an empty list. An empty list means the search genuinely found
+    nothing. Record a block as "provider unavailable" in Provenance — never as
+    "no papers found".
 
     Args:
         query: Free-form search query.
@@ -425,7 +535,7 @@ async def search_google_scholar_advanced(
     try:
         return await _run(gs_provider.search_advanced, query, author, year_range, num_results)
     except Exception as e:
-        return [{"error": f"search_google_scholar_advanced failed: {e}"}]
+        return [_err("search_google_scholar_advanced", e)]
 
 
 @mcp.tool()
@@ -436,7 +546,10 @@ async def get_google_scholar_author_info(author_name: str) -> dict[str, Any]:
     author's top publications. Use to verify expertise claims or find an
     author's other work.
 
-    Note: Uses the `scholarly` library; may be rate-limited by Google.
+    Note: Uses the `scholarly` library, which scrapes the same host. If Google
+    blocks the request this returns an error with reason "blocked", NOT an
+    empty profile. Record a block as "provider unavailable" — never as "no
+    profile found".
 
     Args:
         author_name: The author's name to look up (e.g. "Ian Goodfellow").
@@ -450,7 +563,7 @@ async def get_google_scholar_author_info(author_name: str) -> dict[str, Any]:
     try:
         return await _run(gs_provider.get_author_info, author_name)
     except Exception as e:
-        return {"error": f"get_google_scholar_author_info failed: {e}"}
+        return _err("get_google_scholar_author_info", e)
 
 
 # ---------- Server entrypoint ----------------------------------------------

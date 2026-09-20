@@ -439,17 +439,17 @@ not guessed. Decisions: `BRAINSTORM.md` D19.
 
 ### Deliverables
 
-- [ ] **B1 — arXiv date filter.** `mcp-server/providers/arxiv.py`, `search()`. It fetches `max_results+10` by relevance, then filters by date in Python, so a narrow window returns almost nothing. Replace with arXiv's native range inside `search_query`: `submittedDate:[YYYYMMDDTTTT TO YYYYMMDDTTTT]`. **Measured 2026-09-19:** `search("large language model", max_results=5, date_from="2026-01-01")` → **1 result**. Native range, same window → **5/5, all inside it**.
-- [ ] **B2 — arXiv category filter does nothing.** Same file, `search()` builds `f"({query}) ({cat_filter})"` with no operator, so arXiv ORs the two. Insert `AND`. **Measured 2026-09-19:** `(transformer) (cat:cs.CL)` → **3 of 25** hits actually in `cs.CL`, 7 unrelated categories including `quant-ph`. `(transformer) AND (cat:cs.CL)` → **16 of 25**, 4 related categories.
-- [ ] **B3 — arXiv rate etiquette.** `arxiv.Client()` is constructed inside both `search()` and `get_details()`. `_last_request_dt` is per-instance, so back-to-back calls fire with no gap. The Literature skill tells the agent to call providers *simultaneously*. Use one module-level client. arXiv Terms of Use: *"no more than one request every three seconds… a single connection at a time"*, applying *"to all of the machines under your control as a whole"*.
-- [ ] **B4 — stop the S2 auto-pagination.** `mcp-server/providers/semantic_scholar.py`. `PaginatedResults.__iter__` is `yield from self._items; while self._has_next_page(): yield from self._get_next_page()` — it pages to exhaustion. Our list comprehensions iterate the whole object. `search_paper` uses `max_results=1000`; citations/references get the constructor default **10000**. So one `limit=10` search can be ~100 HTTP requests and one `limit=50` citations call ~200. Fix with `itertools.islice(results, limit)`. **This is the worst one**: a Semantic Scholar API key is rate-limited to **1 request per second**, so 100 requests takes ~100 s and blows the 90 s `OSP_CALL_TIMEOUT`. A key currently makes OSP *slower*, not faster.
-- [ ] **B5 — pass `fields=`.** Same file. With `fields=None` the package requests **76** `Paper.FIELDS`, including `embedding` plus 21 nested `citations.*` and 21 nested `references.*` fields (each with their own abstracts). `_paper_to_dict` returns **10** keys. S2 caps a response at 10 MB, so `get_paper` 400s on a heavily-cited paper. Pass an explicit field list per tool.
-- [ ] **B6 — keep the fields we already pay for.** Still in `_paper_to_dict`: the package already fetches `tldr`, `openAccessPdf`, `isOpenAccess`, `publicationDate`, `fieldsOfStudy` and we throw all five away. `tldr` is an auto-written one-line summary — useful to the Literature agent for triage. `openAccessPdf` is the input to M12.
-- [ ] **B7 — expose the S2 search filters.** `search_paper()` accepts 13 parameters; `semantic_scholar.py` passes **one** (`limit`). Surface at least `year`, `publication_date_or_year` (the temporal round), `open_access_pdf`, `min_citation_count`, `fields_of_study`, `venue`, `sort`. Also add **`match_title=True`** as its own tool — it hits `/paper/search/match` and returns the closest title match with a `matchScore`. That is the right way to resolve a bibliography line to an ID, i.e. deduplication.
-- [ ] **B8 — fix the snippet tool.** `search_snippets()` reads `getattr(s, "snippetId")`, which does not exist on `Snippet` → always `null`. It also calls `_slim_paper(s.paper)`, but `SnippetPaper` only has `corpus_id`, `title`, `authors`, `open_access_info` — so `paperId`/`year`/`citationCount` come back null and `authors` is a list of **plain strings**, which `_slim_paper` maps to `{"name": null, "authorId": null}` for every author. **Note:** `Snippet.text` *does* work — it is a documented shortcut for `snippet.text`. Only the id and the paper block are broken. Snippet `limit` can be up to **1000**; we cap at 20.
-- [ ] **B9 — Google Scholar must fail loudly.** `mcp-server/providers/google_scholar.py`, `_parse_results()`. A CAPTCHA/block page contains no `gs_ri` divs, so it returns `[]` — **byte-identical to a genuine zero-hit search**. Verified 2026-09-19. The agent then writes "no papers found" when the truth is "we were blocked". This breaks MANIFESTO rule 8 and means the Literature skill never records the provider as unavailable in Provenance. **The owner asked for several approaches to be tested first, the best chosen, and only then applied** — see the deliverable below.
-- [ ] **B10 — choose the Google Scholar approach by test, not by guess.** Try at least: (a) detect the block page by marker (`gs_captcha_ccl`, `/sorry/index`, "unusual traffic"); (b) rotate the User-Agent across several real browser strings; (c) retry with backoff; (d) optional proxy via an env var. The competitor already does all four in `paper_search_mcp/academic_platforms/google_scholar.py` — `_is_captcha_page()`, UA rotation, `max_retries`/`retry_delay`, `GOOGLE_SCHOLAR_PROXY_URL`. **MIT licence, so borrowing is allowed with attribution.** Whatever wins, a block must raise a distinct error, never `[]`.
-- [ ] **B11 — pin the dependencies.** `mcp-server/requirements.txt` says `arxiv>=2.1.0` and `semanticscholar>=0.7.0`. A fresh install on 2026-09-19 pulls **arxiv 4.0.1** and **semanticscholar 0.12.0** — two major versions up. arxiv 4.x removed `Search.results`, `Result.download_pdf` and the `arxiv.arxiv` shim; our `Client().results(search)` survives by luck. Pin ranges, e.g. `arxiv>=3.0,<5`.
+- [x] **B1 — arXiv date filter.** `mcp-server/providers/arxiv.py`, `search()`. It fetches `max_results+10` by relevance, then filters by date in Python, so a narrow window returns almost nothing. Replace with arXiv's native range inside `search_query`: `submittedDate:[YYYYMMDDTTTT TO YYYYMMDDTTTT]`. **Measured 2026-09-19:** `search("large language model", max_results=5, date_from="2026-01-01")` → **1 result**. Native range, same window → **5/5, all inside it**.
+- [x] **B2 — arXiv category filter does nothing.** Same file, `search()` builds `f"({query}) ({cat_filter})"` with no operator, so arXiv ORs the two. Insert `AND`. **Measured 2026-09-19:** `(transformer) (cat:cs.CL)` → **3 of 25** hits actually in `cs.CL`, 7 unrelated categories including `quant-ph`. `(transformer) AND (cat:cs.CL)` → **16 of 25**, 4 related categories.
+- [x] **B3 — arXiv rate etiquette.** `arxiv.Client()` is constructed inside both `search()` and `get_details()`. `_last_request_dt` is per-instance, so back-to-back calls fire with no gap. The Literature skill tells the agent to call providers *simultaneously*. Use one module-level client. arXiv Terms of Use: *"no more than one request every three seconds… a single connection at a time"*, applying *"to all of the machines under your control as a whole"*.
+- [x] **B4 — stop the S2 auto-pagination.** `mcp-server/providers/semantic_scholar.py`. `PaginatedResults.__iter__` is `yield from self._items; while self._has_next_page(): yield from self._get_next_page()` — it pages to exhaustion. Our list comprehensions iterate the whole object. `search_paper` uses `max_results=1000`; citations/references get the constructor default **10000**. So one `limit=10` search can be ~100 HTTP requests and one `limit=50` citations call ~200. Fix with `itertools.islice(results, limit)`. **This is the worst one**: a Semantic Scholar API key is rate-limited to **1 request per second**, so 100 requests takes ~100 s and blows the 90 s `OSP_CALL_TIMEOUT`. A key currently makes OSP *slower*, not faster.
+- [x] **B5 — pass `fields=`.** Same file. With `fields=None` the package requests **76** `Paper.FIELDS`, including `embedding` plus 21 nested `citations.*` and 21 nested `references.*` fields (each with their own abstracts). `_paper_to_dict` returns **10** keys. S2 caps a response at 10 MB, so `get_paper` 400s on a heavily-cited paper. Pass an explicit field list per tool.
+- [x] **B6 — keep the fields we already pay for.** Still in `_paper_to_dict`: the package already fetches `tldr`, `openAccessPdf`, `isOpenAccess`, `publicationDate`, `fieldsOfStudy` and we throw all five away. `tldr` is an auto-written one-line summary — useful to the Literature agent for triage. `openAccessPdf` is the input to M12.
+- [x] **B7 — expose the S2 search filters.** `search_paper()` accepts 13 parameters; `semantic_scholar.py` passes **one** (`limit`). Surface at least `year`, `publication_date_or_year` (the temporal round), `open_access_pdf`, `min_citation_count`, `fields_of_study`, `venue`, `sort`. Also add **`match_title=True`** as its own tool — it hits `/paper/search/match` and returns the closest title match with a `matchScore`. That is the right way to resolve a bibliography line to an ID, i.e. deduplication.
+- [x] **B8 — fix the snippet tool.** `search_snippets()` reads `getattr(s, "snippetId")`, which does not exist on `Snippet` → always `null`. It also calls `_slim_paper(s.paper)`, but `SnippetPaper` only has `corpus_id`, `title`, `authors`, `open_access_info` — so `paperId`/`year`/`citationCount` come back null and `authors` is a list of **plain strings**, which `_slim_paper` maps to `{"name": null, "authorId": null}` for every author. **Note:** `Snippet.text` *does* work — it is a documented shortcut for `snippet.text`. Only the id and the paper block are broken. Snippet `limit` can be up to **1000**; we cap at 20.
+- [x] **B9 — Google Scholar must fail loudly.** `mcp-server/providers/google_scholar.py`, `_parse_results()`. A CAPTCHA/block page contains no `gs_ri` divs, so it returns `[]` — **byte-identical to a genuine zero-hit search**. Verified 2026-09-19. The agent then writes "no papers found" when the truth is "we were blocked". This breaks MANIFESTO rule 8 and means the Literature skill never records the provider as unavailable in Provenance. **The owner asked for several approaches to be tested first, the best chosen, and only then applied** — see the deliverable below.
+- [x] **B10 — choose the Google Scholar approach by test, not by guess.** Try at least: (a) detect the block page by marker (`gs_captcha_ccl`, `/sorry/index`, "unusual traffic"); (b) rotate the User-Agent across several real browser strings; (c) retry with backoff; (d) optional proxy via an env var. The competitor already does all four in `paper_search_mcp/academic_platforms/google_scholar.py` — `_is_captcha_page()`, UA rotation, `max_retries`/`retry_delay`, `GOOGLE_SCHOLAR_PROXY_URL`. **MIT licence, so borrowing is allowed with attribution.** Whatever wins, a block must raise a distinct error, never `[]`.
+- [x] **B11 — pin the dependencies.** `mcp-server/requirements.txt` says `arxiv>=2.1.0` and `semanticscholar>=0.7.0`. A fresh install on 2026-09-19 pulls **arxiv 4.0.1** and **semanticscholar 0.12.0** — two major versions up. arxiv 4.x removed `Search.results`, `Result.download_pdf` and the `arxiv.arxiv` shim; our `Client().results(search)` survives by luck. Pin ranges, e.g. `arxiv>=3.0,<5`.
 
 ### Acceptance criteria
 
@@ -463,6 +463,144 @@ not guessed. Decisions: `BRAINSTORM.md` D19.
 8. No tool gains agentic logic — every fix stays atomic and stateless (MANIFESTO §7, D3).
 
 **Depends on:** M10.
+
+---
+
+### Report — 2026-09-20
+
+All eleven deliverables done. Every number below was measured on 2026-09-20, not reasoned.
+
+| | Before | After |
+|---|---|---|
+| **B1** arXiv date window (`date_from=2026-01-01`, 5 asked for) | 1 paper | **5 papers, all inside the window** |
+| **B2** arXiv `categories=["cs.CL"]`, 25 asked for | 3 in `cs.CL`, 7 unrelated categories including `quant-ph` | **25 of 25 in `cs.CL`**, 16 of them as primary |
+| **B3** spacing between arXiv calls | none — a new client per call | **3.1 s, 3.1 s** |
+| **B4** HTTP requests for one `limit=10` S2 search | still paging after 78 s | **1 request, 12 s** |
+
+**B2 needs its acceptance criterion corrected.** Criterion 2 asked for "at least 80% of results with
+`primary_category == cs.CL`" and the measured figure is 64%. That criterion measures the wrong thing:
+arXiv's `cat:` operator matches a paper in *any* of its categories, so a paper whose primary is `cs.LG`
+and which is cross-listed to `cs.CL` is a correct hit. By membership — the thing the filter actually
+promises — the score is 25 of 25. The filter works; the criterion was written before we knew the
+semantics.
+
+**B5 was partly wrong about where the problem was.** `get_paper` does default to all 76 `Paper.FIELDS`,
+including `embedding` and the nested `citations.*`/`references.*` trees, and that is the 10 MB failure.
+But `search_paper`, `get_papers`, `get_author_papers` and `get_recommended_papers` already defaulted to
+the 21-field `Paper.SEARCH_FIELDS`, so they were never asking for 76. What those 21 *do* lack is `tldr`,
+which is why it is now requested explicitly.
+
+**B9/B10, decided by test rather than by guess, as asked.** Five requests to Google Scholar about eight
+seconds apart, from one ordinary address:
+
+- Every one answered **HTTP 429**.
+- Four User-Agent strings — Chrome 124 Windows, Chrome 131 macOS, Firefox 133 Linux, and none at all —
+  returned **byte-identical** 429 bodies. **Rotating the User-Agent achieves nothing.** The block is on
+  the address, not the client string.
+- Later in the same session Google stopped answering altogether and the requests timed out.
+
+So retrying a 429 only spends the caller's time budget on a host that has already refused. The provider
+**does not retry a block**; it fails at once and says what happened, leaving the time for the other
+providers. Retries are kept for faults that can pass on their own — a dropped connection, a timeout, a
+5xx. UA rotation is kept because it is three lines and harmless, and recorded as unmeasured benefit.
+
+There is now one exception family. `GoogleScholarUnavailable` covers every failure and
+`GoogleScholarBlocked` is the subclass for a refusal, so a caller can catch "we did not get to look"
+without listing types, and every message carries the same instruction: record the provider as
+unavailable, never as "no papers found".
+
+### The bigger finding — the server could not start on a fresh install
+
+`requirements.txt` said `mcp>=1.2.0` with no ceiling. That resolves to **mcp 2.2.0** today, and mcp 2.x
+deleted `mcp.server.fastmcp` and renamed `FastMCP` to `MCPServer`. `osp_mcp.py` line 28 imports
+`from mcp.server.fastmcp import FastMCP`, so **a clean install could not import the server at all** —
+it fails with `ModuleNotFoundError` before any tool is registered. Reproduced in an empty virtualenv,
+then fixed by pinning `mcp<2.0`; the same empty virtualenv now imports the server and registers all 16
+tools. Lifting that ceiling means migrating to `MCPServer` first.
+
+This is the exact failure B11 predicted for `arxiv` and nobody thought to check for `mcp`. Logged as O15.
+
+Also removed: the `fastmcp` package. Nothing imports it — `FastMCP` comes from inside `mcp` — and it was
+pulling its own dependency tree into every user's install.
+
+### Two test harnesses, because there were none
+
+Nothing in this repository loaded `mcp-server/providers/` before today. The adapter tests and the
+installer smoke test never touch it, and the syntax check listed four files by name, none of them a
+provider.
+
+- **`scripts/test_providers_unit.py`** — offline, about a second, **58 checks**. It holds the things the
+  live internet cannot prove on demand: that a captcha page raises while a genuine zero-hit page returns
+  `[]`, that every query the builder emits is the one intended, that each search filter reaches the
+  client under the right name, and that the Google Scholar retry budget still fits inside
+  `OSP_CALL_TIMEOUT`.
+- **`scripts/test_providers.py`** — live, opt-in, one `--only` switch per provider and a per-provider
+  time budget. It separates "this is broken" from "this API will not talk to us", which matters: by the
+  end of this session Semantic Scholar was refusing connections and Google Scholar was timing out, and
+  neither is a defect in our code.
+
+`AGENTS.md` now globs `mcp-server/**/*.py` instead of naming four files, and uses `compile()` rather than
+`ast.parse()`. That is not pedantry: `ast.parse` accepted a real mistake made in this session — reading a
+module global before declaring `global` in the same function — which Python itself refuses. `compile()`
+catches it.
+
+**Not verified, and honestly so.** The Semantic Scholar live checks for the year filter, `get_paper` on a
+heavily-cited paper, title matching and snippets did not run: the anonymous API began refusing
+connections partway through the session. The filter wiring for all of them is covered offline instead,
+which is stronger, but the round trip against the real API is still owed. Re-run
+`.venv/bin/python scripts/test_providers.py --only semantic_scholar`.
+
+**Verified:** 58 offline checks, arXiv live checks all pass, one HTTP request per S2 call measured,
+a clean virtualenv imports the server with 16 tools, `sync_adapters.py --check` and `test_parity.py`
+pass, all 14 installer smoke tests pass, and the five real global MCP config files are untouched.
+
+Acceptance criteria 1, 3, 4, 6, 7 and 8 pass. Criterion 2 passes on the corrected measure. Criterion 5
+is covered offline and still owed a live run.
+
+### Review round — 2026-09-20
+
+Two subagents, two lenses: one against the live APIs, one on contracts and rules. The contract audit
+found four defects **introduced or left standing by this milestone**, all four reproduced independently
+before being fixed.
+
+| | Defect | Fix |
+|---|---|---|
+| 1 | **`matchScore` was always `null`.** `Paper` declares no such property and never assigns one, so `getattr(paper, "matchScore")` answers `None` for every call. This is the snippetId bug (B8) repeated one function later, in the tool sold as "the right way to resolve a reference". `/paper/search/match` always returns its best guess — there is no "no match" — so without the score the agent binds a bibliography line to whatever came back, with nothing to judge it by. | Read from `paper.raw_data`. The skill now also says a low score means no real match. |
+| 2 | **The shared arXiv client could wedge the provider for the life of the process.** `arxiv.Client` calls `session.get()` with **no timeout**, so a hung socket holds the lock forever, and `asyncio.to_thread` cannot cancel the thread holding it. Every later arXiv call would queue behind it and time out. Before this milestone each call had its own client and was independent, so the lock that fixed the rate etiquette created this. | Two bounds: a 20 s request timeout patched onto the package's session, and `_arxiv_turn()`, which waits at most 25 s for the connection and raises `ArxivBusy` instead of queueing. |
+| 3 | **The Semantic Scholar 429 retry storm was never fixed, and B4 did not touch it.** The package reports HTTP 429 as `ConnectionRefusedError` and retries it ten times with exponential backoff (5 s to 60 s): about **375 s inside one call**. The tool layer gives up at 90 s, but the worker thread keeps hammering the API for minutes afterwards, making the next call likelier to be throttled too. | `SemanticScholar(api_key=..., retry=False)`, and a 429 is translated into `SemanticScholarRateLimited` telling the user to set a key. **Measured: the same call went from stalling past a 300 s timeout to failing in 1.3 s.** |
+| 4 | **`publicationDate` was a `datetime` object.** Worse than reported: `json.dumps` refuses it outright, and any coercion invents a midnight component the API never sent. | Formatted to `YYYY-MM-DD`, with a test that the whole record serializes. |
+
+It also caught one of our own checks asserting nothing — `any(key in r for r in rows)` is always true when
+the serializer is a dict literal, so the only B6 check would have passed with every value `None` — and
+that the block-versus-empty warning had been written into one of the three Google Scholar docstrings.
+
+**Errors now carry a reason.** The prose alone made the agent guess. Every error record has a `reason`:
+`blocked`, `rate_limited`, `busy`, `timeout`, `bad_request` or `failed`. Only `[]` means the search ran
+and matched nothing. The Literature skill states the rule.
+
+### Found while re-reviewing: partial dates silently lost most of the year
+
+Not from either reviewer. `dateutil.parser.parse` fills the gaps in a partial date from **today**, so
+`date_from="2024"` became **2024-09-20** on the day this was written, and `"2024-06"` became the 20th of
+June. A caller asking for "everything from 2024" would quietly lose January to September and nothing
+would look wrong — the same shape of failure as B1, in the code written to fix B1. Partial dates are now
+widened to the period they name, leap years included. Verified live: a 2024 window returns papers from
+January onward.
+
+### The prompt that would have wasted the whole milestone
+
+The contract audit's most valuable finding was not a defect in the code. Round 3 of the literature
+protocol is *"filter to last 12 months"* — the reason B1 and B7 exist — and
+`skills/osp-literature-review-agent/SKILL.md` listed the three search tools with **no mention that any
+filter exists**. The agent would have kept running a plain keyword search for the temporal round and none
+of this milestone's main win would ever have fired. The skill now names the date and filter parameters
+for each provider, and `match_semantic_scholar_title`, which no prompt mentioned at all.
+
+`mcp-server/README.md` was also badly stale: it listed 9 tools, **three of which do not exist**
+(`get_semantic_scholar_paper_details`, `get_semantic_scholar_author_details`,
+`get_semantic_scholar_citations_and_references`), and told readers to build a virtualenv inside
+`mcp-server/` — which `init_mcp.sh` then copies into every user's project. Both rewritten, and the tool
+list is now cross-checked against the source.
 
 ---
 

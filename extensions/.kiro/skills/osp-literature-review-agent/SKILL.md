@@ -55,6 +55,22 @@ In **every round** you MUST dispatch **all available retrieval tools simultaneou
 
 **Simultaneously** means: fire all tools in the same dispatch batch, not one after the other. Each tool gets a query formulation tailored to its index — the arxiv query stresses category + keywords, the semantic_scholar query stresses citations + field-of-study, the web search query adds the venue name for recency. Do not wait for one result before starting the next.
 
+### Use the filters, especially in round 3
+
+Round 3 says "last 12 months". Ask the database for that window — do not put the
+date in the keywords and do not filter the results yourself:
+
+- `search_arxiv(query, date_from="YYYY-MM-DD", date_to="YYYY-MM-DD", categories=["cs.CL"])`
+  `categories` matches cross-listed papers too.
+- `search_semantic_scholar(query, publication_date_or_year="2025-09-01:2026-09-01")`
+  Also takes `year`, `venue`, `fields_of_study`, `min_citation_count` and
+  `open_access_pdf`.
+- `search_google_scholar_advanced(query, year_start=, year_end=)`
+
+Use `match_semantic_scholar_title(title)` to turn a title into a paperId. It
+returns one paper and a `matchScore`. The endpoint always returns its best
+guess, so a low score means no real match — check it before trusting the id.
+
 Relying on only one source biases the corpus. A paper that ranks low in one index may be the top result in another.
 
 ## File templates
@@ -104,3 +120,7 @@ After all four files exist:
 - Do **not** skip a round because you "already covered it" — the strategy differentiation is the point.
 - Do **not** discard pre-prints just because they're unpublished — round 3's whole purpose is catching them.
 - Do **not** silently fail a tool — if `osp-mcp` is unreachable, list it in Provenance under "Tools unavailable" so the user knows.
+- Do **not** read a tool error as "no papers found". An error record carries a
+  `reason`: `blocked`, `rate_limited`, `busy`, `timeout` or `bad_request`. Only
+  an empty list `[]` means the search really found nothing. Anything with an
+  `error` key goes in Provenance under "Tools unavailable".

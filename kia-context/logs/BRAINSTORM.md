@@ -234,6 +234,23 @@ because it was true on 2026-05-08; read D16 for the current shape.
 **Rejected always-on because:** every extra provider costs the agent a longer tool list on every request, and a user reviewing CS papers has no use for biomedical sources.
 **Scheduled as:** M13 S5–S7.
 
+### D22 · A blocked scrape is not retried — measured, not assumed — 2026-09-20
+
+**Considered:** copy the competitor's behaviour (rotate the User-Agent, retry with backoff) / detect the block and fail at once / route through a proxy
+**Chose:** detect and fail at once. Keep retries only for faults that can pass on their own — a dropped connection, a timeout, a 5xx. Keep User-Agent rotation because it is harmless, and keep an optional proxy env var.
+**Because it was tested, as the owner asked.** Five requests to Google Scholar about eight seconds apart from one ordinary address: **every one answered HTTP 429**, and four different User-Agent strings — Chrome 124 on Windows, Chrome 131 on macOS, Firefox 133 on Linux, and none at all — returned **byte-identical** bodies. The block is on the address, not the client string, so rotation changes nothing. Later in the same session Google stopped answering at all and requests timed out. Retrying a refusal therefore only spends the caller's 90-second budget on a host that has already said no, and leaves nothing for the other providers.
+**Second measurement that shaped it:** the retry budget must fit inside `OSP_CALL_TIMEOUT`. At three attempts of 30 s the worst case was 93 s against a 90 s ceiling, so the caller would have seen a bare "timed out" instead of the message explaining the block — losing the very thing B9 was for. Now 20 s × 3 plus backoff = 63 s, pinned by a test.
+**Rule that follows:** every failure is one exception family (`GoogleScholarUnavailable`, with `GoogleScholarBlocked` beneath it) and every error record carries a machine-readable `reason`. An empty list means one thing only: the search ran and matched nothing.
+
+### D23 · The Semantic Scholar client runs with its own retry loop switched off — 2026-09-20
+
+**Considered:** leave the package default (`retry=True`) / turn it off and fail in one round trip / write our own bounded retry
+**Chose:** `retry=False`, and translate the 429 into an error that names the cause and tells the user a key would fix it.
+**Because a measurement changed our minds.** The package reports HTTP 429 as `ConnectionRefusedError`, and its tenacity policy retries that ten times with exponential backoff from 5 s to 60 s — roughly **375 seconds inside one call**. The tool layer gives up at 90 s, but `asyncio.to_thread` cannot cancel the thread, so the orphaned worker keeps hitting a rate-limited API for minutes after the agent has already been told the call timed out, making the next call likelier to be throttled in turn. Measured before and after on the same call: **stalled past a 300 s timeout, then failed in 1.3 s.**
+**Rejected our own bounded retry because:** it buys nothing a caller cannot do better. The agent has three other providers and knows the whole plan; the provider does not.
+**Cost, stated plainly:** a transient 429 that one retry would have cleared now fails. That is the right trade — a fast honest failure beats a six-minute stall nobody sees the end of.
+**Note for whoever reads the package source:** catching `ConnectionRefusedError` is not enough. tenacity wraps it in `RetryError` even with retrying off, so the exception chain has to be walked.
+
 ---
 
 ## Open questions
@@ -256,6 +273,7 @@ because it was true on 2026-05-08; read D16 for the current shape.
 | **O12** | Every provider adds tools, and the whole list ships in every agent request. We are at 15 tools; M12 and M13 could take it past 25. At what point does the list start hurting tool choice more than the extra source helps? Nobody has measured it. | 2026-09-19 | open |
 | **O13** | bioRxiv/medRxiv deferred in D19. They are a feed, not a search engine, but they carry free full text (`jatsxml`), same-day freshness and a preprint-to-journal link (`published`). Worth adding as an explicit "recent preprints" tool once M12 exists? Also: **neither API documents a rate limit**, and a category-filtered month is ~7 calls. | 2026-09-19 | open |
 | **O14** | There is still **no deduplication** across providers. The same paper already returns from arXiv, Semantic Scholar and Google Scholar in three different shapes, and M12/M13 add more sources. `refactor/migrate-mcp-to-scripts` already has a normalised cross-provider record shape that would fix it. Should that land before or with M13? | 2026-09-19 | open |
+| **O15** | `mcp-server/requirements.txt` had no upper bound on `mcp`, so a fresh install resolved to **mcp 2.2.0**, which deleted `mcp.server.fastmcp` and renamed `FastMCP` to `MCPServer`. The server could not import at all — reproduced in an empty virtualenv on 2026-09-20 and fixed by pinning `mcp<2.0`. Migrating to `MCPServer` is the real answer and has not been done. Until it is, that ceiling is load-bearing. Related: B11 predicted exactly this for `arxiv` and nobody thought to check `mcp`, which is O9 wearing different clothes. | 2026-09-20 | open |
 
 ---
 
