@@ -1183,6 +1183,22 @@ noted against M15.
 biomedical database on a CS paper, and is stopped three separate ways from reading a block as empty) ·
 5 ✅.
 
+**Late second round — 2026-09-21.** The first M14 reviewer reported after the milestone had shipped,
+having read an intermediate tree. Five of its findings were already fixed; **four were not, and were
+real.** The sharpest is a loss I had not noticed: the old text said *"In **every round** you MUST
+dispatch **all available retrieval tools** simultaneously"*, and my rewrite replaced it with *"Choose by
+the paper's topic, not by the list"* — which licenses narrowing to a single source. The only surviving
+counterweight, *"Relying on only one source biases the corpus"*, sat 32 lines below the bullets it
+qualified. **A breadth floor was traded for judgement and nothing was left holding the floor.** It is
+now in the lead paragraph, where it binds.
+
+Also from that round: the open bibliographic index was described only as a retraction lookup, hiding
+that it is a general all-field search carrying exactly the year filters round 3 needs — so an agent
+would never call it during a round; the Answer Generator had no field rule and no pointer to
+`## Sources` while the Baseline Scout had been given one; the error-vs-empty rule lived only in the
+Literature Agent although the Scout and the Answer Generator both search; and the retraction template's
+`"not run"` conflated *I chose not to* with *I could not*.
+
 **Owed and unrelated, settled the same day:** the live OpenAlex round-trip finally ran — 6 checks green,
 including a known retracted DOI flagged `isRetracted=True` and a nonsense DOI raising rather than
 returning an empty record. **Semantic Scholar still rate-limits this machine (HTTP 429)**, so its data

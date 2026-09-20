@@ -46,13 +46,16 @@ papers (deduplicated), and record how many rounds it came from.
 
 **List the retrieval tools you actually have, before each round.** The user picks
 which databases get installed, so the set differs per project — nothing here
-promises any of them is present. Choose by the paper's topic, not by the list.
+promises any of them is present. Choose by the paper's topic, not by the list —
+but **the floor is web search plus every installed source that suits the field**,
+which is usually all of them bar the biomedical one. Relying on a single source
+biases the corpus: a paper that ranks low in one index tops another.
 
 - **Native web search — every round, no exception.** The one source no install can remove. If your host genuinely has none, record that in the round file rather than proceeding quietly without it.
 - **A preprint archive** — the strongest single source for CS, physics and maths, and one of the two kinds that also return **full text**.
 - **A citation-graph index** — references, citations, recommendations, title matching. With a key it is generous; keyless it shares one global pool and throttles unpredictably. A throttle is an error, never an empty result.
 - **A biomedical database** — add it to **every** round when the paper touches medicine, biology, public health or psychology, because a preprint archive barely covers those; it serves **full text** too. On a CS paper it returns noise.
-- **An open bibliographic index** — when retraction status or field-normalised impact (`fwci`) decides something. Keyless it runs on a small **daily budget**, not a per-second limit: once spent, waiting will not help until tomorrow.
+- **An open bibliographic index** — all fields, the largest index here, with year filters and a drop-retracted filter, so it belongs in the rounds as a search, not only as a lookup. It is also the only way to check retraction status, and `fwci`, which weighs citations against the average for a work's own field and year. Keyless it runs on a small **daily budget**, not a per-second limit: once spent, waiting will not help until tomorrow.
 - **Scraped general search** — theses, workshops, blogs. The least reliable of all: **being blocked is the normal case**, never evidence that no papers exist.
 
 Record in the round file which you called, which you skipped and why, and which

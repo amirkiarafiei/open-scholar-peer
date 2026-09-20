@@ -89,7 +89,7 @@ Write **exactly one file**: `.brain/raw/04_missing_baselines.md`.
   authors — or "nothing found" — or "not checked: no code-and-data repository search is
   installed in this project" — or "search failed: <reason from the error record>". Never write
   "nothing found" for a search that errored: that would claim the authors released nothing.>
-- **Retraction check:** <which cited DOIs you checked, and the result — or "not run">
+- **Retraction check:** <which cited DOIs you checked, and the result — or "not checkable: no bibliographic index installed" — or "not run">
 
 ## Output
 
@@ -147,6 +147,7 @@ After writing:
 
 ## Pitfalls
 
+- Do **not** read a tool error as "nothing found". An error record carries a `reason` — `blocked`, `rate_limited`, `busy`, `timeout`, `unavailable`. Only an empty list means the search really looked and found nothing. Say which you got.
 - Do **not** soften severity ratings to be polite. The paper's authors aren't reading this; the Reviewer Agent will calibrate tone.
 - Do **not** flag baselines that came out *after* the paper's stated cutoff date.
 - Do **not** flag baselines on different tasks — relevance must be precise.
