@@ -101,7 +101,8 @@ Or just run `/open-scholar-peer` at any point — it reads your session state an
 Six open databases. **None of them requires a paid subscription, and none
 requires a key to work** — a key only lifts a rate limit. The installer asks
 which ones you want and enables just those, so your agent carries a short tool
-list instead of all 22.
+list instead of all 22. It starts with **arXiv and Semantic Scholar** ticked;
+tick the others if your papers need them.
 
 | Database | Key | What it is for |
 | --- | --- | --- |

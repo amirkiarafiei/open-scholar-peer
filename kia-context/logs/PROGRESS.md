@@ -886,8 +886,7 @@ per-tool script directly.
 
 ### The installer
 
-The database picker is step 2 of 3, ahead of the tool menu so that menu's Install button stays the last
-thing pressed. `menu_databases()` follows `menu_tools()` exactly — index-aligned arrays, marks as a
+The database picker is step 3 of 3, after the agent menu. `menu_databases()` follows `menu_tools()` exactly — index-aligned arrays, marks as a
 `0`/`1` string for bash 3.2, the framed button as index `n`, and **geometry re-measured every frame**,
 which is the defect the M9 review found and the reason that comment exists. The rows carry two extra
 columns, key status and domain, which is S7's table.

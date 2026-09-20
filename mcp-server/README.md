@@ -8,6 +8,9 @@ use and writes the answer to `.env` as `OSP_SOURCES`; only those sources have
 their tools registered. An unset `OSP_SOURCES` means all of them. This keeps
 the agent's tool list short — six databases is 22 tools, three is 17.
 
+The picker starts with **arXiv and Semantic Scholar** ticked, the two that
+cover every field. The rest are one keypress away.
+
 ## Tools
 
 22 tools with every database on. The authority is the source:

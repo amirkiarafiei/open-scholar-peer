@@ -233,6 +233,8 @@ because it was true on 2026-05-08; read D16 for the current shape.
 **Also chose:** offer to type each key during the install, with a clear skip. If skipped, point at `.env`. **A key is never required to finish installing** — that would breach MANIFESTO rule 1.
 **Rejected always-on because:** every extra provider costs the agent a longer tool list on every request, and a user reviewing CS papers has no use for biomedical sources.
 **Scheduled as:** M13 S5–S7.
+**Refined on 2026-09-20, after seeing it run.** Three changes, all from watching the flow rather than reasoning about it. The agent picker now comes **before** the database picker: which agents you use is the decision you already know the answer to, and the databases follow from the papers you review. The database picker starts with **arXiv and Semantic Scholar only** rather than all six — starting with everything hands a CS reviewer four sources they will never call and a longer tool list on every request, and adding one is a single keypress. And keys are now behind **one yes/no question** instead of a prompt per database: with the default pair that is one question rather than an interrogation, and the answer defaults to "no, I will use .env later".
+**Rule that follows:** whichever picker runs last carries the Install button, and its label says what pressing it actually does — "Continue" when a question still follows, "Install" when it does not. An installer that promises to install and then asks one more thing spends trust it does not need to.
 
 ### D22 · A blocked scrape is not retried — measured, not assumed — 2026-09-20
 

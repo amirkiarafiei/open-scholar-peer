@@ -50,10 +50,12 @@ if printf '%s' "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" | grep -qi 'utf-*8'; then
   UTF8=1
   LINE="─"; ON="◉"; OFF="○"; CHK="▣"; BOX="□"; ARROW="›"; TICK="✓"; CROSS="✗"; DOT="·"
   TL="╭"; TR="╮"; BL="╰"; BR="╯"; VT="│"; UPDN="↑/↓"
+  BTL="╔"; BTR="╗"; BBL="╚"; BBR="╝"; BVT="║"; BHZ="═"; BML="╠"; BMR="╣"
 else
   UTF8=0
   LINE="-"; ON="(*)"; OFF="( )"; CHK="[x]"; BOX="[ ]"; ARROW=">"; TICK="+"; CROSS="x"; DOT="-"
   TL="+"; TR="+"; BL="+"; BR="+"; VT="|"; UPDN="up/down"
+  BTL="+"; BTR="+"; BBL="+"; BBR="+"; BVT="|"; BHZ="="; BML="+"; BMR="+"
 fi
 
 # Subagent isolation for /5-osp-qa, and how the MCP server gets wired.
@@ -93,6 +95,12 @@ DB_ENVVARS=(
   "" "SEMANTIC_SCHOLAR_API_KEY" ""
   "" "ZENODO_API_TOKEN" "OPENALEX_API_KEY"
 )
+# Selected when the picker opens. arXiv and Semantic Scholar only: they are
+# the two that serve every field, and a reviewer can add the rest with one
+# keypress. Starting with all six hands a CS reviewer four sources they will
+# never use, and a longer tool list on every agent request.
+DB_DEFAULTS=(1 1 0 0 0 0)
+
 DB_DOMAINS=(
   "preprints $DOT CS, physics, maths"
   "all fields $DOT citation graph"
@@ -294,7 +302,7 @@ menu_single() {
 # Enter or space on a tool row TOGGLES it; only Enter on the button installs.
 MULTI_SELECTED=()
 menu_tools() {
-  local context=$1
+  local context=$1 verb=${2:-Install}
   local n=${#TOOL_NAMES[@]}
   local cur=0 top=0 drawn=0 i key win rows count layout marks=""
 
@@ -356,9 +364,9 @@ menu_tools() {
     if [ "$layout" -lt 2 ]; then printf '\n'; drawn=$((drawn + 1)); fi
     local blabel benabled=1 bfocus=0
     if [ "$count" -gt 0 ]; then
-      if [ "$count" -eq 1 ]; then blabel="Install for 1 tool"; else blabel="Install for $count tools"; fi
+      if [ "$count" -eq 1 ]; then blabel="$verb for 1 tool"; else blabel="$verb for $count tools"; fi
     else
-      benabled=0; blabel="Install"
+      benabled=0; blabel="$verb"
       [ "$cur" -eq "$n" ] && blabel="Pick at least one tool"
     fi
     [ "$cur" -eq "$n" ] && bfocus=1
@@ -372,12 +380,12 @@ menu_tools() {
       printf '\n'; drawn=$((drawn + 1))
       printf '     %s* Antigravity falls back to self-reflection if delegation is unavailable%s\n' \
         "$DIM" "$R"; drawn=$((drawn + 1))
-      printf '     %s%s move %s space or enter toggle %s a all %s n none %s tab jumps to Install%s\n' \
+      printf '     %s%s move %s space or enter toggle %s a all %s n none %s tab jumps to the button%s\n' \
         "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
-      printf '     %spast the last tool is the Install button %s q cancel%s\n' \
-        "$DIM" "$DOT" "$R"; drawn=$((drawn + 1))
+      printf '     %spast the last tool is the %s button %s q cancel%s\n' \
+        "$DIM" "$verb" "$DOT" "$R"; drawn=$((drawn + 1))
     else
-      printf '     %s%s %s space toggle %s a all %s tab Install %s q cancel%s\n' \
+      printf '     %s%s %s space toggle %s a all %s tab to the button %s q cancel%s\n' \
         "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
     fi
 
@@ -423,12 +431,12 @@ menu_tools() {
 # window can be resized mid-menu, so every frame re-measures.
 DB_SELECTED=()
 menu_databases() {
+  local verb=${1:-Continue}
   local n=${#DB_NAMES[@]}
   local cur=0 top=0 drawn=0 i key win rows count layout marks=""
 
-  # Everything on by default: the safe answer for someone who does not know
-  # yet what they will review.
-  i=0; while [ "$i" -lt "$n" ]; do marks="${marks}1"; i=$((i + 1)); done
+  # From DB_DEFAULTS, not all-on.
+  i=0; while [ "$i" -lt "$n" ]; do marks="${marks}${DB_DEFAULTS[$i]}"; i=$((i + 1)); done
 
   hide_cursor
   while :; do
@@ -485,11 +493,27 @@ menu_databases() {
     fi
 
     if [ "$layout" -lt 2 ]; then printf '\n'; drawn=$((drawn + 1)); fi
+    # The button says what pressing it actually does. If anything currently
+    # ticked can take a key, a question follows and this is not yet the
+    # install — promising "Install" and then asking one more thing is the
+    # kind of small lie that makes an installer feel untrustworthy.
+    local vnow=$verb j
+    if [ "$verb" = "Install" ]; then
+      j=0
+      while [ "$j" -lt "$n" ]; do
+        if [ "${marks:$j:1}" = "1" ] && [ -n "${DB_ENVVARS[$j]}" ]; then
+          eval "kv=\${${DB_ENVVARS[$j]}:-}"
+          [ -z "$kv" ] && { vnow="Continue"; break; }
+        fi
+        j=$((j + 1))
+      done
+    fi
+
     local blabel benabled=1 bfocus=0
     if [ "$count" -gt 0 ]; then
-      if [ "$count" -eq 1 ]; then blabel="Continue with 1 database"; else blabel="Continue with $count databases"; fi
+      if [ "$count" -eq 1 ]; then blabel="$vnow with 1 database"; else blabel="$vnow with $count databases"; fi
     else
-      benabled=0; blabel="Continue"
+      benabled=0; blabel="$vnow"
       [ "$cur" -eq "$n" ] && blabel="Pick at least one database"
     fi
     [ "$cur" -eq "$n" ] && bfocus=1
@@ -503,12 +527,12 @@ menu_databases() {
       printf '\n'; drawn=$((drawn + 1))
       printf '     %soptional key = works without one, but a key lifts the rate limit%s\n' \
         "$DIM" "$R"; drawn=$((drawn + 1))
-      printf '     %s%s move %s space toggle %s a all %s n none %s tab to Continue%s\n' \
+      printf '     %s%s move %s space toggle %s a all %s n none %s tab to the button%s\n' \
         "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
-      printf '     %spast the last row is the Continue button %s q cancel%s\n' \
-        "$DIM" "$DOT" "$R"; drawn=$((drawn + 1))
+      printf '     %spast the last row is the %s button %s q cancel%s\n' \
+        "$DIM" "$verb" "$DOT" "$R"; drawn=$((drawn + 1))
     else
-      printf '     %s%s %s space toggle %s a all %s tab Continue %s q cancel%s\n' \
+      printf '     %s%s %s space toggle %s a all %s tab to the button %s q cancel%s\n' \
         "$DIM" "$UPDN" "$DOT" "$DOT" "$DOT" "$DOT" "$R"; drawn=$((drawn + 1))
     fi
 
@@ -565,6 +589,20 @@ db_slug_to_index() {
   return 1
 }
 
+# True when at least one selected database can take a key that is not already
+# in the environment. Without this the yes/no question would be asked even
+# when there is nothing to ask for.
+keyed_databases_selected() {
+  local idx var val
+  for idx in $SELECTED_DB; do
+    var=${DB_ENVVARS[$idx]}
+    [ -z "$var" ] && continue
+    eval "val=\${$var:-}"
+    [ -z "$val" ] && return 0
+  done
+  return 1
+}
+
 # Offer to type each optional key, once, before anything is installed.
 # A key is NEVER required to finish: every database here answers without one.
 # Keys are read with `read -rs`, so they are not echoed and never reach a log.
@@ -617,6 +655,41 @@ export_source_env() {
   for var in $OSP_KEY_NAMES; do
     eval "export OSP_KEY_$var"
   done
+}
+
+# --------------------------------------------------------------- box ------
+#
+# The closing panel. Width is measured on PLAIN text and the colour is wrapped
+# around it afterwards, the same discipline draw_button uses — a colour code
+# counted as visible characters would push every right-hand border out of line.
+
+BOXW=74
+
+box_rule() {   # box_rule <left glyph> <right glyph>
+  local i=0 bar=""
+  while [ "$i" -lt "$BOXW" ]; do bar="${bar}${BHZ}"; i=$((i + 1)); done
+  printf '  %s%s%s%s%s\n' "$GRN" "$1" "$bar" "$2" "$R"
+}
+
+box_row() {    # box_row <plain text>  |  box_row <plain text> <coloured text>
+  local plain=$1 shown=${2:-$1} pad
+  if [ "${#plain}" -gt "$BOXW" ]; then
+    plain=${plain:0:$((BOXW - 1))}; shown=$plain
+  fi
+  pad=$(( BOXW - ${#plain} )); [ "$pad" -lt 0 ] && pad=0
+  printf '  %s%s%s%s%*s%s%s%s\n' \
+    "$GRN" "$BVT" "$R" "$shown" "$pad" "" "$GRN" "$BVT" "$R"
+}
+
+# join_names <array-name> <index list> -> "A · B · C", truncated to fit
+join_names() {
+  local arr=$1 idx out="" name eval_expr
+  shift
+  for i in $@; do
+    eval "name=\${${arr}[$i]}"
+    if [ -z "$out" ]; then out="$name"; else out="$out $DOT $name"; fi
+  done
+  printf '%s' "$out"
 }
 
 # ----------------------------------------------------------- tool lookup ---
@@ -843,26 +916,41 @@ if [ -z "$SELECTED_IDX" ]; then
   fi
   printf '\n'; hr; printf '\n'
 
-  # Step 2 — which databases. Before the tool menu, so the Install button on
-  # that menu stays the last thing the user presses.
+  # Whichever picker runs last is the one that starts the install, so only it
+  # says "Install". With --sources the database step is skipped and the tool
+  # menu is last; otherwise the database menu is.
+  tools_verb="Continue"
+  [ "$SOURCES_FLAG_SEEN" -eq 1 ] && tools_verb="Install"
+
+  # Step 2 — which agents.
+  if ! menu_tools "Into $TARGET" "$tools_verb"; then
+    printf '\n'; bad "Cancelled - nothing was installed."; exit 130
+  fi
+  SELECTED_IDX="${MULTI_SELECTED[*]}"
+
+  # Step 3 — which databases, then the keys they may want.
   if [ "$SOURCES_FLAG_SEEN" -eq 0 ]; then
-    if ! menu_databases; then
+    printf '\n'; hr; printf '\n'
+    if ! menu_databases "Install"; then
       printf '\n'; bad "Cancelled - nothing was installed."; exit 130
     fi
     SELECTED_DB="${DB_SELECTED[*]}"
   fi
-  # Offered whichever way the databases were chosen. When --sources named
-  # them, the picker is skipped but the keys still matter, and skipping each
-  # prompt is one keypress.
-  collect_keys
-  # Only when step 2 actually drew something, or two rules print back to back.
-  if [ "$SOURCES_FLAG_SEEN" -eq 0 ]; then printf '\n'; hr; printf '\n'; fi
 
-  # Step 3 — which tools. Its Install button starts the work.
-  if ! menu_tools "Into $TARGET"; then
-    printf '\n'; bad "Cancelled - nothing was installed."; exit 130
+  # Ask once whether to enter keys at all, rather than walking the user
+  # through a prompt per database. Only asked when a selected database
+  # actually takes one — with the default arXiv + Semantic Scholar that is a
+  # single question.
+  if keyed_databases_selected; then
+    printf '\n'
+    MENU_SUB="Every database works without a key. A key only lifts a rate limit."
+    if menu_single "Do you want to enter API keys now?" 1 \
+      "Yes - ask me for each one" \
+      "No - I will add them to .env later"; then
+      [ "$MENU_CHOICE" -eq 0 ] && collect_keys
+    fi
+    MENU_SUB=""
   fi
-  SELECTED_IDX="${MULTI_SELECTED[*]}"
 fi
 
 # Nothing chosen — a scripted run with --tool and no --sources. Enable every
@@ -905,25 +993,63 @@ for i in $SELECTED_IDX; do
 done
 
 # --- Summary -----------------------------------------------------------------
-printf '\n'; hr
-if [ "$failed" -eq 0 ]; then
-  printf '  %s%s Open ScholarPeer installed for %d tool(s)%s\n' "$GRN$B" "$TICK" "$installed" "$R"
+printf '\n'
+if [ "$installed" -eq 0 ]; then
+  hr
+  printf '  %s%s Nothing was installed - %d tool(s) failed:%s%s\n' \
+    "$RED$B" "$CROSS" "$failed" "$failed_names" "$R"
+  printf '\n  %sRe-run for the failed tool(s), or install one directly:%s\n' "$DIM" "$R"
+  printf '  %sbash install.sh --tool <slug>%s\n\n' "$DIM" "$R"
+  exit 1
+fi
+
+# What the user ended up with. Built before drawing so each row is one string
+# whose length can be measured.
+agents_line=$(join_names TOOL_NAMES $SELECTED_IDX)
+dbs_line=$(join_names DB_NAMES $SELECTED_DB)
+
+keys_set=0; keys_possible=0
+for i in $SELECTED_DB; do
+  var=${DB_ENVVARS[$i]}
+  [ -z "$var" ] && continue
+  keys_possible=$((keys_possible + 1))
+  eval "val=\${$var:-}"
+  [ -n "$val" ] && keys_set=$((keys_set + 1))
+done
+if [ "$keys_possible" -eq 0 ]; then
+  keys_line="none needed - every database you picked is key-free"
+elif [ "$keys_set" -eq 0 ]; then
+  keys_line="none set $DOT optional, see .env"
 else
-  printf '  %s%s %d installed, %d failed:%s%s\n' \
-    "$YEL$B" "$ARROW" "$installed" "$failed" "$failed_names" "$R"
+  keys_line="$keys_set of $keys_possible set $DOT the rest are optional"
 fi
-printf '  %s%s%s\n' "$DIM" "$TARGET" "$R"
-# Nothing installed means there is nothing to go and use — telling the user to
-# open an agent and run the command would point them at an integration that was
-# never written.
-if [ "$installed" -gt 0 ]; then
-  printf '\n'
-  printf '  %sWhat to do next%s\n\n' "$B" "$R"
-  printf '    %s1.%s Put the paper you want reviewed anywhere in this directory.\n' "$B" "$R"
-  printf '    %s2.%s Open your code agent here, and in its interactive chat run:\n' "$B" "$R"
-  printf '\n         %s/open-scholar-peer%s\n\n' "$CYN$B" "$R"
-  printf '       %sThe orchestrator guides you through all seven steps.%s\n' "$DIM" "$R"
+
+box_rule "$BTL" "$BTR"
+box_row  "  $TICK  Open ScholarPeer installed" \
+         "  ${GRN}${B}${TICK}${R}  ${B}Open ScholarPeer installed${R}"
+box_row  "     $TARGET" "     ${DIM}${TARGET}${R}"
+if [ "$failed" -ne 0 ]; then
+  box_row "     $failed tool(s) failed:$failed_names" \
+          "     ${YEL}${failed} tool(s) failed:${failed_names}${R}"
 fi
+box_rule "$BML" "$BMR"
+box_row  "  agents      $agents_line"
+box_row  "  databases   $dbs_line"
+box_row  "  api keys    $keys_line"
+box_rule "$BML" "$BMR"
+box_row  ""
+box_row  "  WHAT TO DO NEXT" "  ${B}WHAT TO DO NEXT${R}"
+box_row  ""
+box_row  "    1  Put the paper you want reviewed in this directory"
+box_row  "    2  Open your code agent here and run"
+box_row  ""
+box_row  "          /open-scholar-peer" "          ${CYN}${B}/open-scholar-peer${R}"
+box_row  ""
+box_rule "$BBL" "$BBR"
+
+printf '\n     %s%s%s  Add API keys any time in %s.env%s  %s- every database works without one%s\n' \
+  "$YEL" "$OFF" "$R" "$B" "$R" "$DIM" "$R"
+
 if [ "$failed" -ne 0 ]; then
   printf '\n  %sRe-run for the failed tool(s), or install one directly:%s\n' "$DIM" "$R"
   printf '  %sbash install.sh --tool <slug>%s\n' "$DIM" "$R"
