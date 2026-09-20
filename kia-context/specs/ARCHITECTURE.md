@@ -86,15 +86,15 @@ paper.pdf ─► [0] onboard ─► [1] summarise ─► [2] retrieve ×3 ─►
 
 | Path | Owns |
 |---|---|
-| `extensions/_shared/` | **The canonical protocol.** 8 commands, 8 skills, 1 rules file, 3 templates, 1 manifest — 21 files. The only place a human edits protocol content. |
-| `extensions/.{tool}/` | 14 generated adapter directories, 282 files. Never edited by hand. |
+| `extensions/_shared/` | **The canonical protocol.** 8 commands, 8 skills, 1 rules file, 4 templates, 1 manifest — 22 files. The only place a human edits protocol content. |
+| `extensions/.{tool}/` | 14 generated adapter directories, 296 files. Never edited by hand. |
 | `mcp-server/` | The search server and its six providers. Source of truth; the copy in a user's project is the runtime. |
 | `scripts/` | Sync, parity check, MCP-config merge, `.brain/` and venv scaffolding, 14 installers, smoke tests. |
 | `docs/` | Human-facing: build phases, I/O contracts, brain layout, limitations, troubleshooting, and the source paper. |
 | `.brain-template/` | The `session.json` skeleton copied into every user project. |
 | `kia-context/` | This harness. |
 
-*Measured: `find extensions/_shared -type f | wc -l` → 21; `find extensions -path extensions/_shared -prune -o -type f -print | wc -l` → 282; `ls scripts/install_*.sh | wc -l` → 14.*
+*Measured 2026-09-21: `find extensions/_shared -type f | wc -l` → 22; `find extensions -path extensions/_shared -prune -o -type f -print | wc -l` → 296; `ls scripts/install_*.sh | wc -l` → 14.*
 
 Not in the repository, created in the *user's* project by the installer: `.brain/` (review state, gitignored)
 and `.open-scholar-peer/mcp/` (the server plus its venv, gitignored).
@@ -222,7 +222,7 @@ fourteen copies of an eight-step protocol by hand guarantees drift.
 
 ```
 extensions/_shared/  ──►  sync_adapters.py  ──►  extensions/.{claude,cursor,…}/  ──►  install_*.sh  ──►  user project
-   21 files                 capability matrix          282 files, 14 dirs              copy + wire MCP
+   22 files                 capability matrix          296 files, 14 dirs              copy + wire MCP
 ```
 
 `sync_adapters.py` holds a `ToolCaps` row per tool: subagent support, Q&A mode, command directory,

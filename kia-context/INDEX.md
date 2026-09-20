@@ -84,8 +84,8 @@ Four levels, split by **authority**, not by topic.
 
 | File | What it is |
 |---|---|
-| `PROGRESS.md` | Milestones M1–M16. M1–M13 closed; **M14–M16 planned, not started**. M1–M7 reconstructed from git; M8 onward live. Ends with a **Reference** section holding every API URL and measurement M11–M13 used, kept so a later session can re-derive them. |
-| `BRAINSTORM.md` | Decisions D1–D28 and open questions O1–O20. O12 was answered by M13; the rest are open. D1–D11 reconstructed; D12 onward live. |
+| `PROGRESS.md` | Milestones M1–M16, **all closed**. M1–M7 reconstructed from git; M8 onward live. Each milestone from M11 carries its review rounds, including the outside reviews of M11–M13 and M14–M16. Ends with a **Reference** section holding every API URL and measurement M11–M13 used, kept so a later session can re-derive them. **1,494 lines — at the split threshold.** |
+| `BRAINSTORM.md` | Decisions D1–D30 and open questions O1–O22. D1–D11 reconstructed; D12 onward live. Closed so far: O12 (by M13), O1, O2 and O3 (by M15). |
 
 ---
 
@@ -136,6 +136,9 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 | How should the agent choose which databases to search? | `logs/BRAINSTORM.md` D26 |
 | Can the user skip a phase, and what happens if they do? | `logs/BRAINSTORM.md` D27 |
 | Why does every phase end with the same block? | `logs/BRAINSTORM.md` D28 |
+| Why do the commands hold values instead of the block itself? | `logs/BRAINSTORM.md` D30 |
+| May the user skip a step the paper says is required? | `specs/MANIFESTO.md` rule 2, amended — `logs/BRAINSTORM.md` D29 |
+| Is OpenAlex still free enough to ship on by default? | **Undecided** — `logs/BRAINSTORM.md` O22 |
 | Why can a project switch databases off, and what does that change? | `logs/BRAINSTORM.md` D21, `specs/ARCHITECTURE.md` §9 |
 | Where does full text come from, and why is there no PDF library? | `logs/BRAINSTORM.md` D20, D24 |
 | Where are the API docs for a provider? | `logs/PROGRESS.md`, the **Reference** section at the end |
