@@ -6,9 +6,21 @@ These rules apply automatically in any project where Open ScholarPeer is install
 ## Brain protocol (apply on every invocation)
 
 1. **Read `.brain/session.json` first** to understand current state.
-2. **Load only the artifacts in the active step's `reads:` contract** (see `docs/ARTIFACT_CONTRACTS.md`). Do not load the full `.brain/` directory.
-3. **After completing a step, update `session.json`:** set the matching `phases.<name>` block to `completed`, set `completed_at`, and update `resume_from`.
-4. **Re-runs overwrite with a warning.** If a step is already `completed`, print one warning, then proceed.
+2. **Load only the artifacts in the active step's `reads:` contract.** Do not load the full `.brain/`
+   directory. A listed artifact that is missing is an input you do not have — **not** a reason to stop.
+3. **Update `session.json` around every step.** Set `started_at` when you begin. On finishing, set the
+   matching `phases.<name>` block to `completed`, set `completed_at`, and update `resume_from`.
+4. **When the user moves past a step without running it, record that.** Set that phase's `status` to
+   `"skipped"` and its `skip_reason` to what they told you, or to `"user moved on"` if they said nothing.
+   Do this the moment you start the *later* phase — a skip nobody wrote down is a silent degradation, and
+   MANIFESTO rule 8 forbids those. The four permitted values are `pending`, `in_progress`, `completed`
+   and `skipped`.
+5. **Carry every skip forward.** Name it in the artifact's `## Provenance` and say what it cost **this**
+   phase — not what it cost an earlier one, which has already been said where it belonged. Each phase
+   reports its own consequence, once. `/6-osp-review` collects them all under
+   `## What this review did not have`, so whoever reads the review can tell a thin corpus from a
+   thorough one. State it; do not repeat it, and never dress it as a warning.
+6. **Re-runs overwrite with a warning.** If a step is already `completed`, print one warning, then proceed.
 
 ## Persona discipline
 

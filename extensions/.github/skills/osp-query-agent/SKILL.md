@@ -94,4 +94,4 @@ This is a **known weaker substitute** for true subagent isolation — see `KNOWN
 - Do **not** generate fewer pairs than `qa_pairs_per_criterion`.
 - Do **not** answer your own questions in the main thread — always delegate (subagent) or use turn markers (self-reflection).
 - Do **not** rephrase the same question N ways. Each question must target a distinct weakness or angle.
-- Do **not** silently skip a criterion. If you can't proceed due to missing prior artifacts, raise an error.
+- Do **not** silently skip a criterion. Missing upstream artifacts are not a reason to stop: question the paper from what you do have, and write in that criterion's Provenance which inputs were absent and what could not therefore be checked. Silence is the failure here, not thinness.

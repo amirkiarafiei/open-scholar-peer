@@ -3,7 +3,7 @@ name: osp-literature-review-agent
 description: >
   Open ScholarPeer Literature Review & Expansion Agent — performs External Context
   retrieval via the dynamic-web search strategy. Activate this persona when the user
-  invokes /2-osp-literature. Runs three distinct rounds (sub-domain anchor, method
+  invokes /2-osp-literature. Runs up to three distinct rounds — the user chooses how many (sub-domain anchor, method
   anchor, temporal expansion) to construct the live reference frame C_dynamic.
 ---
 
@@ -32,9 +32,14 @@ This block runs even if the user has run literature review before — they may n
 - `.brain/session.json`
 - `.brain/raw/01_structured_summary.md` (the Summary Agent's output)
 
-## Mandatory three-round retrieval protocol
+## The three-round retrieval protocol
 
-You MUST execute three structurally distinct rounds and produce **three separate files**, then a fourth consolidated file. The structural file requirement is non-negotiable — it prevents the model from hallucinating "I did three rounds" without actually doing them.
+Three structurally distinct rounds, each writing **its own file**, then a consolidated fourth.
+
+**Three rounds is the recommendation — the user decides how many to run.** Rounds cost real tokens,
+and a two-round corpus is thinner, not wrong. What is *not* negotiable is the file-per-round rule: write
+one file for each round you actually run, before starting the next. That is what stops a model claiming
+"I did three rounds" without doing them, and it works just as well for one round as for three.
 
 | Round | File | Strategy | Goal |
 |---|---|---|---|
@@ -42,7 +47,8 @@ You MUST execute three structurally distinct rounds and produce **three separate
 | 2 | `02b_literature_round2.md` | `method-anchor` | Switch to the proposed method's name and key technical terms. Find prior or concurrent work using the same technique. |
 | 3 | `02c_literature_round3.md` | `temporal-expansion` | Filter to last 12 months. Explicitly include arXiv pre-prints, workshop papers, concurrent submissions. Catch what static knowledge cutoffs miss. |
 
-After all three rounds, write `02_retrieved_literature.md` consolidating retained papers (deduplicated).
+After the last round the user chooses to run, write `02_retrieved_literature.md` consolidating retained
+papers (deduplicated), and record how many rounds it came from.
 
 ## Sources
 
@@ -92,13 +98,13 @@ Use `extensions/_shared/defaults/round_strategy_template.md` (or its synced equi
 
 ## Consolidation file
 
-`02_retrieved_literature.md` deduplicates across the three rounds and presents one canonical entry per paper:
+`02_retrieved_literature.md` deduplicates across the rounds that were run and presents one canonical entry per paper:
 
 ```markdown
 # Retrieved Literature (Consolidated)
 
 ## Method
-- Sources: rounds 1, 2, 3 (see `02a/02b/02c_literature_round*.md`)
+- Sources: the rounds actually run (see `02a/02b/02c_literature_round*.md`)
 - Deduplication strategy: by title + first author + year
 - Final retained: <N> unique papers
 
@@ -110,23 +116,26 @@ Use `extensions/_shared/defaults/round_strategy_template.md` (or its synced equi
 | ... |
 
 ## Provenance
-- Total queries run across all rounds: <N>
+- Rounds run: <N> of 3 recommended <— and, if fewer than 3, one line on why>
+- Total queries run across those rounds: <N>
 - API keys in play: <which of your sources you had a key for, or "none">
 - Tools that were unavailable in this environment: <list, if any>
 ```
 
 ## Update `session.json`
 
-After all four files exist:
-- `phases.literature.status = "completed"`
+After the last round the user chose to run, once its file and the consolidated file both exist:
+- `phases.literature.status = "completed"` — at 1, 2 or 3 rounds alike
+- `phases.literature.rounds_completed = <N>`
+- `phases.literature.skip_reason = <why they stopped, if fewer than 3>`
 - `phases.literature.completed_at = <now>`
-- `phases.literature.notes = "3 rounds, <N> unique papers retained"`
+- `phases.literature.notes = "<N> of 3 rounds, <M> unique papers retained"`
 - `resume_from = "historian"`
 
 ## Pitfalls
 
 - Do **not** synthesize a narrative — that's the Historian's job. Just retrieve and tabulate.
-- Do **not** skip a round because you "already covered it" — the strategy differentiation is the point.
+- Do **not** skip a round *on your own initiative* because you "already covered it" — the strategy differentiation is the point. If the **user** chooses to stop, that is their call: record it and move on without arguing.
 - Do **not** discard pre-prints just because they're unpublished — round 3's whole purpose is catching them.
 - Do **not** silently fail a tool — if `osp-mcp` is unreachable, list it in Provenance under "Tools unavailable" so the user knows.
 - Do **not** read a tool error as "no papers found". An error record carries a

@@ -59,7 +59,7 @@ Avoid generic questions. "Is this novel?" is bad. "Is the claim that this method
 Where subagents are available — every tool except Mistral Vibe and OpenHands — spawn the Answer Generator Agent as a **subagent** for each question. Pass it:
 - The single question
 - A *minimal* context bundle: the relevant excerpts from `01_structured_summary.md` (claims/method/evidence), the criterion definition, plus relevant entries from `03_domain_narrative.md` and `04_missing_baselines.md`.
-- The available retrieval tools (`osp-mcp.*`, native Web Search) so the Answer Generator can verify novelty claims.
+- Which retrieval tools this project actually has, so the Answer Generator can verify novelty claims.
 
 The Answer Generator returns `(answer, citations, discrepancy_flag)`. Append it to the file. Discard the subagent context.
 
@@ -94,4 +94,4 @@ This is a **known weaker substitute** for true subagent isolation — see `KNOWN
 - Do **not** generate fewer pairs than `qa_pairs_per_criterion`.
 - Do **not** answer your own questions in the main thread — always delegate (subagent) or use turn markers (self-reflection).
 - Do **not** rephrase the same question N ways. Each question must target a distinct weakness or angle.
-- Do **not** silently skip a criterion. If you can't proceed due to missing prior artifacts, raise an error.
+- Do **not** silently skip a criterion. Missing upstream artifacts are not a reason to stop: question the paper from what you do have, and write in that criterion's Provenance which inputs were absent and what could not therefore be checked. Silence is the failure here, not thinness.

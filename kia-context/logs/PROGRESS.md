@@ -1105,12 +1105,12 @@ over `extensions/_shared/` → **5 files**, all canonical. The 14 adapter direct
 
 ### Deliverables
 
-- [ ] **P1 — one capability block, written once.** Replace the hardcoded tool lists in `skills/osp-literature-review-agent/SKILL.md` (the authoritative one), `skills/osp-baseline-scout-agent/SKILL.md`, `skills/osp-answer-generator-agent/SKILL.md`, `defaults/qa_pair_template.md` and `commands/2-osp-literature.md`. Describe each source by **what it is for**, not by tool name, and say plainly that the set is per-project.
-- [ ] **P2 — the judgement the owner specified**, in this order of priority. Native **web search is always available and never optional** — every round. **arXiv is the strongest single source** for CS, physics and maths, and the only one that also returns full text. **Semantic Scholar is generous** and is the citation graph. **Google Scholar is the least reliable — it is often blocked, and that is normal**; its failure must never be read as "no papers exist". **Europe PMC only when the paper touches medicine, biology, public health or psychology.** **OpenAlex when retraction status or field-normalised impact matters**, and it may be rate-limited without a key.
-- [ ] **P3 — promise nothing.** The agent must *discover* what it has rather than assume. No sentence may imply a given tool is present. The phrasing to beat: "use the ones you can see" is already there but sits under a list that reads like a guarantee.
-- [ ] **P4 — say it briefly.** The owner asked for a high-level overview, not a manual. Target ~10 lines in the Literature skill and one or two sentences everywhere else. A long block is a block the agent skims.
-- [ ] **P5 — keep the domain rule that already exists.** `search_zenodo` is not a literature tool and must stay out of the rounds; the Baseline Scout keeps it, and the retraction check.
-- [ ] **P6 — re-sync.** `python3 scripts/sync_adapters.py`, then `--check` and `test_parity.py`.
+- [x] **P1 — one capability block, written once.** Replace the hardcoded tool lists in `skills/osp-literature-review-agent/SKILL.md` (the authoritative one), `skills/osp-baseline-scout-agent/SKILL.md`, `skills/osp-answer-generator-agent/SKILL.md`, `defaults/qa_pair_template.md` and `commands/2-osp-literature.md`. Describe each source by **what it is for**, not by tool name, and say plainly that the set is per-project.
+- [x] **P2 — the judgement the owner specified**, in this order of priority. Native **web search is always available and never optional** — every round. **arXiv is the strongest single source** for CS, physics and maths, and the only one that also returns full text. **Semantic Scholar is generous** and is the citation graph. *(Corrected on delivery: generous **with a key**. Keyless it shares one pool with every anonymous caller worldwide and throttles unpredictably — `README.md` rate table, measured 2026-09-21. The prompt says so.)* **Google Scholar is the least reliable — it is often blocked, and that is normal**; its failure must never be read as "no papers exist". **Europe PMC only when the paper touches medicine, biology, public health or psychology.** **OpenAlex when retraction status or field-normalised impact matters**, and it may be rate-limited without a key.
+- [x] **P3 — promise nothing.** The agent must *discover* what it has rather than assume. No sentence may imply a given tool is present. The phrasing to beat: "use the ones you can see" is already there but sits under a list that reads like a guarantee.
+- [x] **P4 — say it briefly.** The owner asked for a high-level overview, not a manual. Target ~10 lines in the Literature skill and one or two sentences everywhere else. A long block is a block the agent skims.
+- [x] **P5 — keep the domain rule that already exists.** `search_zenodo` is not a literature tool and must stay out of the rounds; the Baseline Scout keeps it, and the retraction check.
+- [x] **P6 — re-sync.** `python3 scripts/sync_adapters.py`, then `--check` and `test_parity.py`.
 
 ### Acceptance criteria
 
@@ -1121,6 +1121,72 @@ over `extensions/_shared/` → **5 files**, all canonical. The 14 adapter direct
 5. `sync_adapters.py --check` and `test_parity.py` pass.
 
 **Depends on:** M13.
+
+### Report — 2026-09-21
+
+**Shipped in `06f4290`.** The prompts no longer name a search tool they cannot guarantee. Each source is
+described by what it is **for**; the agent lists what it actually has and chooses on the paper's topic.
+
+| | Recorded in the plan | Measured on delivery |
+|---|---|---|
+| canonical files carrying a tool inventory | 5 | **8** |
+| lines of source guidance in the Literature skill | target ~10 | **9** (six capabilities) |
+| net change across the canonical files | — | **−60 lines** |
+| generated adapter files rewritten | — | **110** |
+
+**Why the blast radius was wrong.** It was measured with a grep over three tool names
+(`search_arxiv|search_semantic_scholar|search_google_scholar`). That misses
+`commands/4-osp-baseline-scout.md` (which wrote `osp-mcp.search_*`), `skills/osp-query-agent/SKILL.md`
+(`osp-mcp.*`) and `defaults/round_strategy_template.md` (only Europe PMC and Zenodo by name). Two further
+sites had **no tool name to grep for at all** and were found by reading: a resource notice naming four
+databases in prose, and the literature skill's orientation block printing
+`Tools: arxiv + semantic_scholar + google_scholar`.
+
+**A tool name is now legal only inside a conditional.** *"If you have an arXiv search, it takes
+`date_from` / `date_to` / `categories`"* keeps the M11 filter knowledge without re-promising the tool.
+An inventory bullet is the defect; a conditional clause is not.
+
+### Review round — 2026-09-21
+
+One subagent, lens: *read these prompts as the agent, on a CS paper, with only arXiv and Semantic Scholar
+installed.* **14 findings, all fixed.** Two were HIGH and both sat in the Baseline Scout:
+
+1. **The Scout's output template still hardcoded Zenodo** — `- **Code / data release:** <what Zenodo
+   returned ... or "nothing found on Zenodo">`, unconditional, inside a mandatory block. An agent without
+   Zenodo had two options: leave a required field blank, or write "nothing found" for a search it never
+   ran. **That is the error-vs-empty bug M11 spent a milestone removing, rebuilt inside a template.** The
+   retraction check on the very next line already had the escape (`— or "not run"`); the code-release
+   check did not. The asymmetry was the whole defect.
+2. **The Scout's pointer to the authority was dangling.** The rewrite left *"its `## Sources` section is
+   the rule"* with no path, in a persona activated on its own whose `reads:` contract names only three
+   `.brain/` artifacts. Neither the field rule nor the error-vs-empty rule was reachable from inside the
+   Scout — the old inline list, for all its faults, at least carried them.
+
+Three more worth recording:
+
+- **"Semantic Scholar is generous" contradicted our own rate table**, measured the same day. The
+  deliverable P2 predates that table; it is corrected above and in the prompt.
+- **The rewrite kept Europe PMC's prohibition and dropped its obligation.** The old bullet said *"add it
+  to every round when the paper is in those fields; arXiv barely covers them."* Only the "not on a CS
+  paper" half survived, so a biomedical paper got **weaker** guidance than before.
+- **I introduced one myself**: `(markitdown is installed with OSP)` — a flat assertion that a tool is
+  present, which is the exact defect class this milestone exists to remove, and contradicted twice
+  elsewhere in the same prompt set.
+
+Also found outside the measured radius: `docs/ARTIFACT_CONTRACTS.md:55` still carried the old inventory
+verbatim. It is referenced by `rules/osp-rules.md`, which ships to every user project — and `docs/` is
+never copied there, so that reference is dead at runtime regardless. Fixed the text; the dead pointer is
+noted against M15.
+
+**Acceptance:** 1 ✅ (no tool name survives outside a conditional) · 2 ✅ (9 lines, six capabilities) ·
+3 ✅ after the Semantic Scholar and OpenAlex corrections · 4 ✅ (reviewer confirmed it would not call a
+biomedical database on a CS paper, and is stopped three separate ways from reading a block as empty) ·
+5 ✅.
+
+**Owed and unrelated, settled the same day:** the live OpenAlex round-trip finally ran — 6 checks green,
+including a known retracted DOI flagged `isRetracted=True` and a nonsense DOI raising rather than
+returning an empty record. **Semantic Scholar still rate-limits this machine (HTTP 429)**, so its data
+path remains unproved; the error path works. See O18.
 
 ---
 
@@ -1134,16 +1200,17 @@ recorded, and the final review says what it was missing. Decisions: `BRAINSTORM.
 
 **Measured 2026-09-21:** **9** prerequisite or refusal lines across **6** of the 8 commands, plus the
 round gate at `commands/2-osp-literature.md:53` which sets `completed` only at `rounds_completed == 3`.
+*(Re-measured on delivery: **17**. See the Report.)*
 
 ### Deliverables
 
-- [ ] **K1 — a `skipped` state.** `.brain-template/session.json` phases currently carry `{status, started_at, completed_at, notes}` with `status` one of pending/in_progress/completed. Add `skipped`, and a `skip_reason`. `scripts/init_brain.sh` must match.
-- [ ] **K2 — rounds become a recommendation.** After each literature round, report and offer: run another, or move on. Stop setting `completed` only at 3; a phase left at 1 or 2 rounds is `completed` with `rounds_completed` recorded. The suggestion stays visible — **say what skipping costs once, and do not nag**.
-- [ ] **K3 — prerequisites warn, they do not refuse.** Convert all 9 gate lines. A missing input becomes a stated degradation — *"no baseline scout was run, so missing-baseline findings are absent from this review"* — not a stop.
-- [ ] **K4 — the artifact records the choice.** Every skip appears in the phase's Provenance and in `session.json`, so a reader of the final review can tell a thin corpus from a thorough one. This is MANIFESTO rule 8 applied to the user's own decisions.
-- [ ] **K5 — `6-osp-review` degrades honestly.** It cites Q&A pairs directly, so it is the phase most exposed to a skip. It must produce a review that names its own gaps rather than refusing to run.
-- [ ] **K6 — the orchestrator stops implying a fixed path.** `commands/open-scholar-peer.md` and `skills/osp-orchestrator` present seven steps in order; they should present a recommended order the user may leave.
-- [ ] **K7 — resolves O2.** The stale "10 pairs each" prerequisite in `6-osp-review` is one of the 9 gates and goes with them.
+- [x] **K1 — a `skipped` state.** `.brain-template/session.json` phases currently carry `{status, started_at, completed_at, notes}` with `status` one of pending/in_progress/completed. Add `skipped`, and a `skip_reason`. `scripts/init_brain.sh` must match.
+- [x] **K2 — rounds become a recommendation.** After each literature round, report and offer: run another, or move on. Stop setting `completed` only at 3; a phase left at 1 or 2 rounds is `completed` with `rounds_completed` recorded. The suggestion stays visible — **say what skipping costs once, and do not nag**.
+- [x] **K3 — prerequisites warn, they do not refuse.** Convert all 9 gate lines. A missing input becomes a stated degradation — *"no baseline scout was run, so missing-baseline findings are absent from this review"* — not a stop.
+- [x] **K4 — the artifact records the choice.** Every skip appears in the phase's Provenance and in `session.json`, so a reader of the final review can tell a thin corpus from a thorough one. This is MANIFESTO rule 8 applied to the user's own decisions.
+- [x] **K5 — `6-osp-review` degrades honestly.** It cites Q&A pairs directly, so it is the phase most exposed to a skip. It must produce a review that names its own gaps rather than refusing to run.
+- [x] **K6 — the orchestrator stops implying a fixed path.** `commands/open-scholar-peer.md` and `skills/osp-orchestrator` present seven steps in order; they should present a recommended order the user may leave.
+- [x] **K7 — resolves O2.** The stale "10 pairs each" prerequisite in `6-osp-review` is one of the 9 gates and goes with them.
 
 ### Acceptance criteria
 
@@ -1155,6 +1222,73 @@ round gate at `commands/2-osp-literature.md:53` which sets `completed` only at `
 6. O2 is closed; O6 (cascading invalidation) is explicitly **not** solved here and stays open.
 
 **Depends on:** M14, because the skip wording and the source wording touch the same files.
+
+### Report — 2026-09-21
+
+**No phase refuses to run any more.** Every `## Prerequisites` heading is gone; each is now
+`## Inputs — none of these is a gate`, stating what is *lost* rather than what is forbidden. Three
+literature rounds became a recommendation: the phase completes at whatever count the user stops at.
+
+| | Planned | Measured on delivery |
+|---|---|---|
+| gate / refusal lines | 9, in 6 of 8 commands | **17** — 14 in `commands/`, **3 in `skills/`** |
+| `## Prerequisites` headings left | — | **0** |
+| phase status values | 3 (`pending`, `in_progress`, `completed`) | **4** — `skipped` added |
+| canonical files changed | — | 20 (208 with the generated adapters) |
+
+**Why the count was wrong.** It was taken by reading the `## Prerequisites` sections. Five more
+refusals sat elsewhere in the same commands, and **the master gate was in a skill** —
+`osp-orchestrator/SKILL.md:20`, *"If any are missing, refuse to advance"* — in a file the measurement
+never opened.
+
+**One stop survives, deliberately.** With no readable paper there is nothing to review. It is now
+labelled as the only one, in both places it appears, and each points at the other.
+
+**Not the paper's fault.** ScholarPeer recommends three rounds; OSP was enforcing them. A recommendation
+enforced as a law is a bug in the implementation, not a disagreement with the method — which is why
+`MANIFESTO.md` rule 2 was amended rather than excepted. See D29.
+
+### Review round — 2026-09-21
+
+One subagent, lens: *adversarial skipper — skip everything you are allowed to, and find where the system
+still blocks you or, worse, lets you through while producing something that looks complete.*
+**15 findings, 5 HIGH, all fixed.** The milestone was not sound when it was handed over:
+
+1. **The skip chain was broken at hop one.** `"skipped"` was declared in the schema and collected by the
+   reviewer skill, but **nothing ever wrote it.** I found this myself while the review ran and fixed it
+   in `rules/osp-rules.md`; the reviewer then found the deeper half — the orchestrator is the only thing
+   told to record a skip, and **it is not in the loop** when the user simply types the next command.
+   Skipping the Baseline Scout left `status: "pending"`, indistinguishable from "not reached yet". Every
+   downstream command now records upstream skips itself.
+2. **The orchestrator was told both to write and never to write `session.json`** — rule 5 says *"You
+   verify, you don't write"*, 43 lines above the instruction to record a skip. Whichever the model
+   picked, the skip was lost half the time.
+3. **The Q&A template did worse than lose a skip — it asserted the opposite.** A static line,
+   *"Context bundle loaded: structured summary, domain narrative, missing baselines, review guidelines"*,
+   in a file the Query Agent is told to follow *exactly*. A user who skipped three phases still got an
+   artifact claiming all four were read.
+4. **The literature skill still set `completed` only when all four files existed**, flatly contradicting
+   the command beside it. A one-round stop never completed the phase.
+5. **Gap detection was file-presence only.** A one-round corpus and a three-round corpus produce the same
+   filename, so a thin review came out reading like a thorough one with no disclosure and no reduction in
+   Confidence. The reviewer now reads `session.json`, not the directory listing.
+6. **`## What this review did not have` was being silently dropped on every venue-specific review** — the
+   enumerated structure omitted it, and venue forms have no slot for it. That is the common case, so the
+   entire M15 safety net was off by default. It is now appended whatever the venue format.
+
+Also fixed from the review: a fictional `--force-binary` escape hatch inside the one guard that blocks;
+`markitdown.convert` (the real name is `convert_to_markdown`) in that same guard, so the blocking path
+could fire on a tool-name typo; *"Must run before any other numbered step"* still on `/0-osp-onboarding`;
+an unconditional blocking wait on the venue question; a status snapshot with two glyphs for three
+meanings; and the `init_brain.sh` fallback having drifted from the template.
+
+**Closes O1** (the duplicated write step — a real bad edit in three files, not cosmetic), **O2** (the
+stale "10 pairs each") and **O3** (`rounds_completed` never declared). **O6** stays open and is explicitly
+not solved here.
+
+**Acceptance:** 1 ✅ · 2 ✅ · 3 ✅ · 4 ✅ · 5 ✅ (verified mechanically — every `phases.*` field the prompts
+write is declared, and the two initialisers are identical in shape) · 6 ✅.
+
 
 ---
 

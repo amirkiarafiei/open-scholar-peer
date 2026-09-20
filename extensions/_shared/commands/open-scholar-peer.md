@@ -21,7 +21,8 @@ Invoke the `osp-orchestrator` skill.
    Open ScholarPeer — review status
      Venue:    <name> (criteria: <N> active)
      Paper:    <path or "not yet loaded">
-     Progress: [X] onboarding [X] summary [ ] literature [ ] historian [ ] baseline_scout [ ] qa [ ] review
+     Progress: [X] onboarding [X] summary [~] literature [ ] historian [ ] baseline_scout [ ] qa [ ] review
+               [X] done   [~] skipped or cut short   [ ] not run yet
      Next:     /N-osp-<step>   ←  <one-line description>
    ```
 
@@ -31,14 +32,17 @@ Invoke the `osp-orchestrator` skill.
    |---|---|---|
    | `onboarding` | `/0-osp-onboarding` | Set venue, locate paper, scaffold criteria |
    | `summary` | `/1-osp-summary` | Internal Compression — claims/method/evidence |
-   | `literature` | `/2-osp-literature` | External retrieval, 3 distinct rounds |
+   | `literature` | `/2-osp-literature` | External retrieval, up to 3 rounds — the user chooses |
    | `historian` | `/3-osp-historian` | Build the chronological domain narrative |
    | `baseline_scout` | `/4-osp-baseline-scout` | Find missing baselines & datasets |
    | `qa` | `/5-osp-qa` | Multi-aspect Q&A (loops over criteria) |
    | `review` | `/6-osp-review` | Final consolidated review |
    | `completed` | — | Print location of `.brain/review/final_review.md` and ask if any phase needs a re-run |
 
-4. **Do NOT advance automatically.** Phase boundaries are intentional — they let the user inspect each artifact before continuing.
+4. **Do NOT advance automatically.** Phase boundaries are intentional — they let the user inspect each
+   artifact before continuing.
+5. **Recommend; never refuse.** The order below is the recommended one, not a lock. If the user asks for
+   a phase whose inputs are missing, say in one line what it will be missing and route them to it.
 
 ## Output
 

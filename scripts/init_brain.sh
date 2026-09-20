@@ -36,14 +36,16 @@ with open('$BRAIN_DIR/session.json', 'w') as f:
   "venue": { "name": "", "year": "", "source_url": "", "criteria_source": "pending" },
   "paper": { "title": "", "path": "", "parsed_path": "", "type": "" },
   "qa_criteria": [],
+  "qa_pairs_per_criterion": 2,
+  "_phase_status_values": ["pending", "in_progress", "completed", "skipped"],
   "phases": {
-    "onboarding":     { "status": "pending", "started_at": "", "completed_at": "", "notes": "" },
-    "summary":        { "status": "pending", "started_at": "", "completed_at": "", "notes": "" },
-    "literature":     { "status": "pending", "started_at": "", "completed_at": "", "notes": "" },
-    "historian":      { "status": "pending", "started_at": "", "completed_at": "", "notes": "" },
-    "baseline_scout": { "status": "pending", "started_at": "", "completed_at": "", "notes": "" },
-    "qa":             { "status": "pending", "started_at": "", "completed_at": "", "notes": "", "criteria_progress": {} },
-    "review":         { "status": "pending", "started_at": "", "completed_at": "", "notes": "" }
+    "onboarding":     { "status": "pending", "started_at": "", "completed_at": "", "notes": "", "skip_reason": "" },
+    "summary":        { "status": "pending", "started_at": "", "completed_at": "", "notes": "", "skip_reason": "" },
+    "literature":     { "status": "pending", "started_at": "", "completed_at": "", "notes": "", "skip_reason": "", "rounds_completed": 0 },
+    "historian":      { "status": "pending", "started_at": "", "completed_at": "", "notes": "", "skip_reason": "" },
+    "baseline_scout": { "status": "pending", "started_at": "", "completed_at": "", "notes": "", "skip_reason": "" },
+    "qa":             { "status": "pending", "started_at": "", "completed_at": "", "notes": "", "skip_reason": "", "criteria_progress": {} },
+    "review":         { "status": "pending", "started_at": "", "completed_at": "", "notes": "", "skip_reason": "" }
   },
   "mcp": { "semantic_scholar_api_key_present": false },
   "resume_from": "onboarding",

@@ -2,6 +2,11 @@
 
 Every workflow step has a strict I/O contract. The agent **must** load only the artifacts in `reads:` (not the whole `.brain/`) and **must** write the single artifact in `writes:`. This is how context-awareness is enforced without dumping the full transcript into every persona.
 
+**A `reads:` entry is an input, not a gate.** The user may skip any phase, so any listed artifact may be
+absent. A missing input is a **degradation, never a refusal**: run the step on what is there, name the gap
+in the artifact's `## Provenance`, and carry it through to the final review. The one thing no step can work
+around is a missing readable paper — with no `paper.md` there is nothing to review at all.
+
 ## Universal artifact structure
 
 Every `.brain/raw/*.md` file (and `review/final_review.md`) has three required top-level sections:
@@ -47,9 +52,9 @@ The literature step writes **three separate files** to make the 3-round expansio
 | `02b_literature_round2.md` | `method-anchor` | Search using the proposed method's name and technical terms. Goal: find prior work using similar techniques. |
 | `02c_literature_round3.md` | `temporal-expansion` | Search filtered to last 12 months + concurrent work + arXiv pre-prints + workshop papers. Goal: catch what static knowledge cutoffs miss. |
 
-Each round must use **all available retrieval tools** (osp-mcp arxiv/semantic_scholar/google_scholar + native Web Search) with **different query formulations** per round. Queries used are listed in each round's `## Provenance`.
+Each round dispatches the retrieval tools this project actually installed — the set is chosen at install time and differs per project — with **different query formulations** per round. Which sources suit which paper is decided in the `## Sources` section of `osp-literature-review-agent`, the single authority. Queries used are listed in each round's `## Provenance`.
 
-After all three rounds, the agent writes `02_retrieved_literature.md` consolidating retained papers (deduplicated), with one entry per paper: title, authors, year, venue, abstract, source(s) it appeared in.
+Three rounds are recommended, not required. After the last round the user chooses to run, the agent writes `02_retrieved_literature.md` consolidating retained papers (deduplicated), with one entry per paper: title, authors, year, venue, abstract, source(s) it appeared in, and records how many rounds were actually run.
 
 ## Q&A contract for `/5-osp-qa`
 

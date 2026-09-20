@@ -1,6 +1,6 @@
 # `_shared/` Manifest — Single Source of Truth
 
-This file enumerates every canonical asset under `extensions/_shared/`. The sync script (`scripts/sync_adapters.py`) reads this manifest to know what to translate into per-tool adapter directories.
+This file enumerates every canonical asset under `extensions/_shared/`. It is documentation for humans: the sync script (`scripts/sync_adapters.py`) does **not** read it — it walks the filesystem, globbing `commands/`, `skills/`, `defaults/` and `rules/osp-rules.md`. So a new file here needs no registration to be synced, but it does need a row below, or the next reader will not know it exists.
 
 **Rule of thumb:** humans only ever edit files in `_shared/`. Per-tool directories (`extensions/.claude/`, `.cursor/`, `.gemini/`, `.agent/`, `.agents/`, `.github/`) are **generated artifacts**.
 
@@ -12,7 +12,7 @@ This file enumerates every canonical asset under `extensions/_shared/`. The sync
 |---|---|---|
 | `skills/osp-orchestrator/SKILL.md` | Top-level brain protocol + dispatcher behavior | Any review-related phrasing or `/open-scholar-peer` |
 | `skills/osp-summary-agent/SKILL.md` | Internal Compression — extract claims/method/evidence | `/1-osp-summary` |
-| `skills/osp-literature-review-agent/SKILL.md` | External retrieval — 3-round strategy | `/2-osp-literature` |
+| `skills/osp-literature-review-agent/SKILL.md` | External retrieval — 3-round strategy, 3 recommended not required | `/2-osp-literature` |
 | `skills/osp-historian-agent/SKILL.md` | Domain narrative compression | `/3-osp-historian` |
 | `skills/osp-baseline-scout-agent/SKILL.md` | Adversarial baseline auditor | `/4-osp-baseline-scout` |
 | `skills/osp-query-agent/SKILL.md` | Probing question generator (main thread) | `/5-osp-qa` |
@@ -26,7 +26,7 @@ This file enumerates every canonical asset under `extensions/_shared/`. The sync
 | `commands/open-scholar-peer.md` | `/open-scholar-peer` | Stateless dispatcher — reads `session.json`, prints status, advises next command |
 | `commands/0-osp-onboarding.md` | `/0-osp-onboarding` | Venue lookup, paper detection, criteria scaffolding |
 | `commands/1-osp-summary.md` | `/1-osp-summary` | Invokes Summary Agent |
-| `commands/2-osp-literature.md` | `/2-osp-literature` | Invokes Literature Review Agent (3 rounds) |
+| `commands/2-osp-literature.md` | `/2-osp-literature` | Invokes Literature Review Agent (up to 3 rounds; the user chooses) |
 | `commands/3-osp-historian.md` | `/3-osp-historian` | Invokes Historian Agent |
 | `commands/4-osp-baseline-scout.md` | `/4-osp-baseline-scout` | Invokes Baseline Scout Agent |
 | `commands/5-osp-qa.md` | `/5-osp-qa` | Invokes Query Agent (loops criteria, delegates to Answer Generator) |
@@ -44,7 +44,7 @@ This file enumerates every canonical asset under `extensions/_shared/`. The sync
 |---|---|
 | `defaults/generic_review_guidelines.md` | `/0-osp-onboarding` when venue lookup fails and user has no guidelines |
 | `defaults/qa_pair_template.md` | `/5-osp-qa` to enforce the N-pair structure per criterion (N = `session.json.qa_pairs_per_criterion`, default 2) |
-| `defaults/round_strategy_template.md` | `/2-osp-literature` to enforce the 3-round structure |
+| `defaults/round_strategy_template.md` | `/2-osp-literature` — one file per round actually run |
 
 ## What gets generated where
 

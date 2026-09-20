@@ -18,10 +18,23 @@ For each criterion in `session.json.qa_criteria[]`, generate N probing Q&A pairs
 
 Invoke the `osp-query-agent` skill (main thread). The Query Agent will spawn `osp-answer-generator-agent` per question.
 
-## Prerequisites
+## Inputs — none of these is a gate
 
-- `phases.summary.status`, `phases.literature.status`, `phases.historian.status`, `phases.baseline_scout.status` all `"completed"`.
-- `qa_criteria[]` is non-empty in `session.json`.
+- `phases.summary.status`, `phases.literature.status`, `phases.historian.status` and
+  `phases.baseline_scout.status`. Each one that is missing removes a source of evidence, not the phase:
+  no summary means you question the paper directly; no literature or narrative means novelty claims
+  cannot be checked against prior work; no baseline scout means no missing-baseline questions. Run with
+  what exists, name each gap in the artifact's Provenance, and let the answers say "could not be
+  verified" rather than guessing.
+- `qa_criteria[]` in `session.json`. If it is empty, onboarding never ran — use the generic criteria from
+  `defaults/generic_review_guidelines.md` and record that you did.
+
+**Record any skip before you start.** The orchestrator is not in the loop when the user runs this
+command directly, so it falls to you: for every earlier phase still `pending`, set
+`phases.<name>.status = "skipped"` and `phases.<name>.skip_reason` to their reason, or
+`"user ran /5-osp-qa first"`. A phase left `pending` reads as "not reached yet", and the final review
+cannot tell the difference.
+
 
 ## Step 0 — Resource check and pair count (run BEFORE any Q&A work)
 

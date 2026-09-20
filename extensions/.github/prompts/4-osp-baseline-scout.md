@@ -12,9 +12,21 @@ Acts as an adversarial auditor identifying baselines and datasets the authors sh
 
 Invoke the `osp-baseline-scout-agent` skill.
 
-## Prerequisites
+## Inputs — none of these is a gate
 
-- `phases.literature.status == "completed"`. (`historian` is helpful but not strictly required — the Scout operates from the structured summary and the literature corpus.)
+- `phases.literature.status == "completed"`. Without a retrieved corpus the Scout searches from scratch,
+  which it is built to do anyway — it just costs more calls and may miss what an earlier round already
+  found. Run it, and say in Provenance that there was no corpus to start from.
+- `historian` is helpful and never required; the Scout works from the structured summary.
+- No structured summary either? Read `.brain/input/paper.md` directly for the task and the baselines
+  claimed, and record that you did.
+
+**Record any skip before you start.** The orchestrator is not in the loop when the user runs this
+command directly, so it falls to you: for every earlier phase still `pending`, set
+`phases.<name>.status = "skipped"` and `phases.<name>.skip_reason` to their reason, or
+`"user ran /4-osp-baseline-scout first"`. A phase left `pending` reads as "not reached yet", and the final review
+cannot tell the difference.
+
 
 ## Resource notice
 
@@ -37,6 +49,7 @@ up to ~75 seconds on its own.
 7. Write `.brain/raw/04_missing_baselines.md`.
 8. Update `session.json`:
    - `phases.baseline_scout.status = "completed"`
+   - `phases.baseline_scout.completed_at = <now>`
    - `phases.baseline_scout.notes = "<N> missing baselines (<X> high); <M> missing datasets"`
    - `resume_from = "qa"`
 

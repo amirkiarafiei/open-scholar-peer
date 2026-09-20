@@ -6,7 +6,8 @@ writes: [".brain/raw/00_review_guidelines.md", ".brain/raw/05_qa_<slug>.md (per 
 
 # /0-osp-onboarding — Stage 0: Onboarding
 
-Prepares the review environment. Must run before any other numbered step.
+Prepares the review environment. Recommended first — every later phase runs without it, on generic
+criteria and with no venue.
 
 ## Activation
 
@@ -25,14 +26,19 @@ Invoke the `osp-orchestrator` skill (no domain persona needed for this step).
 - If empty, ask the user where the paper is. Help them collaboratively — accept any path, then copy the file into `.brain/input/`.
 - **Always produce `.brain/input/paper.md`** (the canonical readable form):
   - If the original is `.md`, ensure it's named `paper.md` (rename if necessary).
-  - If the original is `.pdf` / `.docx` / `.tex`, attempt conversion with the `markitdown` MCP tool (`markitdown.convert`). Save output to `.brain/input/paper.md`.
-  - If `markitdown` is unavailable, **do not silently advance**. Tell the user explicitly that downstream phases require `paper.md` and offer two options: (a) install markitdown (`uvx markitdown-mcp`), or (b) provide a manual markdown conversion. Pause until one is in place.
+  - If the original is `.pdf` / `.docx` / `.tex`, attempt conversion with the `markitdown` MCP tool (`convert_to_markdown`). Save output to `.brain/input/paper.md`.
+  - If `markitdown` is unavailable, **do not silently advance**. A readable paper is the one input the
+    protocol cannot work around. Tell the user so, and offer two routes: (a) install markitdown
+    (`uvx markitdown-mcp`), or (b) hand over a markdown conversion of their own. Wait for one of them.
+    This and the same guard in `/1-osp-summary` are the **only** two places in Open ScholarPeer that
+    stop. Everything else recommends and carries on.
 - Save `paper.path` (original) and `paper.parsed_path` (the canonical `.brain/input/paper.md`) into `session.json`.
 
 ### 3. Identify the venue
 
 - **Always ask the user explicitly**, even if the paper's title page, header, or metadata already shows a venue. Do not auto-fill from the paper.
-- Use your tool's native ask/input mechanism if one is available (e.g. ask_user, an interactive prompt, or a confirmation dialog). If no native ask exists, print the question and wait for a reply before continuing.
+- Use your tool's native ask/input mechanism if one is available (e.g. ask_user, an interactive prompt, or a confirmation dialog). If no native ask exists, print the question and wait for a reply.
+- **If the user declines to name one, take `"unspecified"` and move on** with the generic criteria. A venue sharpens the review; it is not required to produce one.
 - Ask: "Which venue or journal are you reviewing for? (e.g. ICLR 2026, NeurIPS 2025, Nature Machine Intelligence, arXiv-only)"
 - If the paper appears to list a venue, show what you found and ask the user to confirm or correct it: "The paper mentions [venue]. Is that the submission venue you want to review against, or a different one?"
 - Save `venue.name` and `venue.year` to `session.json`.

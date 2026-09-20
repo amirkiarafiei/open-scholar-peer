@@ -10,9 +10,19 @@ Compresses the retrieved literature into a chronological narrative that mimics a
 
 Invoke the `osp-historian-agent` skill.
 
-## Prerequisites
+## Inputs — none of these is a gate
 
-- `phases.literature.status == "completed"` and `02_retrieved_literature.md` exists.
+- `phases.literature.status == "completed"` and `02_retrieved_literature.md` exists. Without it you have
+  no retrieved corpus, so the narrative rests on your own knowledge alone — which has a cutoff and will
+  miss recent work. Build it anyway, mark the phase's own limits in Provenance, and say plainly in the
+  narrative that no literature was retrieved. Recommend `/2-osp-literature` once.
+
+**Record any skip before you start.** The orchestrator is not in the loop when the user runs this
+command directly, so it falls to you: for every earlier phase still `pending`, set
+`phases.<name>.status = "skipped"` and `phases.<name>.skip_reason` to their reason, or
+`"user ran /3-osp-historian first"`. A phase left `pending` reads as "not reached yet", and the final review
+cannot tell the difference.
+
 
 ## Steps
 
@@ -21,9 +31,9 @@ Invoke the `osp-historian-agent` skill.
 3. The skill builds a chronological narrative grouped by inflection points (eras), each characterized by its dominant approach and what triggered the transition out.
 4. The skill places the paper under review in the narrative — same era it claims, or a different one — and identifies its closest precedents.
 5. Write `.brain/raw/03_domain_narrative.md`.
-6. Write `.brain/raw/03_domain_narrative.md`.
-7. Update `session.json`:
+6. Update `session.json`:
    - `phases.historian.status = "completed"`
+   - `phases.historian.completed_at = <now>`
    - `phases.historian.notes = "<N> eras identified; paper placed in era <N>"`
    - `resume_from = "baseline_scout"`
 
