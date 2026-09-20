@@ -12,7 +12,7 @@ authority: blueprint
 writes: agent, when explicitly refactoring
 status: active
 covers: the system as it is today
-last_updated: "2026-09-12"
+last_updated: "2026-09-20"
 ---
 
 # 🏗️ ARCHITECTURE — How this project is built
@@ -58,7 +58,7 @@ paper.pdf ─► [0] onboard ─► [1] summarise ─► [2] retrieve ×3 ─►
 
 | | |
 |---|---|
-| **The library is prompts, not code** | 1,337 lines of canonical prompt markdown against 1,612 lines of Python and 1,344 of shell — and the Python is all sync tooling and search, none of it review logic. §3 |
+| **The library is prompts, not code** | 1,342 lines of canonical prompt markdown against 1,640 lines of Python and 1,922 of shell — and none of that code is review logic; it is sync tooling, search and installers. §3 |
 | **One source, fourteen adapters, generated** | Editing a per-tool directory is pointless; it is wiped on the next sync. §7 |
 | **Paper hyperparameters are enforced by file structure** | `k=3` retrieval rounds means three files must exist on disk, because a model will otherwise claim it did three rounds. §4 |
 | **The agent's memory is a JSON file** | `session.json` is the only thing connecting one slash command to the next. §5 |
@@ -78,7 +78,7 @@ paper.pdf ─► [0] onboard ─► [1] summarise ─► [2] retrieve ×3 ─►
 | **Search providers** | `arxiv`, `semanticscholar`, `scholarly` + BeautifulSoup | Pinned in `mcp-server/requirements.txt`. Google Scholar is HTML scraping and is best-effort. |
 | **Runtime isolation** | A venv per user project at `.open-scholar-peer/mcp/` | Not published to PyPI; the installer builds it in place. |
 
-*Measured: `cat extensions/_shared/{commands/*.md,skills/*/SKILL.md,rules/*.md,defaults/*.md} | wc -l` → 1337; `cat scripts/*.py mcp-server/*.py mcp-server/providers/*.py | wc -l` → 1612; `cat install.sh scripts/*.sh | wc -l` → 1344.*
+*Re-measured 2026-09-20: `cat extensions/_shared/{commands/*.md,skills/*/SKILL.md,rules/*.md,defaults/*.md} | wc -l` → **1342**; `cat scripts/*.py mcp-server/*.py mcp-server/providers/*.py | wc -l` → **1640**; `cat install.sh scripts/*.sh | wc -l` → **1922**. The shell figure grew most: M9 took `install.sh` from 88 lines to a 607-line TUI and added `scripts/_post_install.sh`.*
 
 ---
 
@@ -276,7 +276,7 @@ means they are strong conventions rather than hard gates — worth knowing when 
 
 | Provider | Tools | Key | Character |
 |---|---|---|---|
-| arXiv | 2 | none | Pre-prints. Field-prefixed queries (`ti:`, `au:`, `abs:`) and category codes. Via the official `arxiv` package. |
+| arXiv | 2 | none | Pre-prints. Field-prefixed queries (`ti:`, `au:`, `abs:`). Via the official `arxiv` package. Category and date filtering are **advertised but broken** — see below. |
 | Semantic Scholar | 10 | optional | Citation graph — references, citations, batch lookup, authors, recommendations, snippet search. Anonymous limits are aggressive. |
 | Google Scholar | 3 | none | Breadth: theses, workshop papers, blogs. HTML scraping, best-effort, not load-bearing. |
 
@@ -292,6 +292,23 @@ synchronous call into a thread with `asyncio.wait_for` and a timeout (`OSP_CALL_
 one hung HTTP call cannot wedge the server. And every tool returns a consistent error envelope
 (`[{"error": …}]` for searches, `{"error": …}` for single records) rather than raising, so a failing
 provider degrades that one call instead of the step.
+
+### What this section claims, and where the code does not deliver it
+
+An audit on 2026-09-19 measured the layer against the live APIs. Three statements above are, today,
+aspirations rather than facts. They are recorded here because a reader of this file would otherwise
+believe the system does things it does not. All are scheduled in `logs/PROGRESS.md` **M11**.
+
+| Claim above | What actually happens |
+|---|---|
+| arXiv supports category and date filtering | Both are applied **after** fetching, or with a missing operator. A category filter returned **3 of 25** results in the requested category; a 12-month window returned **1** paper where a native range returns a full page. M11 B1, B2. |
+| "a failing provider degrades that one call instead of the step" | True except for Google Scholar, which is the one most likely to fail. A block page returns `[]` — **identical to a genuine zero-hit search** — so a failure is reported to the agent as a successful empty result. M11 B9. |
+| "one hung HTTP call cannot wedge the server" | True, but the Semantic Scholar client retries a 429 internally for up to ~8 minutes. The 90 s timeout kills it and reports "timed out", hiding the real cause. M11 B4. |
+
+One more fact that shapes the whole layer: the documented Semantic Scholar rate limit for an API key is
+**1 request per second**, while unauthenticated callers *share* 1000 RPS globally. Combined with the
+auto-pagination described in M11 B4 — where one tool call can issue 100–200 HTTP requests — holding a key
+currently makes OSP **slower**, not faster.
 
 The Literature Agent is instructed to fire **all** providers in the same dispatch batch with per-index
 query formulations, not sequentially — a paper ranked low in one index is often top of another.
