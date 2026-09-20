@@ -10,7 +10,7 @@ authority: state
 writes: agent, every session
 status: active
 covers: "Extensions phase, 2026-04-23 onward — M1 onward"
-last_updated: "2026-09-20"
+last_updated: "2026-09-21"
 ---
 
 # 📈 PROGRESS — What we are building
@@ -1054,6 +1054,105 @@ longer false-positives on papers about CAPTCHAs.
 a fact. The in-session reviewer had tested the bypass, reported that it was safe, and I wrote that down
 without re-running it. Rule 7 says every number is measured; the same applies to every security claim.
 It is now a test, not a sentence.
+
+---
+
+## 🏁 Milestone M14: Tell the agent how to choose a source, not which ones exist
+
+**Target.** The retrieval prompts name five search tools by name. Since M13 the user chooses which
+databases are installed, so a named tool may simply not be there — and naming it is a promise we can no
+longer keep. Worse, the lists carry no judgement: nothing says Google Scholar fails often, that Europe
+PMC is noise on a CS paper, or that native web search is not optional. Replace the lists with a short
+capability guide and let the agent decide. Decisions: `BRAINSTORM.md` D26.
+
+**Blast radius, measured 2026-09-21:** `grep -rln "search_arxiv|search_semantic_scholar|search_google_scholar"`
+over `extensions/_shared/` → **5 files**, all canonical. The 14 adapter directories regenerate from them.
+
+### Deliverables
+
+- [ ] **P1 — one capability block, written once.** Replace the hardcoded tool lists in `skills/osp-literature-review-agent/SKILL.md` (the authoritative one), `skills/osp-baseline-scout-agent/SKILL.md`, `skills/osp-answer-generator-agent/SKILL.md`, `defaults/qa_pair_template.md` and `commands/2-osp-literature.md`. Describe each source by **what it is for**, not by tool name, and say plainly that the set is per-project.
+- [ ] **P2 — the judgement the owner specified**, in this order of priority. Native **web search is always available and never optional** — every round. **arXiv is the strongest single source** for CS, physics and maths, and the only one that also returns full text. **Semantic Scholar is generous** and is the citation graph. **Google Scholar is the least reliable — it is often blocked, and that is normal**; its failure must never be read as "no papers exist". **Europe PMC only when the paper touches medicine, biology, public health or psychology.** **OpenAlex when retraction status or field-normalised impact matters**, and it may be rate-limited without a key.
+- [ ] **P3 — promise nothing.** The agent must *discover* what it has rather than assume. No sentence may imply a given tool is present. The phrasing to beat: "use the ones you can see" is already there but sits under a list that reads like a guarantee.
+- [ ] **P4 — say it briefly.** The owner asked for a high-level overview, not a manual. Target ~10 lines in the Literature skill and one or two sentences everywhere else. A long block is a block the agent skims.
+- [ ] **P5 — keep the domain rule that already exists.** `search_zenodo` is not a literature tool and must stay out of the rounds; the Baseline Scout keeps it, and the retraction check.
+- [ ] **P6 — re-sync.** `python3 scripts/sync_adapters.py`, then `--check` and `test_parity.py`.
+
+### Acceptance criteria
+
+1. No canonical file states or implies that a particular search tool is installed.
+2. The Literature skill's source guidance is ≤ 12 lines and covers all six capabilities.
+3. Every claim in it is one the providers actually honour — cross-check against `mcp-server/README.md`.
+4. An agent reading only these prompts would not call Europe PMC on a pure CS paper, and would not record a Google Scholar block as "no papers found".
+5. `sync_adapters.py --check` and `test_parity.py` pass.
+
+**Depends on:** M13.
+
+---
+
+## 🏁 Milestone M15: No step is a gate (issue #13)
+
+**Target.** The protocol forces three literature rounds and blocks a phase whose prerequisites are
+unmet. Three rounds is the paper's recommendation, not a law, and it costs real money in tokens. The
+owner's position: *"user should be free to skip any step and we should compromise. It is not
+user-friendly to block the user."* After this milestone every phase can be skipped, every skip is
+recorded, and the final review says what it was missing. Decisions: `BRAINSTORM.md` D27.
+
+**Measured 2026-09-21:** **9** prerequisite or refusal lines across **6** of the 8 commands, plus the
+round gate at `commands/2-osp-literature.md:53` which sets `completed` only at `rounds_completed == 3`.
+
+### Deliverables
+
+- [ ] **K1 — a `skipped` state.** `.brain-template/session.json` phases currently carry `{status, started_at, completed_at, notes}` with `status` one of pending/in_progress/completed. Add `skipped`, and a `skip_reason`. `scripts/init_brain.sh` must match.
+- [ ] **K2 — rounds become a recommendation.** After each literature round, report and offer: run another, or move on. Stop setting `completed` only at 3; a phase left at 1 or 2 rounds is `completed` with `rounds_completed` recorded. The suggestion stays visible — **say what skipping costs once, and do not nag**.
+- [ ] **K3 — prerequisites warn, they do not refuse.** Convert all 9 gate lines. A missing input becomes a stated degradation — *"no baseline scout was run, so missing-baseline findings are absent from this review"* — not a stop.
+- [ ] **K4 — the artifact records the choice.** Every skip appears in the phase's Provenance and in `session.json`, so a reader of the final review can tell a thin corpus from a thorough one. This is MANIFESTO rule 8 applied to the user's own decisions.
+- [ ] **K5 — `6-osp-review` degrades honestly.** It cites Q&A pairs directly, so it is the phase most exposed to a skip. It must produce a review that names its own gaps rather than refusing to run.
+- [ ] **K6 — the orchestrator stops implying a fixed path.** `commands/open-scholar-peer.md` and `skills/osp-orchestrator` present seven steps in order; they should present a recommended order the user may leave.
+- [ ] **K7 — resolves O2.** The stale "10 pairs each" prerequisite in `6-osp-review` is one of the 9 gates and goes with them.
+
+### Acceptance criteria
+
+1. Every one of the 8 commands runs to completion with all prior phases `skipped`.
+2. A literature phase stopped after round 1 is `completed`, with `rounds_completed: 1` and a skip note.
+3. `6-osp-review` produces a review with zero Q&A pairs, and says so in its own text.
+4. No command refuses to run because of a missing upstream artifact.
+5. `session.json` after a skipped phase is valid against the template's shape.
+6. O2 is closed; O6 (cascading invalidation) is explicitly **not** solved here and stays open.
+
+**Depends on:** M14, because the skip wording and the source wording touch the same files.
+
+---
+
+## 🏁 Milestone M16: One phase block, and you can see where you are (issue #25)
+
+**Target.** Every phase ends with a hand-written block of text. The owner's objection: *"it is not very
+easily readable... I prefer least amount of text and prefer visuals."* Replace all seven with one
+design — **variation C**, chosen from five candidates on 2026-09-21: a progress rail welded into the top
+rule, then left-hand labels with an aligned value column. Decisions: `BRAINSTORM.md` D28.
+
+**Measured 2026-09-21:** **7** of the 8 commands carry a closing block; each was written separately and
+they have drifted.
+
+### Deliverables
+
+- [ ] **R1 — the chosen design, specified once.** The top rule carries the rail and the phase name: `── ●──●──◐──○──○──○──○ ── LITERATURE round 2 of 3 ────`. Below it, left-hand labels — `DONE`, `BLOCKED`, `NEXT` — with values in an aligned column. A closing rule. Nothing else.
+- [ ] **R2 — the rail states progress, including unfinished work.** `●` done, `◐` in progress or deliberately left short, `○` not started. The half-filled marker is how M15's "you may move on" becomes visible without a sentence.
+- [ ] **R3 — `BLOCKED` is its own label.** A provider that failed gets its own line, never buried in prose. Reporting a block as "no results" is the failure M11 existed to remove and it must not return through the reporting layer.
+- [ ] **R4 — `NEXT` offers, it does not command.** Where M15 allows a choice, both routes appear: the recommended one first, the alternative under it.
+- [ ] **R5 — one definition, seven users.** Put the template in `defaults/` and have each command reference it, the way `round_strategy_template.md` already works. Seven hand-maintained copies is how the current blocks drifted.
+- [ ] **R6 — it must read unrendered.** Not every one of the 14 tools renders markdown, so the block is plain text with box-drawing characters and must be legible raw. Give an ASCII fallback for the rail, as `install.sh` does for its glyphs.
+- [ ] **R7 — least text.** The owner's actual requirement. Each block should be shorter than the one it replaces; count the lines before and after.
+
+### Acceptance criteria
+
+1. All 7 closing blocks come from one definition; changing it changes all of them.
+2. Each new block is no longer than the block it replaced. Show the line counts.
+3. The rail shows the correct position for each of the seven phases, and `◐` appears for a phase left deliberately short.
+4. A blocked provider appears under its own `BLOCKED` label.
+5. The block is legible as raw text, with no markdown rendering.
+6. `sync_adapters.py --check` and `test_parity.py` pass.
+
+**Depends on:** M15 — the rail renders M15's states, so the behaviour has to exist before the display can be honest about it.
 
 ---
 

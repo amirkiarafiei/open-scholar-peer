@@ -9,7 +9,7 @@ authority: map
 writes: agent, when files move
 status: active
 covers: the whole harness
-last_updated: "2026-09-20"
+last_updated: "2026-09-21"
 harness: kiacontext v0.2
 ---
 
@@ -84,8 +84,8 @@ Four levels, split by **authority**, not by topic.
 
 | File | What it is |
 |---|---|
-| `PROGRESS.md` | Milestones M1–M13, **all closed**. M1–M7 reconstructed from git; M8 onward live. Ends with a **Reference** section holding every API URL and measurement M11–M13 used, kept so a later session can re-derive them. |
-| `BRAINSTORM.md` | Decisions D1–D25 and open questions O1–O20. O12 was answered by M13; the rest are open. D1–D11 reconstructed; D12 onward live. |
+| `PROGRESS.md` | Milestones M1–M16. M1–M13 closed; **M14–M16 planned, not started**. M1–M7 reconstructed from git; M8 onward live. Ends with a **Reference** section holding every API URL and measurement M11–M13 used, kept so a later session can re-derive them. |
+| `BRAINSTORM.md` | Decisions D1–D28 and open questions O1–O20. O12 was answered by M13; the rest are open. D1–D11 reconstructed; D12 onward live. |
 
 ---
 
@@ -133,6 +133,9 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 | What did we originally ask for? | `genesis/SEED.md` — not recovered; it points at the closest surviving artifact |
 | What was the original build plan? | `logs/PROGRESS.md`. The old `docs/PHASES.md` is deleted — `git show 027645b:docs/PHASES.md` |
 | Which paper databases do we use, and why not the others? | `logs/BRAINSTORM.md` D19 |
+| How should the agent choose which databases to search? | `logs/BRAINSTORM.md` D26 |
+| Can the user skip a phase, and what happens if they do? | `logs/BRAINSTORM.md` D27 |
+| Why does every phase end with the same block? | `logs/BRAINSTORM.md` D28 |
 | Why can a project switch databases off, and what does that change? | `logs/BRAINSTORM.md` D21, `specs/ARCHITECTURE.md` §9 |
 | Where does full text come from, and why is there no PDF library? | `logs/BRAINSTORM.md` D20, D24 |
 | Where are the API docs for a provider? | `logs/PROGRESS.md`, the **Reference** section at the end |
@@ -147,8 +150,8 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 
 | Prefix | Means | Lives in | Currently |
 |---|---|---|---|
-| `M` | Milestone | `PROGRESS.md` | M1–M13, all closed |
-| `D` | Decision | `BRAINSTORM.md` | D1–D25 |
+| `M` | Milestone | `PROGRESS.md` | M1–M16; M14 is next up |
+| `D` | Decision | `BRAINSTORM.md` | D1–D28 |
 | `O` | Open question | `BRAINSTORM.md` | O1–O20; O12 answered by M13, the rest open |
 | rule *n* | A manifesto rule | `MANIFESTO.md` | rules 1–9 |
 

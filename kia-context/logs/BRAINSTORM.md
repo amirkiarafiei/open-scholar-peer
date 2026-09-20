@@ -10,7 +10,7 @@ authority: background
 writes: agent, whenever a decision is made
 status: active
 covers: "Extensions phase, 2026-04-23 onward — D1 onward, O1 onward"
-last_updated: "2026-09-20"
+last_updated: "2026-09-21"
 ---
 
 # 🧠 BRAINSTORM — Why we chose what we chose
@@ -270,6 +270,37 @@ because it was true on 2026-05-08; read D16 for the current shape.
 **Why this does not break D3:** both change *when* an answer arrives, never *what* it is — the same argument that already allows one shared HTTP client per provider. Anything that changes the answer is not allowed.
 **Sizing was also measured.** At two entries, a phase reading three papers in turn missed on every single read: 41/41/40 downloads over 200 reads, a 0% hit rate, which is worse than no cache because each miss still pays the gap. Eight entries holds a working set. After the fix: nine threads → one download, and the round robin → three downloads instead of thirty.
 **Known limit:** cached text never expires, so a paper revised on arXiv under the same id serves the old text for the life of the process. Acceptable for a server that lives as long as one review.
+
+### D26 · The prompts describe capabilities, never tool names — 2026-09-21
+
+**Considered:** keep the hardcoded tool list and add "if available" / list the tools but gate each on a check / describe what each source is *for* and let the agent discover what it has
+**Chose:** the third.
+**Because M13 made the old approach a lie.** The user now picks which databases are installed, so a prompt naming `search_europe_pmc` is promising something that may not exist. Five canonical files name tools this way. "If available" would patch the grammar without fixing the problem: the list still reads as a menu the agent expects to find.
+**And naming tools was never the useful part.** The lists carried no judgement at all. Nothing told the agent that Google Scholar is blocked often enough that failure is the normal case, that Europe PMC is pure noise on a CS paper, or that native web search is not optional. A name is not knowledge.
+**The owner's framing, which is the right one:** give a high-level overview of what each kind of source is good for, and let the agent judge from the paper's topic. Be careful not to promise the tools exist — the agent has to discover, judge and choose.
+**Rejected a long guide because:** a block the agent skims is worse than a short one it reads. Target ten lines, not a manual.
+**Scheduled as:** M14 P1–P6.
+
+### D27 · No step is a gate — the user may skip anything — 2026-09-21
+
+**Considered:** keep the three-round requirement (it is what the paper specifies) / make only the literature rounds optional / make every phase skippable and record the choice
+**Chose:** the third.
+**Because the protocol was enforcing a recommendation as a law.** Three rounds is what ScholarPeer recommends; it is not a correctness property, and each round costs real tokens. Nine prerequisite or refusal lines across six of the eight commands block a phase whose inputs are missing. The owner: *"It is not user-friendly to block the user."*
+**The thing that makes this safe is recording, not refusing.** A skipped phase is written into `session.json` and into the artifact's Provenance, so the final review can say what it did not have. That keeps MANIFESTO rule 8 — report honestly — while removing the block. A thin review that admits it is thin is more useful than no review.
+**Rejected "literature only" because:** the same objection applies to every phase, and fixing one would leave the inconsistency as a trap.
+**Cost, stated plainly:** a user who skips everything gets a poor review. That is their call to make, and the artifact will say so.
+**Explicitly not solved here:** O6, cascading invalidation. Re-running an early phase still leaves downstream artifacts stale, and a skip makes that no worse.
+**Scheduled as:** M15 K1–K7. Closes O2.
+
+### D28 · One phase block, chosen by looking at five of them — 2026-09-21
+
+**Considered:** five candidate designs, shown rendered rather than described — a phase rail, an icon column, a two-line minimum, a mini card, and a file tree. Then three variations of the winner.
+**Chose:** the rail, welded into the top rule, with `DONE` / `BLOCKED` / `NEXT` labels and an aligned value column, bounded above and below by rules.
+**Because the current block answers the wrong question.** Seven hand-written blocks, one per command, each drifted from the others. They list what happened in prose and never say *where you are* — which across a seven-phase protocol is the thing a user most wants. A rail answers it with no words at all.
+**Why the rail beat the alternatives:** the tree is better when a phase's value is its files, but most phases produce one; the two-line version is the shortest but loses the blocked-provider warning, which must never be buried; the card is the prettiest and the most fragile, since fixed-width boxes break below about 78 columns (O19).
+**Why `BLOCKED` gets its own label:** a provider failure reported as prose gets skimmed. Recording a block as "no papers found" is exactly the bug M11 spent a milestone removing, and it would be a poor joke to reintroduce it in the reporting layer.
+**Constraint that follows:** the block must be legible as raw text. Not all fourteen tools render markdown, so it is plain text with box-drawing characters and an ASCII fallback, the same treatment `install.sh` gives its glyphs.
+**Scheduled as:** M16 R1–R7.
 
 ---
 
