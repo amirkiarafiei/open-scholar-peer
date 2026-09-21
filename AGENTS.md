@@ -120,7 +120,8 @@ docs/
 2. `python3 scripts/test_parity.py` (must pass)
 3. `bash scripts/test_install.sh` (must pass)
 4. **Manual:** run `bash install.sh` in a fresh temp dir, drive `/0-osp-onboarding` and `/1-osp-summary` on `docs/paper/scholar_peer_arxiv.pdf` in your tool of choice. Verify `.brain/raw/01_structured_summary.md` has Method/Output/Provenance sections.
-5. Update the active milestone in `kia-context/logs/PROGRESS.md` (deliverables + Report).
+5. Update the active milestone in the progress log — the **highest-numbered part**, currently
+   `kia-context/logs/PROGRESS_2.md` (deliverables + Report). Earlier parts are closed.
 6. `git tag` + `git push --tags`.
 
 ## Out of scope

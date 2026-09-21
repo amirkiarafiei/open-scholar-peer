@@ -208,7 +208,8 @@ stay true. Start at [`kia-context/INDEX.md`](kia-context/INDEX.md).
 - **[`kia-context/specs/MANIFESTO.md`](kia-context/specs/MANIFESTO.md)** — The product boundary and the rules that do not move.
 - **[`kia-context/specs/ARCHITECTURE.md`](kia-context/specs/ARCHITECTURE.md)** — How the protocol, the state machine and the 14-tool sync pipeline actually work.
 - **[`kia-context/logs/BRAINSTORM.md`](kia-context/logs/BRAINSTORM.md)** — Decisions and the alternatives they beat.
-- **[`kia-context/logs/PROGRESS.md`](kia-context/logs/PROGRESS.md)** — Milestones, and what is being built now.
+- **[`kia-context/logs/PROGRESS.md`](kia-context/logs/PROGRESS.md)** — Milestones M1–M13, and the loop the project runs on.
+- **[`kia-context/logs/PROGRESS_2.md`](kia-context/logs/PROGRESS_2.md)** — M14 onward, and what is being built now.
 - **[`kia-context/genesis/`](kia-context/genesis/)** — Why the project exists, and the original design document.
 
 ---
