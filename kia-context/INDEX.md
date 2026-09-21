@@ -86,7 +86,7 @@ Four levels, split by **authority**, not by topic.
 |---|---|
 | `PROGRESS.md` | **Part one, closed.** Milestones M1–M13, through 2026-09-20. M1–M7 reconstructed from git; M8 onward live. Holds the things stated once for both parts: the loop, the circuit breakers, the releases and the full milestone table. Ends with a **Reference** section holding every API URL and measurement M11–M13 used. |
 | `PROGRESS_2.md` | **Part two, active — write new entries here.** M14 onward, from 2026-09-21: the prompt and protocol work, and the outside review of all three milestones at once. Continues the numbering; it does not restart it. |
-| `BRAINSTORM.md` | Decisions D1–D30 and open questions O1–O22. D1–D11 reconstructed; D12 onward live. Closed so far: O12 (by M13), O1, O2 and O3 (by M15). |
+| `BRAINSTORM.md` | Decisions D1–D31 and open questions O1–O22. D1–D11 reconstructed; D12 onward live. Closed so far: O12 (by M13), O1, O2 and O3 (by M15). |
 
 ---
 
@@ -155,7 +155,7 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 | Prefix | Means | Lives in | Currently |
 |---|---|---|---|
 | `M` | Milestone | `PROGRESS.md` (M1–M13), `PROGRESS_2.md` (M14 →) | M1–M16, all done; M17 is next |
-| `D` | Decision | `BRAINSTORM.md` | D1–D30 |
+| `D` | Decision | `BRAINSTORM.md` | D1–D31 |
 | `O` | Open question | `BRAINSTORM.md` | O1–O22; O1, O2, O3 closed by M15 and O12 by M13, the rest open |
 | rule *n* | A manifesto rule | `MANIFESTO.md` | rules 1–9 |
 

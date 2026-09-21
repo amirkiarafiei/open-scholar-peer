@@ -166,14 +166,14 @@ The MCP server loads `.env` automatically on startup.
 | [Cursor](https://cursor.com) | ✓ (`.cursor/mcp.json`) |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ (`.gemini/settings.json`) |
 | [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ (`~/.copilot/mcp-config.json`) |
-| [Codex CLI](https://github.com/openai/codex) | via `codex mcp add` (TOML) |
+| [Codex CLI](https://github.com/openai/codex) | ✓ (`~/.codex/config.toml`) |
 | [Qwen Code](https://github.com/QwenLM/qwen-code) | ✓ (`.qwen/settings.json`) |
-| [OpenCode](https://opencode.ai) | via `opencode mcp add` (or `opencode.json`) |
+| [OpenCode](https://opencode.ai) | ✓ (`.opencode/opencode.json`) |
 | [Junie](https://www.jetbrains.com/junie/) | ✓ (`.junie/mcp/mcp.json`) |
 | [Kiro](https://kiro.dev) | ✓ (`.kiro/settings/mcp.json`) |
 | [Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✓ (`~/.kimi/mcp.json`) |
-| [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | manual snippet (TOML) |
-| [OpenHands](https://docs.openhands.dev) | via OpenHands UI / `config.toml` |
+| [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✓ (`.vibe/config.toml`) |
+| [OpenHands](https://docs.openhands.dev) | ✓ CLI (`~/.openhands/mcp.json`); web UI needs a paste |
 | [Antigravity](https://antigravity.google/) | ✓ (`~/.gemini/antigravity/` + `~/.gemini/config/`) |
 | [Antigravity CLI](https://antigravity.google/cli/) | ✓ (`.agents/mcp_config.json` + `~/.gemini/antigravity-cli/`) |
 

@@ -58,17 +58,26 @@ markitdown paper.pdf > .brain/input/paper.md
 
 ## 4. Some MCP configs are global, not project-local
 
-**What:** Installers wire the MCP server up in one of three ways.
+**What:** Every supported tool has its MCP server wired by the installer. Where that config lands differs.
 
 | | Tools | Where |
 |---|---|---|
-| **Project-local, auto-merged** | Claude Code, Cursor, Gemini CLI, Qwen Code, Junie, Kiro | a file inside your project |
-| **Global, auto-merged** | Antigravity (`~/.gemini/antigravity/` **and** `~/.gemini/config/`), Antigravity CLI (`~/.gemini/antigravity-cli/`, plus a project-local copy), Copilot CLI (`~/.copilot/`), Kimi Code (`~/.kimi/`) | a file in your home directory |
-| **Not merged — snippet only** | Codex CLI, Mistral Vibe, OpenCode, OpenHands | the installer writes a paste-ready snippet and tells you the path |
+| **Project-local** | Claude Code, Cursor, Gemini CLI, Qwen Code, Junie, Kiro, OpenCode (`.opencode/opencode.json`), Mistral Vibe (`.vibe/config.toml`) | a file inside your project |
+| **Global** | Antigravity (`~/.gemini/antigravity/` **and** `~/.gemini/config/`), Antigravity CLI (`~/.gemini/antigravity-cli/`, plus a project-local copy), Copilot CLI (`~/.copilot/`), Kimi Code (`~/.kimi/`), Codex CLI (`~/.codex/config.toml`), OpenHands CLI (`~/.openhands/mcp.json`) | a file in your home directory |
 
-**Limitation:** The four in the middle row edit files shared by *every* project on your machine. `merge_mcp_config.py` preserves existing entries, but the blast radius is wider than this review.
+**Limitation:** The tools in the second row edit files shared by *every* project on your machine. The
+installer preserves entries it did not write, but the blast radius is wider than one review.
 
-**Impact:** For those four, the `osp` server is registered once globally rather than per project — installing OSP in a second directory re-points the same global entry at the new directory's server copy. For the bottom row, nothing is wired up until you paste the snippet; the review will run but every literature search will fail.
+**Impact:** For those tools the `osp` server is registered once globally rather than per project, so
+installing OSP in a second directory re-points the same entry at the new directory's server copy. Both
+folders still work one at a time; they just cannot be used simultaneously. Project-local tools have no
+such problem.
+
+**The OpenHands web UI is the one exception to "the installer wires it for you."** Its MCP settings
+live in the application's database behind Settings → MCP, not in any file, so nothing OSP writes can
+reach them. The installer leaves a ready-to-paste snippet at
+`.open-scholar-peer/openhands_mcp_snippet.json` for that case. The OpenHands **CLI** is wired
+automatically and needs nothing.
 
 **Workaround:** After installing, open the file the installer named and confirm the `osp` entry points where you expect. If you have run OSP from a directory you later deleted, the global entry will point at a path that no longer exists — re-run the installer from a real project directory to repair it.
 

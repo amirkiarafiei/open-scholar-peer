@@ -168,14 +168,14 @@ run_install_smoke "vibe" "install_vibe.sh" \
   ".vibe/skills/osp-orchestrator/SKILL.md" \
   ".agents/skills/osp-orchestrator/SKILL.md" \
   "AGENTS.md" \
-  ".open-scholar-peer/vibe_mcp_snippet.toml"
+  ".vibe/config.toml"
 
 run_install_smoke "opencode" "install_opencode.sh" \
   "${COMMON[@]}" \
   ".opencode/commands/0-osp-onboarding.md" \
   ".opencode/agents/osp-orchestrator/SKILL.md" \
   "AGENTS.md" \
-  ".open-scholar-peer/opencode_mcp_snippet.json"
+  ".opencode/opencode.json"
 
 run_install_smoke "openhands" "install_openhands.sh" \
   "${COMMON[@]}" \

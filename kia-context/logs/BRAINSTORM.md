@@ -323,6 +323,21 @@ because it was true on 2026-05-08; read D16 for the current shape.
 **The measurement that settles it:** one file carries a rail today, and `test_parity.py::check_phase_blocks` fails the build if a second one appears. The convention became a mechanism.
 **Cost, stated plainly:** an agent that ignores the pointer prints something ad-hoc, where before it had a copy to imitate. Two examples stay in the template to make that unlikely.
 
+### D31 · Every tool's MCP config is written by the installer — the TOML excuse was never measured — 2026-09-21
+
+**Considered:** keep emitting a paste-ready snippet for Codex, Mistral Vibe, OpenCode and OpenHands / write each tool's real config / write what we can and paste a prompt into the user's agent for the rest
+**Chose:** the second, for all four.
+**Reversing what was never decided.** The snippet path arrived inside `6942464 feat: add support for 8 new AI tools (13 total)` with no entry here — it was a shortcut taken while adding eight tools at once, and it then hardened into `ARCHITECTURE.md` as a fact: *"print a paste-ready snippet for tools whose config is TOML, global, or otherwise not safely machine-editable."* Every later review read it as deliberate and left it alone.
+**What measuring it found, against the real binaries:**
+- **OpenCode** — not TOML at all. The snippet we generated was already the correct schema, written to the wrong path. `.opencode/opencode.json` is project-local, merges into global per key, and the project wins. Verified by loading it: `markitdown` reported **connected**.
+- **Codex** — `codex mcp add` is real, non-interactive, idempotent, and edits `config.toml` through `toml_edit`, so comments and formatting survive. We printed the command and did not run it.
+- **Mistral Vibe** — appending an `[[mcp_servers]]` block to arbitrary TOML parsed cleanly in 8 of 9 hostile cases; the 9th raises and is caught. 13 cases now covered by a test.
+- **OpenHands CLI** — `~/.openhands/mcp.json` is the same `{"mcpServers": {...}}` shape `merge_mcp_config.py` already writes.
+**And a defect the excuse was hiding.** The Vibe snippet omitted `transport`, which is a pydantic discriminator: pasting it does not fail one entry, it **invalidates the user's whole config file**. We shipped that for four months. A manual step nobody executes is a manual step nobody tests.
+**Rejected the paste-a-prompt fallback because** it turned out to be needed exactly once — the OpenHands **web UI**, whose MCP settings are a database row behind an authenticated API. The agent cannot write that either, so the fallback would not have worked there anyway. A snippet remains for those users.
+**Rejected writing Codex's project-local config** even though it outranks global: it only applies to folders the user has marked trusted, and `trust_level` also governs approval policy and sandbox mode. An installer must not widen a user's security posture to win a config convenience.
+**Measured after:** 14 of 14 tools wired automatically; zero manual MCP steps outside the OpenHands web UI. Verified by running each installer into a sandbox and reading the config back.
+
 ---
 
 ## Open questions

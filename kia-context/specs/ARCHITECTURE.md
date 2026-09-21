@@ -244,8 +244,12 @@ smoke-tests all 14 installers in temp directories. All three pass as of 2026-09-
 
 **Installers** copy the adapter (after `clean_adapter.sh` removes OSP-managed files from a previous
 version), scaffold `.brain/`, build the MCP venv via `init_mcp.sh`, and then either merge the server into
-the tool's JSON config with `merge_mcp_config.py` or print a paste-ready snippet for tools whose config is
-TOML, global, or otherwise not safely machine-editable. Tools sharing the project-root `AGENTS.md` surface
+the tool's config — `merge_mcp_config.py` for JSON, `merge_mcp_toml.py` for Mistral Vibe's TOML, and
+`codex mcp add` for Codex, which edits its own TOML through `toml_edit` and so keeps the user's comments.
+**Every supported tool is wired automatically; none asks the user to paste anything.** The one exception
+is not a tool but a surface: the OpenHands *web UI* keeps MCP settings in its database, so a snippet is
+left for those users. A paste-ready snippet is also written as the fall-back whenever a merge declines —
+which happens only when the user's existing config cannot be parsed, and their file is then left untouched. Tools sharing the project-root `AGENTS.md` surface
 merge through `merge_agents_md.sh` using `<!-- OSP-BEGIN/OSP-END -->` markers — never a bespoke merge.
 
 ---

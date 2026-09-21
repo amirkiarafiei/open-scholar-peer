@@ -395,5 +395,56 @@ review is worth more than one that has.
 
 ---
 
+## 🔧 Follow-up — 2026-09-21: four tools were never wired, and one snippet broke configs
+
+Not a milestone. Found while explaining an earlier review finding to the owner, who recognised it
+immediately as something no installer should ask of a user.
+
+**What was wrong.** Four of the fourteen tools — Codex CLI, Mistral Vibe, OpenCode, OpenHands — ended
+their install by writing a snippet and asking the user to paste it. For two of them the installer
+*printed a working command and did not run it*. `KNOWN_LIMITATIONS.md` stated the consequence plainly:
+*"nothing is wired up until you paste the snippet; the review will run but every literature search will
+fail."*
+
+**And the Vibe snippet was worse than a manual step.** It omitted `transport`, a pydantic discriminator.
+Pasting it does not break one entry — it invalidates the user's entire Vibe config. Shipped since
+`6942464`.
+
+**Measured against the real binaries** (Vibe 2.25.5, OpenHands CLI 1.16.0, OpenCode 1.17.19, plus Codex
+upstream source), every one is automatable. See D31 for what each supports and why the TOML objection
+was wrong.
+
+| Tool | Now | Scope |
+|---|---|---|
+| OpenCode | `.opencode/opencode.json` | project |
+| Mistral Vibe | `.vibe/config.toml` | project |
+| Codex CLI | `codex mcp add` | global |
+| OpenHands CLI | `~/.openhands/mcp.json` | global |
+
+**New:** `scripts/merge_mcp_toml.py`, which parses before writing, rewrites only the blocks OSP owns,
+re-reads from disk afterwards and restores the original if the result is invalid — the same contract
+`merge_mcp_config.py` honours for JSON. 13 hostile cases covered, including a file it correctly
+declines. It needs no TOML parser at all when there is no existing config, which matters: the system
+Python here is 3.10, and `tomllib` arrived in 3.11.
+
+`merge_mcp_config.py` gained `--style opencode` for OpenCode's `{type, command: [argv]}` entry shape,
+and its stale-entry recogniser now handles an argv list as well as a command string — it had been
+working by accident, through `str(list)`.
+
+**Proof it works, not just that files appear.** `test_install.sh` now asserts the real config files
+rather than the snippets, and OpenCode was pointed at an installed binary: it loaded the config and
+reported `markitdown` **connected**.
+
+**The install box problem dissolved.** An earlier review found the closing box hid the required wiring
+step. With nothing left to wire, no per-tool installer passes a manual action any more, so there is
+nothing for the box to hide.
+
+**One genuine exception, recorded rather than worked around:** the OpenHands *web UI* keeps MCP settings
+in a database behind an authenticated API. No file reaches it, and neither would an agent asked to
+configure itself. Those users still get the snippet; the CLI needs nothing.
+
+
+---
+
 > **← Previous:** [`PROGRESS.md`](PROGRESS.md) — M1–M13.
 > **Next →** none yet.
