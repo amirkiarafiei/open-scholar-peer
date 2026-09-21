@@ -338,6 +338,24 @@ because it was true on 2026-05-08; read D16 for the current shape.
 **Rejected writing Codex's project-local config** even though it outranks global: it only applies to folders the user has marked trusted, and `trust_level` also governs approval policy and sandbox mode. An installer must not widen a user's security posture to win a config convenience.
 **Measured after:** 14 of 14 tools wired automatically; zero manual MCP steps outside the OpenHands web UI. Verified by running each installer into a sandbox and reading the config back.
 
+### D32 · The paper's N_QA is 10 per review, not per criterion — and the default stays at 2 anyway — 2026-09-21
+
+**Considered:** re-weight the Q&A budget to match the paper (5 novelty + 5 soundness) / raise the default / leave it
+**Chose:** leave it, knowing the number now means something different from what we thought.
+**The measurement.** Appendix C gives `C_ScholarPeer ≈ C_fixed + k + N_QA` with `C_fixed ≈ 7`, `k = 3`, `N_QA = 10`, *"approximately 20 calls per paper review"*. So the 10 is a **per-review total**, split across two aspects — novelty and soundness — and only novelty gets the search-enabled answerer. Verified in the PDF, not inferred.
+**What we had said was wrong.** `ARCHITECTURE.md` justified our default with *"Ten pairs across every criterion was judged too expensive as a default"* — a 5× overstatement of the paper's cost. And our default is not a discount at all: 2 × 5 criteria = 10, the paper's own number, just spread across criteria like "clarity" that cannot be verified against anything external.
+**Kept anyway, and this is the owner's call, made knowingly:** per-criterion Q&A generalises the paper's two fixed aspects to the venue's real criteria, which is a better fit for a tool that reads the actual review form. Re-weighting would buy fidelity to a hyperparameter and lose that.
+**Recorded because** an outsider comparing the two will ask why the default is 2 when the paper says 10, and the honest answer — *it is the same total, allocated differently, and we chose the allocation* — is not derivable from the code.
+
+### D33 · The writing rules live in `osp-rules.md`, not in sixteen prompt files — 2026-09-21
+
+**Considered:** fold them into the existing `## Output discipline` / give them their own section built around a concrete test / split them, register into the rules and the context-asymmetry rule into the phase block
+**Chose:** the first, on the owner's decision.
+**The problem is two problems.** One is register: an LLM writing a review drifts to hedging or buzzwords, and a reviewer's comment has to mean one thing to an author reading English as a second language. The other is sharper — the agent has just read `02_retrieved_literature.md` and the user has not, so it says *"the historian placed the paper in era 3"* and communicates nothing. It overestimates shared context every phase, predictably.
+**Why `osp-rules.md`.** It is always-on, ships to every user project, and `merge_agents_md.sh` regenerates the `AGENTS.md` block from it, so one edit reaches all 14 tools. Putting it in the 8 commands and 8 skills would be sixteen copies that drift — the thing M16 had just finished removing.
+**Cost accepted:** always-on text is not free. It competes for attention with the brain protocol and the error-vs-empty rule, which prevent actual defects. Three paragraphs was judged the ceiling.
+**Evidence it was needed** arrived from the same review that prompted it: nothing anywhere told the user the final review is a draft they sign. The agent handed over a verdict with no context, which is exactly the failure the second rule describes.
+
 ---
 
 ## Open questions

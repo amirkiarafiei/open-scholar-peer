@@ -442,6 +442,56 @@ nothing for the box to hide.
 **One genuine exception, recorded rather than worked around:** the OpenHands *web UI* keeps MCP settings
 in a database behind an authenticated API. No file reaches it, and neither would an agent asked to
 configure itself. Those users still get the snippet; the CLI needs nothing.
+---
+
+## 🔬 Four-lens review of the whole system — 2026-09-21
+
+Not a milestone. The owner asked for two lenses, each run twice and independently: **does this implement
+the paper's protocol**, and **is it clear to a researcher reviewing their first paper**. Two subagents
+and two Antigravity runs (Gemini 3.8 Flash, high). Roughly 25 findings; the ones that changed the
+product are below. Shipped in `4a4546d`.
+
+### Fidelity — what the paper requires and we did not do
+
+**No cutoff date existed anywhere.** The paper enforces one in four agent prompts (`cutoff` appears 18
+times) and markets temporal validity as its advantage over a rival that *"cited papers published months
+or years after the review cutoff date"*. We had none, and round 3 searched "the last 12 months" from
+**today** — so reviewing a 2025 submission would fault its authors for missing 2026 work. Not a stricter
+review, a wrong one. `session.json` now carries `paper.cutoff_date`, onboarding asks for it with a
+default, and every round is bounded by it. Verified against the PDF before acting.
+
+**Retrieval was unfalsifiable.** Both literature tables held Title/Authors/Year/Venue and no identifier,
+so a paper the agent retrieved and one it remembered were byte-identical on disk — which made MANIFESTO
+rules 3 and 4 unverifiable *in principle*. One ID column now, one identifier per row, `no id` when there
+is none so the gap is visible.
+
+**Verification could be asserted.** `Result: consistent` was legal with zero searches behind it. The
+cross-check line must now name an identifier or say `not verified: <reason>`.
+
+**The Historian shipped one of the paper's three required sections.** Open problems and a stated
+significance standard were missing, and four downstream prompts expect them. Both restored, and the Q&A
+engine points at them — otherwise significance is judged against the model's taste.
+
+Reviewers also confirmed OSP is **stronger than the paper** in three places: the error-vs-empty
+discipline, reading full text rather than abstracts, and the retraction and code-release checks.
+
+### Friction — what a first-time reviewer hits
+
+- **A dead end.** Every recovery path said run `scripts/init_brain.sh`; the `curl | bash` install clones
+  to a temp dir and deletes it, so that file is never in the user's project. Three places fixed.
+- **Nothing said the review is a draft.** MANIFESTO rule 9 — *"it drafts; the reviewer signs"* — had
+  never reached the user, who was handed an accept/reject verdict and a confidence score. Now a `YOURS`
+  label in the closing block, defined once in the template, plus a line in the README.
+- `uvx markitdown-mcp` is a **server, not a smoke test**: typed in a terminal it waits silently and looks
+  hung. Four places now say `--help`.
+- **`/5-osp-qa` overwrote every Q&A file without asking** — the most expensive artifact in the system.
+- `/2-osp-literature`'s "Re-run behavior" contradicted its own step 1.
+- README Option 2 installed into the clone rather than the paper's folder; TROUBLESHOOTING's workflow
+  section called two normal outcomes bugs and is rewritten.
+
+### Left alone deliberately
+
+The `N_QA` misreading — see D32. The owner judged the current default fine.
 
 
 ---
