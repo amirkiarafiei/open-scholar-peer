@@ -26,8 +26,6 @@ curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main
 /open-scholar-peer
 ```
 
-The orchestrator reads your session state and tells you which step to run next.
-
 ## How it works
 
 
@@ -84,25 +82,23 @@ Everything lands in the directory you ran the installer from. Four things:
 
 | What | Where | Why |
 | --- | --- | --- |
-| **`.brain/`** — `session.json`, `raw/`, `review/`, `input/` | your project | Every step writes plain markdown you can open — including each intermediate literature round, not just the final review. This is how you check any claim the system makes. |
-| **Agent config** — slash commands, skills, rules, and an MCP server entry | your tool's own directory (`.claude/`, `.cursor/`, `.gemini/`, …), plus a root file for some tools: `.mcp.json`, `AGENTS.md` or `QWEN.md` | How your agent learns the seven `/N-osp-*` commands and reaches the paper search server. Existing files are merged, never overwritten — OSP's part sits between `<!-- OSP-BEGIN -->` and `<!-- OSP-END -->`. |
-| **`.open-scholar-peer/mcp/`** — the search server and a Python `.venv/` | your project | The search server is Python. The virtualenv keeps its dependencies out of your system Python, so nothing you already have is touched or upgraded. |
-| **`.env`** | your project | Your API keys, written with `chmod 600`. Optional — every database works without one. |
+| **`.brain/`** — `session.json`, `raw/`, `review/`, `input/` | your project | To manage session state and write intermediary results and artifacts. Everything is saved as Markdown/JSON |
+| **Agent config** — Slash Commands, Skills, MCP config | your tool's own directory (`.claude/`, `.cursor/`, `.gemini/`, …), plus a root file for some tools: `.mcp.json`, `AGENTS.md` or `CLAUDE.md` | To teach the review protocol to your agent and prepare the environment it |
+| **`.open-scholar-peer/mcp/`** MCP server and `.venv`  | To add the MCP servers for paper search, written in python. The virtualenv keeps its dependencies out of your system Python |
+| **`.env`** | your project | Your optional API keys for paper search |
 
-**Your paper and your keys stay put.** The installer adds `.brain/`, `.open-scholar-peer/` and `.env` to
+Installer adds `.brain/`, `.open-scholar-peer/` and `.env` to
 your `.gitignore`, so a manuscript under embargo is never committed by accident. Nothing is written
-outside this directory except the MCP config that a few tools insist on keeping in your home folder.
+outside this directory except the MCP config that a few agents insist on keeping in your home folder.
 Nothing leaves the machine except the searches you ask for.
 
-To remove it all: delete `.brain/`, `.open-scholar-peer/` and `.env`, delete the tool directory the
-installer named, and remove the OSP block from any root file it touched (`.mcp.json`, `AGENTS.md`,
-`QWEN.md`).
+To remove it all: delete `.brain/`, `.open-scholar-peer/` and `.env`, plus the agent's MCP config. 
 
 ---
 
 ## Usage
 
-Open your code agent in that directory, and in its interactive chat run:
+Open your code agent in that directory, and in its interactive chat run the commands one-by-one:
 
 ```text
 /open-scholar-peer        ← tells you which step comes next
@@ -121,33 +117,26 @@ Run `/open-scholar-peer` at any point — it reads your session state and tells 
 
 ## Literature Databases for Paper Search
 
-Six open databases. **None needs a paid subscription, and none needs a key to work** — a key only lifts
-a rate limit. The installer asks which ones you want and enables just those, so your agent carries a
-short tool list instead of all 22. **arXiv and Semantic Scholar** start ticked.
+Supports six open databases and **None needs a paid subscription, and none needs an API Key to work**. An API Key is optional and increases the rate limits: 
 
 | Database | What it covers | Free | Rate limit |
 | --- | --- | --- | --- |
-| **arXiv** | Preprints in CS, physics and maths. Also serves **full text**, from the LaTeX source. | Yes, no key exists | 1 request / 3 s, one connection at a time |
-| **Semantic Scholar** | Citation graph — references, citations, recommendations, title matching. | Yes; free key optional | Keyless: one pool shared by every anonymous caller worldwide, so throttled unpredictably. With a key: 1 request / s of your own |
-| **Google Scholar** | Broadest coverage — theses, workshop papers, blogs. Best-effort scraping. | Yes, no key exists | None published. It blocks instead — expect that, and read a block as a block, never as "no papers" |
-| **Europe PMC** | Biomedical and life sciences, with **full text** over a plain request. | Yes, no key | 10 requests / s, 500 / min, per IP address |
-| **Zenodo** | Code, datasets and software releases — *did the authors release their code?* | Yes; token optional | Search API 30 requests / min (60 / min general, 100 / min with a token) |
-| **OpenAlex** | 327 million works, with **retraction flags** and field-normalised citation impact. | Free tier; free key gives 10× | Daily budget, not a call cap: **$0.10/day keyless ≈ 100 calls**, **$1/day with a free key ≈ 1,000 calls**. Every response carries its own `cost_usd`. Hard ceiling 100 requests / s |
+| **arXiv** | Preprints in CS, physics and maths | Yes | 1 request / 3 s, one connection at a time |
+| **Semantic Scholar** | Broad Coverage. Includes citation graphs and recommendations | Yes (Optional API Key) | Keyless: Unpredictable. With a key: 1 request / s of your own |
+| **Google Scholar** | Broadest coverage (Best-effot Scraping) | Yes | None published. Its bot detection may block you. |
+| **Europe PMC** | Biomedical and life sciences | Yes | 10 requests / s, 500 / min, per IP address |
+| **Zenodo** | Code, datasets and software releases | Yes (Optional API Key) | Search API 30 requests / min (60 / min general, 100 / min with a token) |
+| **OpenAlex** | 327 million works, with retraction flags | Free and Paid Tiers | Daily budget without API Key: $0.10/day ≈ 100 calls**, **$1/day with an optional free API Key ≈ 1,000 calls. Hard ceiling 100 requests / s |
 
-Rate limits above are each provider's own published figure, checked on 2026-09-21.
+**Deliberately not included:** ACM DL, IEEE Xplore, Web of Science, Scopus, Springer and ScienceDirect all
+need a subscription or a paid key, which is the one thing this project will not require of you. 
 
-Deliberately not included: ACM DL, IEEE Xplore, Web of Science, Scopus, Springer and ScienceDirect all
-need a subscription or a paid key, which is the one thing this project will not require of you. DBLP was
-dropped after four probes in September 2026 hit a bot wall. bioRxiv and medRxiv are a feed rather than a
-search engine — they have no keyword search — and Semantic Scholar already indexes both.
-
-The search layer lives in [mcp-server/](mcp-server/), and
-[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) has the recipe for adding a source of your own.
+**Extending Databases:** The search layer lives in [mcp-server/](mcp-server/), and
+[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) has the info for adding and extending MCP Servers for Paper Search.
 
 ### 🔑 API keys
 
-The installer asks whether you want to enter keys, and takes them one at a time if you say yes. You can
-always skip that and add them later:
+You can input your keys during installations, or add them manually in `.env`:
 
 ```bash
 # .env  (gitignored — never committed)
@@ -160,9 +149,6 @@ GOOGLE_SCHOLAR_PROXY_URL=...       # the only thing that helps once Google block
 OSP_SOURCES=arxiv,semantic_scholar,google_scholar,europepmc,zenodo,openalex
 ```
 
-Anonymous Semantic Scholar access is one pool shared by every unauthenticated caller everywhere, so it
-is throttled unpredictably. A free key at
-https://www.semanticscholar.org/product/api#api-key gives you your own limit.
 The MCP server loads `.env` automatically on startup.
 
 ---
@@ -186,9 +172,6 @@ The MCP server loads `.env` automatically on startup.
 | [Antigravity](https://antigravity.google/) | ✓ (`~/.gemini/antigravity/` + `~/.gemini/config/`) |
 | [Antigravity CLI](https://antigravity.google/cli/) | ✓ (`.agents/mcp_config.json` + `~/.gemini/antigravity-cli/`) |
 
-All fourteen run the full protocol. The Q&A step isolates its answering agent in a subagent everywhere
-except **Mistral Vibe** and **OpenHands**, which fall back to a weaker self-reflection mode —
-see [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md), which also has the per-tool MCP wiring details.
 ---
 
 ## Documentation
