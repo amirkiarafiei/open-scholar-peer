@@ -70,11 +70,13 @@ curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main
 
 ```bash
 git clone https://github.com/amirkiarafiei/open-scholar-peer
-cd open-scholar-peer
-bash install.sh
+bash open-scholar-peer/install.sh --dir /path/to/the/paper/you/are/reviewing
 ```
 
-Skip the prompts with `--tool claude,cursor` and `--sources arxiv,openalex`. `bash install.sh --help` lists every option.
+Without `--dir` the installer offers the directory you are standing in — which, after `cd`, is the
+clone rather than your paper.
+
+Skip the prompts with `--dir <path>`, `--tool claude,cursor` and `--sources arxiv,openalex`. `bash install.sh --help` lists every option.
 
 ### What is installed on your machine?
 
@@ -112,6 +114,9 @@ Open your code agent in that directory, and in its interactive chat run the comm
 ```
 
 Run `/open-scholar-peer` at any point — it reads your session state and tells you where you are.
+
+**The output is a draft for you to edit, not a review to submit.** Every claim traces to a file in
+`.brain/` so you can check it. You are the reviewer of record.
 
 ---
 

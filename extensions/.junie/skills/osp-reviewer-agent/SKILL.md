@@ -125,7 +125,8 @@ After writing:
 - `phases.review.notes = "Final review written; decision: <recommendation>"`
 - `resume_from = "completed"`
 
-Print a short confirmation to the user with the path to the final review and any noteworthy `[DISCREPANCY]` flags or high-severity baselines that drove the recommendation. If anything was skipped, put it on the `NOTE` line — never bury it in prose.
+Say plainly that this is a **draft for them to edit and take responsibility for** — OSP does not
+submit reviews and does not decide. Then print a short confirmation with the path to the final review and any noteworthy `[DISCREPANCY]` flags or high-severity baselines that drove the recommendation. If anything was skipped, put it on the `NOTE` line — never bury it in prose.
 
 ## Pitfalls
 

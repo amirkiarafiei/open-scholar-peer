@@ -33,7 +33,8 @@ Before activating the skill, verify in this order:
 3. **`markitdown` MCP is unavailable AND only a PDF/DOCX is present** — stop here, and say why in one
    line: there is no readable text to summarise. Print:
    > Paper at `.brain/input/<file>` is in a binary format and `markitdown` MCP is not available. Either:
-   >   (a) install markitdown: `uvx markitdown-mcp` (verify with `uvx --version`), or
+   >   (a) install markitdown — `uvx markitdown-mcp --help` confirms it is fetchable; plain
+   >       `uvx markitdown-mcp` starts the server and waits, which looks like a hang — or
    >   (b) convert the paper manually and place the markdown at `.brain/input/paper.md`, or
    >   (c) if your host tool reads this format natively (Claude Code reads PDFs, for one), read it
    >       yourself, write the extracted text to `.brain/input/paper.md`, and re-run.

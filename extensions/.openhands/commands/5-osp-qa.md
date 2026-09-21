@@ -107,7 +107,9 @@ Drop `BLOCKED` and `NOTE` when there is nothing to put on them. Values:
 
 ## Re-run behavior
 
-Re-running overwrites `05_qa_<slug>.md` per criterion. To re-run only one criterion, pass its slug as an argument; the rest are skipped.
+Re-running overwrites `05_qa_<slug>.md` for every criterion it covers, and these files cost the most
+of anything here — one subagent call per pair. **Say what will be lost and wait for an answer before
+overwriting.** To redo a single criterion, pass its slug as an argument; the rest are left alone.
 
 ## Pitfalls
 

@@ -68,7 +68,8 @@ The server runs on stdio and stays open waiting for MCP protocol messages. If it
 `markitdown-mcp` is registered as `{"command": "uvx", "args": ["markitdown-mcp"]}`. Verify `uvx` works:
 ```bash
 uvx --version          # uv 0.4+ required
-uvx markitdown-mcp     # should fetch and start the package
+uvx markitdown-mcp --help   # should print usage. Without --help it starts the MCP
+                            # server and waits silently — that is not a hang, Ctrl-C it.
 ```
 If `uvx` is not installed:
 ```bash
@@ -116,38 +117,62 @@ Restart your AI tool afterwards. The server logs which databases are on at start
 
 ## Workflow issues
 
-### `/0-osp-onboarding` says it can't find the paper
+### `/0-osp-onboarding` cannot find the paper
 
-Run `/open-scholar-peer` — the orchestrator will detect you're at the onboarding step and ask you for the paper's path. You can provide any path; it will copy the file into `.brain/input/` for you.
+Tell it where the paper is — any path will do, and it copies the file into `.brain/input/` for you. It
+also looks in the project root on its own, so putting the paper beside `.brain/` is enough.
 
-### `/1-osp-summary` refuses with "binary format and markitdown unavailable"
+### `/1-osp-summary` stops with "binary format and markitdown unavailable"
 
-This is the hard input guard working correctly. Either:
-1. Install markitdown (see above).
-2. Provide a markdown version manually:
-   ```bash
-   markitdown paper.pdf > .brain/input/paper.md   # if you have it CLI-locally
-   ```
+Working as intended. A readable paper is the one input the protocol cannot work around, and this is one
+of only two places in OSP that stop. Either install markitdown (see above), or convert the paper
+yourself and save it as `.brain/input/paper.md`.
 
-### `/2-osp-literature` produces only 1-2 round files instead of 3
+### Fewer than three literature rounds
 
-The agent stopped early. Re-run `/2-osp-literature` — the structural file requirement (`02a/02b/02c_literature_round*.md`) is enforced, so missing files block consolidation. Check `.brain/raw/` to see how far it got.
+Normal, and probably your own choice. `/2-osp-literature` runs one round per invocation and asks after
+each whether to continue. Stopping at one or two completes the phase with a smaller corpus — the
+consolidated `02_retrieved_literature.md` is still written. Run `/2-osp-literature` again for the next
+round; it never repeats one you already have. Check `phases.literature.rounds_completed` in
+`.brain/session.json` to see where you stopped.
 
-### Q&A phase produces fewer than 10 pairs per criterion
+### Fewer than ten Q&A pairs per criterion
 
-The file template at `defaults/qa_pair_template.md` declares 10 placeholder slots. If the agent stopped early, re-run `/5-osp-qa`. On Mistral Vibe and OpenHands (self-reflection mode), pair generation is sequential and slower — be patient.
+Also normal. The default is **two**, and `/5-osp-qa` asks before it starts. The paper this implements
+used ten probing questions in total across a whole review, not ten per criterion. Your answer is stored
+in `session.json` as `qa_pairs_per_criterion`.
+
+On Mistral Vibe and OpenHands, pair generation runs in self-reflection mode — sequential and slower.
+
+### A phase ran but the result looks thin
+
+Check the closing block for a `BLOCKED` line: that means a search provider failed and nothing was
+searched, which is not the same as finding nothing. Check `NOTE` for phases you skipped. Both also
+appear in the artifact's `## Provenance`, and `/6-osp-review` collects them under
+`## What this review did not have`.
 
 ### `/open-scholar-peer` says "No `.brain/session.json`"
 
-Run the brain initializer:
+OSP is not initialised in this directory. Re-run the installer from here — it merges with your existing
+config rather than replacing it:
+
 ```bash
-bash scripts/init_brain.sh
+curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main/install.sh | bash
 ```
-This creates the v2 schema. Then re-run `/0-osp-onboarding`.
 
-### Re-ran `/1-osp-summary` and now my final review feels stale
+If `.brain/` exists but `session.json` does not, ask your agent to recreate it from the v2 schema in
+`docs/BRAIN_LAYOUT.md` and carry on.
 
-OSP does not auto-invalidate downstream artifacts (see `KNOWN_LIMITATIONS.md` §8). Re-run `/2-osp-literature` … `/6-osp-review` in order, or use `/open-scholar-peer` and follow its dispatcher.
+### Re-ran an early phase and the final review feels stale
+
+OSP does not invalidate downstream artifacts (`KNOWN_LIMITATIONS.md` §8). Re-run the phases after it in
+order, or run `/open-scholar-peer` and follow what it recommends.
+
+### I want to change which databases are searched
+
+Edit `OSP_SOURCES` in `.env` at your project root, then restart your agent. Remove the line entirely to
+enable every installed source. Pick by your paper's field, not by speed: Europe PMC for life sciences,
+arXiv for CS, physics and maths.
 
 ---
 

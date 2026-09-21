@@ -24,7 +24,8 @@ The Query Agent passes:
 2. **Criterion definition** (so you understand what dimension is being probed).
 3. **Relevant excerpts** from:
    - `01_structured_summary.md` (claims/method/evidence)
-   - `03_domain_narrative.md` (relevant eras and precedents)
+   - `03_domain_narrative.md` (relevant eras and precedents, the field's **open problems**, and
+     **what counts as significant here right now** — judge significance against that, not taste)
    - `04_missing_baselines.md` (relevant adversarial findings)
 4. **Available tools:** whichever retrieval tools this project installed, plus
    native web search. The set differs per project, so list what you have before
@@ -41,7 +42,10 @@ For each question:
 2. **Cross-check against external context** — the domain narrative, retrieved literature, missing baselines.
 3. **If the question depends on novelty or comparison to prior work, run a fresh search** to verify the claim is current (the literature corpus may not cover everything the question requires). An error record (`{"error": ..., "reason": ...}`) means the provider failed, **not** that no such work exists — say under Verification that the cross-check was blocked by `<reason>`, rather than letting a failed search confirm novelty.
 4. **If the question turns on what a specific paper actually says or reports, open that paper.** An abstract will not settle whether a cited work reports a particular number. Use a full-text reader if you have one. No id? A title-matching tool gives you `externalIds.ArXiv`. No route at all? Say the claim could not be checked, rather than checking the abstract and calling it done.
-5. **Flag discrepancies** with `[DISCREPANCY]` followed by a brief explanation. A discrepancy is any case where the paper's claim is contradicted, weakened, or pre-empted by external context.
+5. **An unchecked answer says so.** `Result: consistent` means you checked something and it held.
+   If the cross-check line carries no identifier, the result is `not verified`, never `consistent` —
+   an opinion recorded as a verified finding is the failure this whole phase exists to prevent.
+6. **Flag discrepancies** with `[DISCREPANCY]` followed by a brief explanation. A discrepancy is any case where the paper's claim is contradicted, weakened, or pre-empted by external context.
 
 ## Output format (subagent return value or post-marker turn)
 
@@ -51,8 +55,9 @@ For each question:
 
 **Verification:**
 - Self-answer based on `01_structured_summary.md`: <one line>
-- External cross-check: <which artifact, which new search, or which paper read
-  in full — give the arXiv id or PMCID and the section, if you read one>
+- External cross-check: <what you actually checked against. **Name an identifier** — a DOI, an
+  arXiv id, a PMCID, a URL, or a numbered row in `02_retrieved_literature.md` — and the section if
+  you read one. If you could not check it, write exactly `not verified: <reason>`.>
 - Result: <consistent | [DISCREPANCY]: <explanation>>
 
 **Citations:**

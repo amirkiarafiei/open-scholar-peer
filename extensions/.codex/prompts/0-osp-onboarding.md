@@ -29,22 +29,40 @@ This is phase **1 of 7** (`onboarding`); read the rail's state from `session.jso
 
 ### 1. Read session state
 
-- Read `.brain/session.json`. If missing, run `scripts/init_brain.sh` first or initialize a default per the v2 schema.
+- Read `.brain/session.json`. If it is missing, write it yourself from the v2 schema and carry on —
+  the installer's scripts are not kept in the user's project, so do not send them looking for one.
 - If `phases.onboarding.status == "completed"` and `qa_criteria` is non-empty, ask the user whether to re-run (which would overwrite `00_review_guidelines.md` and any pre-scaffolded `05_qa_*.md` files). If they decline, exit.
 
 ### 2. Locate the paper and ensure a readable text version
 
 - Check `.brain/input/` for a paper file. Common extensions: `.pdf`, `.md`, `.tex`, `.docx`.
-- If empty, ask the user where the paper is. Help them collaboratively — accept any path, then copy the file into `.brain/input/`.
+- If empty, look in the project root as well — the installer tells the user to put the paper there.
+  Ignore `README`, `AGENTS`, `CLAUDE` and similar. Show what you found and ask them to confirm.
+- Whenever the user points at a file, wherever it is, **copy it into `.brain/input/` yourself.** The
+  same applies to any supporting material they offer later. Never ask them to move a file by hand.
 - **Always produce `.brain/input/paper.md`** (the canonical readable form):
   - If the original is `.md`, ensure it's named `paper.md` (rename if necessary).
   - If the original is `.pdf` / `.docx` / `.tex`, attempt conversion with the `markitdown` MCP tool (`convert_to_markdown`). Save output to `.brain/input/paper.md`.
   - If `markitdown` is unavailable, **do not silently advance**. A readable paper is the one input the
     protocol cannot work around. Tell the user so, and offer two routes: (a) install markitdown
-    (`uvx markitdown-mcp`), or (b) hand over a markdown conversion of their own. Wait for one of them.
+    (`uvx markitdown-mcp --help` confirms it is fetchable), or (b) hand over a markdown conversion of
+    their own. Wait for one of them.
     This and the same guard in `/1-osp-summary` are the **only** two places in Open ScholarPeer that
     stop. Everything else recommends and carries on.
 - Save `paper.path` (original) and `paper.parsed_path` (the canonical `.brain/input/paper.md`) into `session.json`.
+
+### 2b. Record the paper's identifier and its cutoff date
+
+Two fields, asked together, in one short exchange. Both matter later, and neither can be recovered
+afterwards.
+
+- **`paper.id`** — a DOI, an arXiv id, or a URL; whichever the user has. Take one, do not ask for
+  several. If the paper has none — an unpublished manuscript under review is the normal case — write
+  `"unpublished"` and move on.
+- **`paper.cutoff_date`** (`YYYY-MM-DD`) — the date the paper was submitted. **Prior art is judged as of
+  this date.** Propose a default and let them correct it: the arXiv v1 date if you can see one,
+  otherwise today. Say in one line why it matters: *work published after this date was not available to
+  the authors, so it cannot count as a missing citation.*
 
 ### 3. Identify the venue
 

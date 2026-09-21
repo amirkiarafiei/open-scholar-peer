@@ -89,6 +89,7 @@ label is noise, and most blocks will have no `BLOCKED` or `NOTE` line at all.
 | `BLOCKED` | closing | one line per provider that failed, named, with the reason from the error record |
 | `NOTE` | closing | what the user chose that a later reader must know — a skipped phase, a round not run, a check that could not be made |
 | `NEXT` | closing | the recommended command first, alternatives indented under it |
+| `YOURS` | closing, `/6-osp-review` only | that the review is a draft the user owns, edits and signs. OSP does not submit reviews and does not decide |
 
 ## Rules
 

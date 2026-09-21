@@ -47,7 +47,7 @@ The MCP server reads the env var at startup. Add it to your shell profile to per
 **Workaround:** Install markitdown:
 ```bash
 pipx install uv          # if not already installed
-uvx markitdown-mcp       # smoke-test that the package is fetchable
+uvx markitdown-mcp --help   # fetchable? (without --help it starts the server and waits)
 ```
 or convert manually:
 ```bash

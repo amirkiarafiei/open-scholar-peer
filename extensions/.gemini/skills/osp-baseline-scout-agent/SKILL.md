@@ -120,7 +120,7 @@ Only when you opened the source and the numbers disagree. Leave empty otherwise.
 
 | # | Claim in the paper under review | What the source actually says | Where I checked |
 |---|---|---|---|
-| 1 | <quoted claim + the number> | <the number in the source> | <arXiv id / PMCID + section or table> |
+| 1 | <quoted claim + the number> | <the number in the source> | <DOI / arXiv id / PMCID + section or table> |
 
 ### Strong baselines that ARE present (for fairness)
 <Brief list — gives the Reviewer Agent fair grounds when writing strengths.>
@@ -149,6 +149,6 @@ After writing:
 
 - Do **not** read a tool error as "nothing found". An error record carries a `reason` — `blocked`, `rate_limited`, `busy`, `timeout`, `unavailable`. Only an empty list means the search really looked and found nothing. Say which you got.
 - Do **not** soften severity ratings to be polite. The paper's authors aren't reading this; the Reviewer Agent will calibrate tone.
-- Do **not** flag baselines that came out *after* the paper's stated cutoff date.
+- Do **not** flag baselines that came out *after* `paper.cutoff_date` in `session.json`. The authors could not have cited them. This is the difference between a strict review and an unfair one.
 - Do **not** flag baselines on different tasks — relevance must be precise.
 - Be specific. "Missing comparison to attention-based methods" is too vague. Name the method, the paper, the year.

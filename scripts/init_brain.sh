@@ -34,7 +34,7 @@ with open('$BRAIN_DIR/session.json', 'w') as f:
   "created_at": "$TIMESTAMP",
   "updated_at": "$TIMESTAMP",
   "venue": { "name": "", "year": "", "source_url": "", "criteria_source": "pending" },
-  "paper": { "title": "", "path": "", "parsed_path": "", "type": "" },
+  "paper": { "title": "", "path": "", "parsed_path": "", "type": "", "id": "", "cutoff_date": "" },
   "qa_criteria": [],
   "qa_pairs_per_criterion": 2,
   "_phase_status_values": ["pending", "in_progress", "completed", "skipped"],

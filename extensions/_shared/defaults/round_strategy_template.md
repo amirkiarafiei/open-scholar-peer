@@ -19,14 +19,14 @@
 - **Query formulation rules for this round:**
   - Round 1 (sub-domain-anchor): use the paper's stated sub-domain and primary keywords; aim for the canonical 10–20 most-cited works in this area.
   - Round 2 (method-anchor): switch to the proposed method's name and key technical terms; find prior or concurrent work using the *same technique*.
-  - Round 3 (temporal-expansion): filter to the last 12 months; explicitly include arXiv pre-prints, workshop papers, and concurrent submissions; goal is catching what static knowledge cutoffs miss.
+  - Round 3 (temporal-expansion): the 12 months **before `paper.cutoff_date`**; explicitly include pre-prints, workshop papers, and concurrent submissions; goal is catching what static knowledge cutoffs miss.
 - **Retention criteria:** keep papers that are (a) directly comparable on task or method, (b) cited >5 times if older than 12 months, (c) any pre-print regardless of citations if from the last 6 months and topically relevant.
 
 ## Output
 
-| # | Title | Authors | Year | Venue | Source(s) | Why kept |
-|---|---|---|---|---|---|---|
-| 1 | <title> | <authors> | <year> | <venue> | <source>,<source> | <one-line justification> |
+| # | ID | Title | Authors | Year | Venue | Source(s) | Why kept |
+|---|---|---|---|---|---|---|---|
+| 1 | <DOI, arXiv id or URL> | <title> | <authors> | <year> | <venue> | <source>,<source> | <one-line justification> |
 | 2 | ... | ... | ... | ... | ... | ... |
 
 ### Notes on what was excluded

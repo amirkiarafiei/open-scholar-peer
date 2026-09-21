@@ -13,7 +13,9 @@
     "title": "",
     "path": "",
     "parsed_path": "",
-    "type": ""
+    "type": "",
+    "id": "",
+    "cutoff_date": ""
   },
   "qa_criteria": [],
   "qa_pairs_per_criterion": 2,

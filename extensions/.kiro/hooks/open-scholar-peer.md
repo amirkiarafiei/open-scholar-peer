@@ -14,7 +14,11 @@ Invoke the `osp-orchestrator` skill.
 
 ## Steps
 
-1. **Read `.brain/session.json`.** If missing, the user has not initialized OSP in this project. Tell them to run the installer (`bash install.sh`) or, if `.brain/` is just missing, `bash scripts/init_brain.sh`.
+1. **Read `.brain/session.json`.** If it is missing, OSP is not initialised here. Two cases, and
+   neither should send the user hunting for a script that is not in their project:
+   - `.brain/` is absent as well — have them re-run the installer from this directory; it merges with
+     their existing config rather than replacing it.
+   - `.brain/` exists but the file does not — write it from the v2 schema yourself, then carry on.
 
 2. **Print the status block** defined in `defaults/phase_block_template.md`, labelled
    `OPEN SCHOLARPEER`. The rail is the whole point here — it answers "where am I" with no words.

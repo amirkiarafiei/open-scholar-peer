@@ -64,6 +64,8 @@ Drop `BLOCKED` and `NOTE` when there is nothing to put on them. Values:
       DONE     decision: <from the reviewer's scale>
                .brain/review/final_review.md
       NOTE     <what the review did not have, or omit this line>
+      YOURS    a draft. Cut what you disagree with, check the
+               citations. Your name is on it, not ours.
       NEXT     re-run any phase, then /6-osp-review again
 
 

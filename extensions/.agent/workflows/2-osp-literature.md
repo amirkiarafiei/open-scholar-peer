@@ -93,5 +93,8 @@ holds the rail, the rules and the widths, and is the only place they are written
 
 ## Re-run behavior
 
-Calling `/2-osp-literature` when a round is already complete will re-run that same round.
+Each invocation runs the **next** round that has not run — step 1 computes it from
+`rounds_completed`. Calling it again after round 2 gives you round 3, and never overwrites a round you
+already have. To redo a particular round, delete its file (`02a`, `02b` or `02c`) first; step 1 then
+resumes from there.
 Warn once before overwriting its file, then proceed.

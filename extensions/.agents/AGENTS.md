@@ -51,6 +51,25 @@ as they go, so orient them every time, including on a re-run.
 - Reports describe what was done — they are not raw transcripts of tool calls.
 - Citations must trace back to retrieved literature; do not invent them.
 
+**Write in plain academic English.** Clarity is not a stylistic preference in research; a reviewer's
+comment has to mean one thing to an author anywhere in the world. Prefer the shorter word and the
+direct sentence. Define a term the first time a file uses it. Keep the field's vocabulary — it carries
+meaning — and drop everything that does not: no buzzwords, no marketing register, no hedging that
+conceals what you actually found. This applies to the artifacts and to what you say on screen.
+
+**Assume the user has not read what you wrote.** They see your messages; they have almost never opened
+the files in `.brain/`. So whenever you name an artifact, a phase or a finding, say in the same breath
+what it is and why it matters. "The historian placed the paper in era 3" tells them nothing. "Your
+paper sits in the current era, alongside the three 2025 works it competes with" tells them something.
+Give the background, once, and then get to the point.
+
+**Retrieval is what makes this a grounded review, so be transparent about it.** Searching live sources
+is what separates this from a model answering out of memory. Native web search and at least one
+literature database should be available, and you should say so plainly when they are not — name what
+is missing and what it costs this phase. **Then carry on if the user wants to.** Retrieval is required
+for a strong review, not required to proceed: the user decides, and the artifact records what they
+decided.
+
 ## File references in user-facing output
 
 - When mentioning a `.brain/` artifact in a report or reply, use the vendor-provided native file reference format for your tool:

@@ -37,12 +37,17 @@ one file for each round you actually run, before starting the next. That is what
 |---|---|---|---|
 | 1 | `02a_literature_round1.md` | `sub-domain-anchor` | Search using the paper's stated sub-domain and primary keywords. Locate the established prior art. |
 | 2 | `02b_literature_round2.md` | `method-anchor` | Switch to the proposed method's name and key technical terms. Find prior or concurrent work using the same technique. |
-| 3 | `02c_literature_round3.md` | `temporal-expansion` | Filter to last 12 months. Explicitly include arXiv pre-prints, workshop papers, concurrent submissions. Catch what static knowledge cutoffs miss. |
+| 3 | `02c_literature_round3.md` | `temporal-expansion` | The 12 months **before `paper.cutoff_date`**. Explicitly include pre-prints, workshop papers, concurrent submissions. Catch what static knowledge cutoffs miss. |
 
 After the last round the user chooses to run, write `02_retrieved_literature.md` consolidating retained
 papers (deduplicated), and record how many rounds it came from.
 
 ## Sources
+
+**Prior art is judged as of `paper.cutoff_date` in `session.json`.** Bound every search at that date —
+the tools take it (`date_to`, `to_year`, `publication_date_or_year="…:<cutoff>"`). Work published after
+it was not available to the authors and is not a missing citation. If the field is empty, say so in
+Provenance and use today, rather than stopping.
 
 **List the retrieval tools you actually have, before each round.** The user picks
 which databases get installed, so the set differs per project — nothing here
@@ -81,6 +86,11 @@ A code-and-data repository search — Zenodo, if this project has it — is **no
 literature tool. It finds software and datasets, not papers, and using it in a
 round pollutes the corpus. It belongs to the Baseline Scout.
 
+**Every retained paper needs an ID** — a DOI, an arXiv id, or a URL; one is enough, whichever the
+source gave you. An ID is what lets a reader check the corpus, and what separates a paper you
+retrieved from one you remembered. If a hit arrives with no identifier at all, keep it only if it
+matters, and write `no id` in the column so the gap is visible rather than invisible.
+
 Relying on only one source biases the corpus. A paper that ranks low in one index may be the top result in another.
 
 ## File templates
@@ -105,9 +115,9 @@ Use `extensions/_shared/defaults/round_strategy_template.md` (or its synced equi
 
 ## Output
 
-| # | Title | Authors | Year | Venue | Found in round(s) | Source(s) | One-line relevance |
-|---|---|---|---|---|---|---|---|
-| 1 | ... | ... | ... | ... | 1, 3 | <source>, <source> | ... |
+| # | ID | Title | Authors | Year | Venue | Found in round(s) | Source(s) | One-line relevance |
+|---|---|---|---|---|---|---|---|---|
+| 1 | <DOI, arXiv id or URL> | ... | ... | ... | ... | 1, 3 | <source>, <source> | ... |
 | ... |
 
 ## Provenance
