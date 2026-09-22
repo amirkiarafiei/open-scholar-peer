@@ -1178,11 +1178,10 @@ def test_independent_review_regressions() -> None:
                issubclass(ax.ArxivNotFound, ax.ArxivFullTextError))
 
     # --- every failure type maps to the right reason ----------------------
-    import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        "osp_probe_err", REPO_ROOT / "mcp-server" / "osp_mcp.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    # Imported from core, not from the MCP server. The error contract belongs
+    # to the search layer, not to one of its two transports, and reaching it
+    # through `osp_mcp` would test it behind the `mcp` import it must survive.
+    import core as mod
 
     expected = [
         (oa.OpenAlexRateLimited("x"), "rate_limited"),
@@ -1210,6 +1209,42 @@ def test_independent_review_regressions() -> None:
               "bad_request")
     except ImportError:
         pass
+
+    # --- the reason table names classes that exist ------------------------
+    # _err matches exception class names along the MRO so that reporting a
+    # failure never requires importing the six providers — a broken dependency
+    # must not be able to break the report of itself. The cost of that is a
+    # rename could silently downgrade a reason to "failed", and quiet is the
+    # failure mode this layer exists to remove. So: every name in the table
+    # resolves to a real class, and no two providers export the same name.
+    from providers import semantic_scholar as _ss
+    _provider_excs: dict[str, list[str]] = {}
+    for _m in (ax, _ss, gs, ep, zn, oa):
+        for _n in dir(_m):
+            _o = getattr(_m, _n)
+            # A leading underscore marks internal control flow, not a
+            # failure type. europe_pmc._EntityDeclared is raised and caught
+            # inside one function and never reaches _err.
+            if (isinstance(_o, type) and issubclass(_o, BaseException)
+                    and _o.__module__.startswith("providers")
+                    and not _n.startswith("_")):
+                _provider_excs.setdefault(_n, []).append(_m.__name__)
+
+    _builtin_keys = {"TimeoutError", "ValueError",
+                     "ObjectNotFoundException", "BadQueryParametersException"}
+    _orphans = sorted(k for k in mod._REASON_BY_EXCEPTION
+                      if k not in _provider_excs and k not in _builtin_keys)
+    check("every name in _REASON_BY_EXCEPTION resolves to a real class",
+          _orphans, [])
+    check("no two providers export the same exception name",
+          sorted(n for n, m in _provider_excs.items() if len(m) > 1), [])
+
+    # Every provider exception maps to something better than "failed". A new
+    # one that nobody mapped reaches the agent as a bare failure, which is
+    # true but useless — it cannot tell a block from a bad argument.
+    _unmapped = sorted(n for n in _provider_excs
+                       if n not in mod._REASON_BY_EXCEPTION)
+    check("every provider exception has a reason", _unmapped, [])
 
     # A missing profile must NOT be reported as the provider being down.
     check_false("a missing profile is not an outage",

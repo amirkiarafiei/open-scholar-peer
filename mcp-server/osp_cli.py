@@ -48,8 +48,6 @@ project has spent a milestone removing.
 from __future__ import annotations
 
 import argparse
-import asyncio
-import inspect
 import json
 import sys
 from pathlib import Path
@@ -60,7 +58,16 @@ from typing import Any
 # shell happened to be when it ran us.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import osp_mcp  # noqa: E402  (deliberately after the path fix)
+# `core` is imported inside main(), not here. An ImportError at module level
+# escapes before the guard at the bottom of this file is in place, and the
+# process then exits 1 with ZERO bytes on stdout — while the contract this file
+# advertises says exit 1 means "read the `reason`". Measured: a broken `mcp`,
+# `arxiv` or interpreter each produced exactly that. Importing inside main()
+# puts every failure inside the guard, so it arrives as JSON.
+#
+# `mcp` is deliberately NOT imported at all. This program is the fallback for
+# when MCP is unavailable; it must not fail with the thing it replaces.
+core: Any = None
 
 
 def _envelope(message: str, reason: str) -> dict[str, str]:
@@ -74,33 +81,32 @@ def _emit(payload: Any) -> None:
 
 
 def _registered() -> dict[str, Any]:
-    """The tools the MCP server is actually serving, name -> Tool."""
-    return {t.name: t for t in asyncio.run(osp_mcp.mcp.list_tools())}
+    """The tools this project is serving, name -> core.Tool.
+
+    Read from `core`, not from the MCP server. The set is the same — both
+    surfaces gate on the same OSP_SOURCES — but reading it here through FastMCP
+    would mean the command-line fallback could not answer whenever `mcp` was
+    broken, which is the situation it exists for.
+    """
+    return core.enabled_tools()
 
 
 def _is_gated_off(name: str) -> bool:
     """True when `name` is a real tool that this project switched off.
 
-    Derived, not listed. `tool_for` leaves a disabled tool's function in the
-    module and simply never registers it, so "present but unregistered" is
-    precisely the set turned off by OSP_SOURCES — no second table to maintain.
-
-    The two exclusions matter. A private helper like `_run` is an async
-    function in this module but not a tool, and reporting it as "a database
-    you switched off" would send someone editing `.env` over a typo. And a
-    coroutine imported from elsewhere is not ours to describe at all.
+    Registry membership, not module identity. The version this replaces
+    compared `fn.__module__` against the importing module's name, which worked
+    only while the tools lived in the server file. Once they moved to `core`
+    every tool reported `core`, so the predicate returned False for all of
+    them and "this database is switched off — edit OSP_SOURCES" silently
+    became "no tool named X", sending a user to hunt a typo. Both exit 2, so
+    nothing that checked only the exit code would have noticed.
     """
-    if name.startswith("_"):
-        return False
-    fn = getattr(osp_mcp, name, None)
-    return (
-        inspect.iscoroutinefunction(fn)
-        and getattr(fn, "__module__", None) == osp_mcp.__name__
-    )
+    return core.is_gated_off(name)
 
 
-def _required(tool: Any) -> list[str]:
-    return list(tool.inputSchema.get("required", []))
+def _required(spec: Any) -> list[str]:
+    return core.required_args(spec.fn)
 
 
 def _is_error(result: Any) -> bool:
@@ -109,7 +115,7 @@ def _is_error(result: Any) -> bool:
     This is the whole contract, so it is worth being exact. A *search* tool
     declares `list[dict]` and therefore returns its failure as `[_err(...)]` —
     a one-element list — while a lookup tool declares `dict` and returns
-    `_err(...)` bare. Measured in `osp_mcp.py`: 14 of the 22 tools take the
+    `_err(...)` bare. Measured in `core.py`: 14 of the 22 tools take the
     list form, and they are precisely the search tools an agent calls most.
 
     Inspecting only the dict form made every one of those 14 exit 0, which is
@@ -134,9 +140,9 @@ def cmd_list(as_json: bool) -> int:
         _emit([
             {
                 "name": name,
-                "description": (t.description or "").strip(),
+                "description": (t.doc or "").strip(),
                 "required": _required(t),
-                "input_schema": t.inputSchema,
+                "input_schema": core.input_schema(t.fn),
             }
             for name, t in sorted(tools.items())
         ])
@@ -146,7 +152,7 @@ def cmd_list(as_json: bool) -> int:
     print("Call one with:  osp_cli.py call <tool> '<json arguments>'")
     print()
     for name, t in sorted(tools.items()):
-        summary = (t.description or "").strip().splitlines()
+        summary = (t.doc or "").strip().splitlines()
         first = summary[0] if summary else ""
         req = ", ".join(_required(t)) or "no required arguments"
         print(f"  {name}")
@@ -161,7 +167,7 @@ def cmd_schema(name: str) -> int:
     tools = _registered()
     if name not in tools:
         return _reject_unknown(name, tools)
-    _emit(tools[name].inputSchema)
+    _emit(core.input_schema(tools[name].fn))
     return 0
 
 
@@ -239,7 +245,9 @@ def cmd_call(name: str, raw_args: str | None) -> int:
         ))
         return 2
 
-    fn = getattr(osp_mcp, name)
+    fn = tools[name].fn
+    import asyncio  # 37 ms, and `list` and `schema` never reach this line
+
     try:
         result = asyncio.run(fn(**kwargs))
     except TypeError as exc:
@@ -251,7 +259,7 @@ def cmd_call(name: str, raw_args: str | None) -> int:
         ))
         return 2
     except Exception as exc:  # noqa: BLE001 — mirror the server's own catch-all
-        _emit(osp_mcp._err(name, exc))
+        _emit(core._err(name, exc))
         return 1
 
     _emit(result)
@@ -278,6 +286,11 @@ class _JsonArgumentParser(argparse.ArgumentParser):
 
 
 def main() -> int:
+    global core
+    import core as _core  # inside the guard: an ImportError still prints JSON
+
+    core = _core
+
     parser = _JsonArgumentParser(
         prog="osp_cli.py",
         description="Open ScholarPeer search tools over the command line, "
