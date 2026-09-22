@@ -168,6 +168,22 @@ if _MODE and _MCP_DIR:
         _ax.search = _slim
         _gs.search = _blocked
 
+    elif _MODE == "warned":
+        # A papers_batch result that ends with the record naming which ids did
+        # not resolve, plus enough papers that the cap has to cut.
+        import providers.semantic_scholar as _ss
+
+        def _warned(paper_ids, **k):
+            out = [{"paperId": f"{i:040x}", "title": "T" * 70,
+                    "abstract": "a" * 800} for i in range(60)]
+            # Deliberately not tiny: a small record slips past a greedy fill
+            # by luck, and a test that passes on luck proves nothing.
+            out.append({"warning": "40 of 100 ids did not resolve",
+                        "unresolved": [f"missing-id-{i:040x}" for i in range(40)]})
+            return out
+
+        _ss.get_papers_batch = _warned
+
     elif _MODE == "blocked_provider":
         import providers.google_scholar as _gs
 

@@ -461,6 +461,58 @@ def test_a_batch_never_drops_a_failure() -> None:
               [i["tool"] for i in items], [c["tool"] for c in calls])
 
 
+def test_stdout_that_cannot_be_written() -> None:
+    """A dead stdout must still produce a reason somewhere, and never exit 0.
+
+    The interface promises that exit 1 means "read the reason". A write that
+    failed for any reason other than a broken pipe used to exit 1 having
+    discarded everything json.dump had buffered — zero bytes on both streams,
+    which is the state this file's own comment says was removed. `list` and
+    `schema` reached it by a second door, flushing at interpreter shutdown,
+    where the failure surfaces as "Exception ignored in: <_io.TextIOWrapper>"
+    and exit 120.
+    """
+    import subprocess as sp
+
+    env = dict(os.environ)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env.pop("OSP_SOURCES", None)
+    for label, redirect in (("a full disk", ">/dev/full"),
+                            ("a closed descriptor", ">&-")):
+        for cmd in ("list --json", "schema search_arxiv"):
+            proc = sp.run(["bash", "-c", f"'{PY}' '{CLI}' {cmd} {redirect}"],
+                          capture_output=True, text=True, env=env, timeout=60)
+            check(f"{cmd} with {label}: exits 1, not 0 and not 120",
+                  proc.returncode, 1)
+            check_true(f"{cmd} with {label}: says why on stderr",
+                       proc.stderr.strip().startswith("{"))
+            check_true(f"{cmd} with {label}: no traceback",
+                       "Traceback" not in proc.stderr)
+            try:
+                reason = json.loads(proc.stderr.strip().splitlines()[0]).get("reason")
+            except Exception:  # noqa: BLE001
+                reason = None
+            check(f"{cmd} with {label}: the reason is machine-readable",
+                  reason, "failed")
+
+
+def test_a_warning_is_never_cut_away() -> None:
+    """A record naming what did NOT resolve must survive the cut.
+
+    `get_semantic_scholar_papers_batch` appends one, under a comment saying
+    why: silently returning 47 records for 50 ids hides which three failed.
+    It is not an error envelope, so the rule that protects failures did not
+    cover it, and it survived only by being small enough to slip in.
+    """
+    r = run(["call", "get_semantic_scholar_papers_batch",
+             json.dumps({"paper_ids": ["x"]})], mode="warned")
+    doc = r.json or []
+    check_true("the result was cut", any(
+        isinstance(i, dict) and i.get("osp_truncated") for i in doc))
+    warnings = [i for i in doc if isinstance(i, dict) and "warning" in i]
+    check("the warning naming unresolved ids survives the cut", len(warnings), 1)
+
+
 def test_one_document_and_clean_streams() -> None:
     """Exactly one JSON document on stdout, and `2>&1` still parses."""
     for args, mode in ((["list", "--json"], ""),
@@ -585,6 +637,8 @@ TESTS = [
     ("the cap actually caps", test_the_cap_actually_caps),
     ("batch is not a worse deal", test_batch_returns_what_separate_calls_would),
     ("a batch never drops a failure", test_a_batch_never_drops_a_failure),
+    ("stdout that cannot be written", test_stdout_that_cannot_be_written),
+    ("a warning is never cut away", test_a_warning_is_never_cut_away),
     ("one document, clean streams", test_one_document_and_clean_streams),
     ("blocked imports", test_blocked_imports),
     ("batch", test_batch),

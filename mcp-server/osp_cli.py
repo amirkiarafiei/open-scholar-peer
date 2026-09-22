@@ -165,7 +165,7 @@ def _cap(payload: Any, max_bytes: int = None) -> Any:
         # to make room turns "the provider refused us" into "this was too big"
         # — losing the distinction the whole layer exists to protect.
         #
-        # `_holds_failure` looks one level down as well, because in a batch the
+        # `_must_survive` looks one level down as well, because in a batch the
         # envelope is nested under "result" and a top-level-only test missed
         # it: at eighteen calls the dropped items were the tail, the blocked
         # provider was in the tail, and the response came back as exit 1 with a
@@ -176,7 +176,7 @@ def _cap(payload: Any, max_bytes: int = None) -> Any:
         # a batch promises results in the order the calls were sent.
         chosen: dict[int, Any] = {}
         for idx, item in enumerate(payload):
-            if _holds_failure(item):
+            if _must_survive(item):
                 chosen[idx] = _shrink_failure(
                     item, limit - _size(list(chosen.values())) - 400)
         for idx, item in enumerate(payload):
@@ -277,11 +277,23 @@ def _cap(payload: Any, max_bytes: int = None) -> Any:
     return _marker(0, 0, "opaque")
 
 
-def _holds_failure(item: Any) -> bool:
-    """Is this an error envelope, or a batch item carrying one?"""
+def _must_survive(item: Any) -> bool:
+    """Should this element be kept even when the result has to be cut?
+
+    Failures, and anything else whose absence would be read as its opposite.
+
+    A `warning` record is not a failure but qualifies for the same reason:
+    `get_semantic_scholar_papers_batch` appends one naming the ids that did not
+    resolve, under a comment saying exactly why — *"Silently returning 47
+    records for 50 ids hides which three failed."* Dropping it to save space
+    puts the silence back. It survived in testing only because it happens to be
+    small, which is luck rather than a guarantee.
+    """
     if not isinstance(item, dict):
         return False
     if "error" in item and "reason" in item:
+        return True
+    if "warning" in item:
         return True
     if item.get("ok") is False:
         return True
@@ -289,7 +301,7 @@ def _holds_failure(item: Any) -> bool:
 
 
 def _shrink_failure(item: dict[str, Any], room: int) -> dict[str, Any]:
-    """Make a failure fit by shortening its message, never by dropping it."""
+    """Make a must-keep record fit by shortening it, never by dropping it."""
     if _size(item) <= max(room, 0):
         return item
     out = dict(item)
@@ -649,8 +661,25 @@ def _emit_and_exit(result: Any, code: int | None = None) -> None:
         sys.stdout.flush()
     except BrokenPipeError:
         os._exit(1)  # nobody is reading; there is nowhere to report to
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
+        # Any OTHER write failure — a full disk, a closed descriptor — used to
+        # exit 1 having discarded whatever json.dump had buffered. That is the
+        # zero-bytes-with-exit-1 state this file's own comment says was
+        # removed, so it cannot be allowed back in through the error path.
         code = 1
+        try:
+            sys.stdout.flush()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            # stdout is unusable; stderr is the only place left to say so, and
+            # a reason on stderr beats nothing anywhere.
+            json.dump(_envelope(
+                f"the result could not be written to standard output: {exc}",
+                "failed"), sys.stderr)
+            sys.stderr.write("\n")
+        except Exception:  # noqa: BLE001
+            pass
     try:
         sys.stderr.flush()
     except Exception:  # noqa: BLE001
@@ -957,10 +986,42 @@ def main() -> int:
     return 2
 
 
+def _finish(code: int) -> None:
+    """Flush, report a failed flush, and leave. Never returns.
+
+    `list` and `schema` return through main() rather than through
+    _emit_and_exit, so without this their output was flushed by the
+    interpreter at shutdown — where a failure becomes "Exception ignored in:
+    <_io.TextIOWrapper>" on stderr and an exit code of 120, with the JSON
+    silently discarded. Same defect as the one _emit_and_exit handles, reached
+    by the other door.
+    """
+    import os
+
+    try:
+        sys.stdout.flush()
+    except Exception as exc:  # noqa: BLE001
+        code = 1
+        try:
+            json.dump(_envelope(
+                f"the result could not be written to standard output: {exc}",
+                "failed"), sys.stderr)
+            sys.stderr.write("\n")
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        sys.stderr.flush()
+    except Exception:  # noqa: BLE001
+        pass
+    os._exit(code)
+
+
 if __name__ == "__main__":
+    import os
+
     try:
         _configure_io()
-        sys.exit(main())
+        _finish(main())
     except SystemExit:
         raise
     except KeyboardInterrupt:
@@ -971,5 +1032,24 @@ if __name__ == "__main__":
         # start-up — still leaves JSON on stdout. A traceback here would be
         # read by an agent as a malformed result rather than a failure it can
         # branch on, which is the one thing this interface must never do.
-        _emit(_envelope(f"{type(exc).__name__}: {exc}", "failed"))
-        sys.exit(1)
+        #
+        # And the report itself can fail: if stdout is what broke, _emit raises
+        # here too and the traceback escapes after all. So the last resort has
+        # a last resort.
+        try:
+            _emit(_envelope(f"{type(exc).__name__}: {exc}", "failed"))
+        except Exception:  # noqa: BLE001
+            try:
+                json.dump(_envelope(f"{type(exc).__name__}: {exc}", "failed"),
+                          sys.stderr)
+                sys.stderr.write("\n")
+            except Exception:  # noqa: BLE001
+                pass
+            # Already reported on stderr; _finish would say the same thing a
+            # second time.
+            try:
+                sys.stderr.flush()
+            except Exception:  # noqa: BLE001
+                pass
+            os._exit(1)
+        _finish(1)

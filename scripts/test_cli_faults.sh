@@ -112,7 +112,7 @@ run_fault "UTF-8 reconfiguration is dropped" mcp-server/osp_cli.py \
 #     suite green, which is the point of having two.
 run_fault "a failure that does not fit exits 0" mcp-server/osp_cli.py \
   's/_emit_and_exit(_cap(result), code=1 if _is_error(result) else 0)/_emit_and_exit(_cap(result))/;
-   s/^            if _holds_failure(item):$/            if False:/' \
+   s/^            if _must_survive(item):$/            if False:/' \
   "survives the cap"
 
 # 11. A shortened full-text window stops correcting its own paging contract,
@@ -123,7 +123,7 @@ run_fault "a cut document stops correcting next_offset" mcp-server/osp_cli.py \
 
 # 12. The cap stops protecting error envelopes from being dropped.
 run_fault "the cap drops error envelopes again" mcp-server/osp_cli.py \
-  's/^            if _holds_failure(item):$/            if False:/' \
+  's/^            if _must_survive(item):$/            if False:/' \
   "survives the cap"
 
 # 13. The batch budget goes back to being divided, so the recommended path
@@ -146,9 +146,20 @@ run_fault "the cap only shrinks strings again" mcp-server/osp_cli.py \
 # enough, so this disables both.
 run_fault "a batch item's failure stops being protected" mcp-server/osp_cli.py \
   's/^    if item.get("ok") is False:$/    if False:/;
-   s/^        return _is_error(item.get("result")) if "result" in item else False$/        return False/;
+   s/^    return _is_error(item.get("result")) if "result" in item else False$/    return False/;
    s/whole = (MAX_BYTES \* len(plans) \* 2 + 8192) if MAX_BYTES > 0 else 0/whole = (MAX_BYTES * len(plans)) if MAX_BYTES > 0 else 0/' \
   "never drops a failure"
+
+# 16. A warning naming what did not resolve stops being protected from the cut.
+run_fault "a warning record stops being protected" mcp-server/osp_cli.py \
+  's/^    if "warning" in item:$/    if False:/' "never cut away"
+
+# 17. A write failure other than a broken pipe goes back to discarding the
+#     buffer, which is zero bytes with exit 1 — the state this file says it
+#     removed.
+run_fault "a failed write reports nothing at all" mcp-server/osp_cli.py \
+  's/^            json.dump(_envelope($/            raise SystemExit(1) or json.dump(_envelope(/' \
+  "cannot be written"
 
 echo
 # The point of the copy: prove the tracked tree was never written to at all.
