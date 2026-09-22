@@ -62,7 +62,13 @@ cp -r "$SOURCE_DIR/." "$TARGET_DIR/"
 # Do not ship this machine's bytecode. It is stale the moment it is copied, it
 # is not ours to put in someone's project, and it grows every time a file is
 # added to mcp-server/.
-find "$TARGET_DIR" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+#
+# -maxdepth 2 on purpose. The venv lives INSIDE $TARGET_DIR and is deliberately
+# preserved by the wipe above; an unbounded find walks straight into it and
+# deletes site-packages' bytecode too — measured at 348 directories and 2,945
+# .pyc files on a normal install, on every re-install, for nothing.
+find "$TARGET_DIR" -maxdepth 2 -name '__pycache__' -type d -not -path "$TARGET_DIR/.venv/*" \
+  -prune -exec rm -rf {} + 2>/dev/null || true
 echo -e "  ${GREEN}✅ MCP server copied → .open-scholar-peer/mcp/${NC}"
 
 # Set up venv
@@ -259,21 +265,54 @@ export OSP_SEARCH_CLI="$TARGET_DIR/osp_cli.py"
 #
 # This file is sourced by all 21 installers, so one check here serves all of
 # them, and it runs before each tool's MCP wiring — so a broken venv is
-# reported before the tool-specific output that would bury it.
+# reported before the tool-specific output that would bury it. The guard makes
+# it run once even when the user installs for several tools in one pass.
 #
-# `list` is the right probe: no network, but it exercises the venv, the
-# interpreter, core.py, the providers package and the OSP_SOURCES gating. It is
-# also the first thing an agent runs.
+# THREE probes, because one is not enough and it took a reviewer to notice:
+#
+#   1. `osp_cli.py list` — the CLI surface and the OSP_SOURCES gating. On its
+#      own this is a weak check: providers are imported lazily, so `list`
+#      answers "22 tools" happily on an interpreter where arxiv, requests, bs4
+#      and semanticscholar are all missing. It proves the registry, not the
+#      install.
+#   2. the real dependency imports — what `list` does not touch.
+#   3. `osp_mcp.py` — which needs the `mcp` package, and is the DEFAULT
+#      interface for 20 of the 21 tools. Checking only the fallback and calling
+#      the install verified was exactly backwards.
 #
 # Not fatal. A user with a working editor and a broken venv should still get
 # their prompts installed, and be told exactly what to run to see the error.
-if "$OSP_MCP_PYTHON" "$OSP_SEARCH_CLI" list >/dev/null 2>&1; then
-  _osp_tools="$("$OSP_MCP_PYTHON" "$OSP_SEARCH_CLI" list --json 2>/dev/null \
-    | grep -c '"name"' || true)"
-  echo -e "  ${GREEN}✅ Search layer answers — ${_osp_tools:-?} tools, verified by running it${NC}"
-  unset _osp_tools
-else
-  echo -e "  ${YELLOW}⚠️  The search layer did not run. Your prompts are installed,"
-  echo -e "      but searches will fail. Run this to see why:${NC}"
-  echo "         $OSP_MCP_PYTHON $OSP_SEARCH_CLI list"
+if [ -z "${OSP_RUNTIME_VERIFIED:-}" ]; then
+  export OSP_RUNTIME_VERIFIED=1
+  _osp_why=""
+  if ! "$OSP_MCP_PYTHON" "$OSP_SEARCH_CLI" list >/dev/null 2>&1; then
+    _osp_why="the command-line search tools did not run"
+  elif ! "$OSP_MCP_PYTHON" -c "
+import sys
+sys.path.insert(0, '$TARGET_DIR')
+import core, sys as _s
+broken = core.warm_providers()          # actually import every enabled provider
+_s.exit(1 if broken else 0)
+" >/dev/null 2>&1; then
+    _osp_why="a search provider could not be imported — a dependency is missing"
+  elif ! "$OSP_MCP_PYTHON" -c "
+import sys
+sys.path.insert(0, '$TARGET_DIR')
+import osp_mcp                 # needs the mcp package; the default interface
+" >/dev/null 2>&1; then
+    _osp_why="the MCP server could not start — the 'mcp' package is missing"
+  fi
+
+  if [ -z "$_osp_why" ]; then
+    _osp_tools="$("$OSP_MCP_PYTHON" "$OSP_SEARCH_CLI" list --json 2>/dev/null \
+      | grep -c '"name"' || true)"
+    echo -e "  ${GREEN}✅ Search layer verified — ${_osp_tools:-?} tools, both interfaces${NC}"
+    unset _osp_tools
+  else
+    echo -e "  ${YELLOW}⚠️  Search layer problem: ${_osp_why}."
+    echo -e "      Your prompts are installed, but searches will fail. To see why:${NC}"
+    echo "         $OSP_MCP_PYTHON $OSP_SEARCH_CLI list"
+    echo "         $OSP_MCP_PYTHON $OSP_MCP_SERVER"
+  fi
+  unset _osp_why
 fi

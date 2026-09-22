@@ -89,7 +89,7 @@ zenodo_provider = _lazy("providers.zenodo")
 openalex_provider = _lazy("providers.openalex")
 
 
-def warm_providers(sources: set[str] | None = None) -> None:
+def warm_providers(sources: set[str] | None = None) -> dict[str, str]:
     """Import every enabled provider now, instead of on first call.
 
     `importlib.util.LazyLoader` swaps a module's `__class__` on first attribute
@@ -101,6 +101,11 @@ def warm_providers(sources: set[str] | None = None) -> None:
     start-up; and `osp_cli.py batch`, which dispatches a whole round together.
     A single `osp_cli.py call` does NOT warm: one call cannot race itself, and
     start cost is the thing that path is saving.
+
+    Returns the sources that could not be imported, mapped to why. Empty means
+    every enabled provider is genuinely loadable — which is what the installer
+    checks, because `list` alone answers happily on an interpreter that has
+    none of the dependencies installed.
     """
     by_source = {
         "arxiv": arxiv_provider, "semantic_scholar": ss_provider,
@@ -108,15 +113,21 @@ def warm_providers(sources: set[str] | None = None) -> None:
         "zenodo": zenodo_provider, "openalex": openalex_provider,
     }
     wanted = sources if sources is not None else enabled_sources()
+    broken: dict[str, str] = {}
     for source in wanted:
         mod = by_source.get(source)
         if mod is not None:
             try:
                 getattr(mod, "__name__", None)  # forces the exec
-            except Exception:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
                 # A provider whose import is broken must not stop the others
-                # from warming. The call against it will report the reason.
-                pass
+                # from warming — the call against it reports its own reason.
+                # But the failure is RETURNED rather than swallowed, because
+                # the installer uses this to decide whether the install is
+                # sound, and a warm-up that reports nothing cannot tell a
+                # working venv from an empty one.
+                broken[source] = f"{type(exc).__name__}: {exc}"
+    return broken
 
 
 # ---------- The error envelope ---------------------------------------------

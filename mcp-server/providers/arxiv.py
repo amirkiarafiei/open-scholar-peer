@@ -10,6 +10,7 @@ return almost nothing.
 from __future__ import annotations
 
 import calendar as _calendar
+import errno
 import gzip
 import io
 import re
@@ -134,12 +135,29 @@ def _cross_process_turn(deadline: float):
     except OSError:
         yield None
         return
+    # Two different OSErrors come out of flock and they mean opposite things.
+    # EWOULDBLOCK is "someone else holds it" — wait and retry. ENOLCK and
+    # friends mean this filesystem cannot lock at all, and retrying can never
+    # succeed: NFS without lockd, Lustre or GPFS mounted without `flock`, WSL1
+    # on a DrvFs path. Treating those as contention burns the whole 15 s
+    # deadline and then reports a concurrent process that does not exist —
+    # arXiv would appear permanently down, minutes at a time, for a reason that
+    # names the wrong cause.
+    _CONTENDED = {errno.EWOULDBLOCK, errno.EAGAIN, errno.EACCES, errno.EDEADLK}
+    locked = False
     try:
         while True:
             try:
                 fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                locked = True
                 break
-            except OSError:
+            except OSError as exc:
+                if exc.errno not in _CONTENDED:
+                    # No locking here. Degrade to the in-process lock and the
+                    # on-disk timestamp, which is what the docstring promises:
+                    # the three-second gap still applies, only the guarantee of
+                    # one-at-a-time across processes is lost.
+                    break
                 if time.time() >= deadline:
                     raise ArxivBusy(
                         f"another Open ScholarPeer process has held the single "
@@ -152,7 +170,8 @@ def _cross_process_turn(deadline: float):
         yield handle
     finally:
         try:
-            fcntl.flock(handle, fcntl.LOCK_UN)
+            if locked:
+                fcntl.flock(handle, fcntl.LOCK_UN)
         finally:
             handle.close()
 

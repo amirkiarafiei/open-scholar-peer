@@ -1307,6 +1307,45 @@ def test_cross_process_arxiv_guard() -> None:
         ax._MIN_GAP = real_gap
         ax._last_raw_request = 0.0
 
+    # --- a filesystem with no locking must degrade, not stall --------------
+    # flock raises OSError for two opposite reasons. EWOULDBLOCK means someone
+    # else holds it, so wait. ENOLCK means this filesystem cannot lock at all
+    # and waiting can never help: NFS without lockd, Lustre or GPFS mounted
+    # without `flock`, WSL1 on DrvFs. Treating the second as the first burned
+    # the whole 15 s deadline and then blamed a process that did not exist, so
+    # arXiv looked permanently down for the wrong reason.
+    import errno as _errno
+    import fcntl as _fcntl
+
+    _real_flock = _fcntl.flock
+    try:
+        def _no_locks(fh, op):
+            if op & _fcntl.LOCK_EX:
+                raise OSError(_errno.ENOLCK, "No locks available")
+            return None
+
+        _fcntl.flock = _no_locks
+        # Clear the recorded timestamp, or the legitimate three-second gap
+        # would be counted against the lock deadline this check is about.
+        _lock = ax._lock_path()
+        if _lock.exists():
+            _lock.unlink()
+        ax._last_raw_request = 0.0
+        _t0 = time.time()
+        try:
+            with ax._arxiv_turn():
+                pass
+            _degraded, _elapsed = True, time.time() - _t0
+        except ax.ArxivBusy:
+            _degraded, _elapsed = False, time.time() - _t0
+        check_true("a filesystem without flock degrades instead of stalling",
+                   _degraded)
+        check_true(f"...and does not burn the {ax._LOCK_WAIT}s lock deadline "
+                   f"({_elapsed:.2f}s)", _elapsed < ax._LOCK_WAIT / 2)
+    finally:
+        _fcntl.flock = _real_flock
+        ax._last_raw_request = 0.0
+
 
 TESTS = [
     ("google_scholar", test_google_scholar),
