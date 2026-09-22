@@ -366,6 +366,13 @@ _MARKER_KEYS = {"osp_truncated", "osp_returned", "osp_total", "osp_note",
                 "osp_how_to_get_the_rest"}
 
 
+# Every shape a cut can take. The guidance must describe all of them, and a
+# test asserts that — twice in this milestone a correct code fix left the
+# prompts describing a shape that no longer existed, and the prompt is what the
+# agent acts on.
+MARKER_KINDS = ("list", "paged", "fields")
+
+
 def _marker(returned: int, total: int, kind: str, field: str = "") -> dict[str, Any]:
     """The record that says a result was cut. Loud on purpose."""
     if kind == "list":
@@ -378,9 +385,6 @@ def _marker(returned: int, total: int, kind: str, field: str = "") -> dict[str, 
     elif kind == "fields":
         how = (f"Cut to fit: {field}. Ask for fewer results, page with any "
                f"offset the tool takes, or raise --max-bytes.")
-    elif kind == "field":
-        how = (f"The {field!r} field was cut. If this tool takes max_chars and "
-               f"offset, page through it; otherwise raise --max-bytes.")
     else:
         how = "Raise --max-bytes."
     return {

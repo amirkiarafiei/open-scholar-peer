@@ -137,6 +137,63 @@ def check_reason_vocabulary() -> list[str]:
     return problems
 
 
+def check_truncation_shapes() -> list[str]:
+    """Every shape a cut can take must be described where the agent reads.
+
+    The reviewer's closing point, and the gap that bit this milestone twice: a
+    correct code fix left `search_via_cli.md`, `TROUBLESHOOTING.md` and
+    `KNOWN_LIMITATIONS.md` describing a truncation shape that no longer
+    existed. The fault injector catches a stale test; nothing played that role
+    for the guidance, and the guidance is what the agent acts on — so for that
+    window the documentation WAS the defect.
+
+    The shapes are read out of `osp_cli.MARKER_KINDS`, so adding a fourth fails
+    this until every agent-facing file has been told about it.
+    """
+    import re
+    problems: list[str] = []
+    cli = (REPO_ROOT / "mcp-server" / "osp_cli.py").read_text(encoding="utf-8")
+    m = re.search(r"MARKER_KINDS\s*=\s*\(([^)]*)\)", cli)
+    if not m:
+        return ["could not read MARKER_KINDS from osp_cli.py"]
+    kinds = re.findall(r'"([a-z]+)"', m.group(1))
+
+    # What a reader must be able to find for each shape. Deliberately the words
+    # a person would search for, not the internal name.
+    described_by = {
+        "list": ("last element",),
+        "paged": ("next_offset",),
+        "fields": ("record",),
+    }
+    teaching = [
+        SHARED / "defaults" / "search_via_cli.md",
+        REPO_ROOT / "docs" / "TROUBLESHOOTING.md",
+        REPO_ROOT / "docs" / "KNOWN_LIMITATIONS.md",
+    ]
+    for path in teaching:
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "osp_truncated" not in text:
+            problems.append(f"[truncation] {path.relative_to(REPO_ROOT)} never "
+                            f"names `osp_truncated`, the one key every cut carries")
+            continue
+        for kind in kinds:
+            needles = described_by.get(kind)
+            if needles is None:
+                problems.append(
+                    f"[truncation] osp_cli.py can emit a '{kind}' marker that "
+                    f"this test does not know how to look for — add it here and "
+                    f"to the guidance in the same change")
+                continue
+            if not any(n.lower() in text.lower() for n in needles):
+                problems.append(
+                    f"[truncation] {path.relative_to(REPO_ROOT)} does not "
+                    f"describe the '{kind}' shape — an agent told to look in the "
+                    f"wrong place concludes the result was not cut")
+    return problems
+
+
 def check_defaults_refs() -> list[str]:
     """No generated file may point at `defaults/x.md`.
 
@@ -338,6 +395,12 @@ def main() -> int:
         all_issues.extend(ref_issues)
     else:
         print("  \u2713 defaults/ references resolve to a real per-tool path")
+
+    shape_problems = check_truncation_shapes()
+    if shape_problems:
+        all_issues.extend(shape_problems)
+    else:
+        print("  \u2713 every truncation shape is described where agents read")
 
     reason_problems = check_reason_vocabulary()
     if reason_problems:

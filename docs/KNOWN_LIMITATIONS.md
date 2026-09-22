@@ -187,10 +187,13 @@ equivalent, and the differences are worth knowing:
 - **On hosts that ask permission per command** it costs 8–12 approvals per literature round, which is
   why the guidance says to group calls into one shell invocation.
 - **Large results are cut** to fit the caller. The cut is always declared in the result
-  itself, under `osp_truncated`. For a list of records the ones that arrive are complete and
-  only the tail is missing; for a single record — a long abstract, a work with thousands of
-  references, a full-text window — the record itself is shortened, and the marker names which
-  fields and by how much. Either way the corpus is not complete, and the agent is told so.
+  itself, under `osp_truncated`, and where that marker sits tells you what you are holding.
+  On a list of records it is an extra **last element**, and the records above it are complete —
+  only the tail is missing. On a single record, such as a work with thousands of references, it
+  is merged into the record, which is therefore *not* complete; it names which fields were
+  shortened and by how much. On a full-text window it is merged in too, and `next_offset` has
+  been corrected, so paging until that is null still reaches the end of the document. Either
+  way the corpus is not complete, and the agent is told so.
 
 **On native Windows Python the arXiv rate limit is not enforced across calls.**
 The cross-process guard is an `fcntl.flock`, and `fcntl` does not exist there —
