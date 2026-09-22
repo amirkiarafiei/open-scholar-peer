@@ -146,8 +146,13 @@ the parsed-text cache and the de-duplication all work inside it:
 ### A result says `osp_truncated`
 
 The result was larger than the output limit and was cut here, deliberately, so that it could say so
-— an uncut result gets truncated further downstream without telling anyone. The records you received
-are complete and real; the rest were not returned.
+— an uncut result gets truncated further downstream without telling anyone.
+
+What you are holding depends on the shape. For a **list**, the marker is an extra last element and
+the records above it are complete. For a **single record** — a long abstract, or a work with
+thousands of references — the marker is merged into the record and `osp_how_to_get_the_rest` names
+which fields were shortened; that record is not complete. For a **full-text window**, the marker is
+merged in and `next_offset` has been corrected, so keep paging until it is null.
 
 Ask for fewer results, page with `offset`/`max_chars` where the tool supports it, or raise
 `--max-bytes`. Do not treat a cut result as the whole corpus.

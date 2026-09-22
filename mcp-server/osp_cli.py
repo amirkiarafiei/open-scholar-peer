@@ -753,7 +753,16 @@ def cmd_batch(raw: str | None, deadline: float) -> int:
         failed = sum(1 for i in out if not i["ok"])
         # The whole response is still bounded — at N times one call's budget,
         # which is exactly what N separate calls would have produced.
-        whole = MAX_BYTES * len(plans) if MAX_BYTES > 0 else 0
+        #
+        # Plus headroom, stated rather than accidental. Each item was capped
+        # measured ON ITS OWN, and the same item costs more nested inside the
+        # response: the wrapper, and one more level of indentation on every
+        # line. Measured at about 2%. Without the headroom the bound would be
+        # in different units from the measurement and would fight the per-item
+        # caps — dropping a whole source to reclaim bytes that pass had already
+        # accounted for. This is a backstop against a pathological case, not a
+        # second budget.
+        whole = (int(MAX_BYTES * len(plans) * 1.1) + 4096) if MAX_BYTES > 0 else 0
         _emit_and_exit(_cap(out, whole), code=1 if failed else 0)
 
     asyncio.run(run_all())

@@ -170,6 +170,16 @@ _REASON_BY_EXCEPTION: dict[str, str] = {
     # Builtins.
     "TimeoutError": "timeout",
     "ValueError": "bad_request",
+    #
+    # Deliberately NOT here: PermissionError and ConnectionRefusedError, which
+    # the `semanticscholar` package raises bare for 403 and 429. Mapping them
+    # by name would be global — a PermissionError from a file read would start
+    # reporting itself as a provider block, which is a false signal about the
+    # one thing this table exists to get right. They land on `failed`, whose
+    # documented action ("record a corpus gap") is already correct for them;
+    # only the name is vaguer than it could be. The 429 the provider actually
+    # meets is caught and mapped in providers/semantic_scholar.py before it
+    # ever reaches here.
 }
 
 

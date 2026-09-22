@@ -186,8 +186,11 @@ equivalent, and the differences are worth knowing:
 - **It sees the tool list only when it asks for it**, rather than having it always in context.
 - **On hosts that ask permission per command** it costs 8–12 approvals per literature round, which is
   why the guidance says to group calls into one shell invocation.
-- **Large results are cut** to fit the caller. The cut is declared in the result itself
-  (`osp_truncated`), and the records that arrive are complete — but the corpus is not.
+- **Large results are cut** to fit the caller. The cut is always declared in the result
+  itself, under `osp_truncated`. For a list of records the ones that arrive are complete and
+  only the tail is missing; for a single record — a long abstract, a work with thousands of
+  references, a full-text window — the record itself is shortened, and the marker names which
+  fields and by how much. Either way the corpus is not complete, and the agent is told so.
 
 **On native Windows Python the arXiv rate limit is not enforced across calls.**
 The cross-process guard is an `fcntl.flock`, and `fcntl` does not exist there —

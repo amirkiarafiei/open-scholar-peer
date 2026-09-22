@@ -77,12 +77,18 @@ search ran and matched nothing.
 
 ## When a result says it was cut
 
-A large result is cut to fit, and the last element then carries
-`osp_truncated: true` with `osp_returned` and `osp_total`. The records you got
-are complete and real; the rest were not returned.
+A cut is always declared in the result itself, in one of three shapes. Look for
+`osp_truncated` — it is the one key common to all of them.
 
-Say so in Provenance. Do not treat a cut result as the whole corpus, and do not
-treat it as a failure either — ask for fewer results, or page.
+| Shape | Where the marker is | What you are holding |
+|---|---|---|
+| A **list of records** | an extra last element | the records above are complete; the rest were not returned |
+| A **single record** | merged into the record | the record is **not** complete — `osp_how_to_get_the_rest` names which fields were shortened and by how much |
+| A **full-text window** | merged into the record | a shorter window than you asked for, with `next_offset` corrected — keep calling with it until it is null |
+
+Say in Provenance which of these you got. A cut result is not a failure and not
+an empty one: ask for fewer results, page with `offset`, or raise
+`--max-bytes`.
 
 ## Traps
 
