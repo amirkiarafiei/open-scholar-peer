@@ -80,9 +80,13 @@ A tool returns either records, or an error record. The error carries a
 | `rate_limited` | Semantic Scholar answered 429 |
 | `busy` | another arXiv call held the one allowed connection |
 | `not_found` | no such paper or article; the provider is fine |
-| `timeout` | the call ran past `OSP_CALL_TIMEOUT` |
+| `timeout` | the call ran past its deadline and was abandoned |
+| `unavailable` | the source cannot serve this — it is switched off for this project by `OSP_SOURCES`, or the provider is down |
 | `bad_request` | the arguments were wrong |
 | `failed` | anything else |
+
+All eight are listed here on purpose: a `reason` an agent has never been told
+about is one it cannot act on, and the whole point of the field is that it can.
 
 An empty list `[]` means one thing only: the search ran and matched nothing.
 
@@ -168,7 +172,10 @@ export SEMANTIC_SCHOLAR_API_KEY=sk-...
 ## Extending — adding a new provider
 
 1. Create `providers/<name>.py` with plain Python functions for search/get-detail.
-2. Import it at the top of `osp_mcp.py` and add `@mcp.tool()`-decorated wrappers.
+2. Add it to `core.py` — a lazy alias with `_lazy("providers.<name>")`, then a
+   wrapper decorated `@tool_for("<source>")` that calls `await _run(...)` and
+   returns `_err(...)` on failure. Do **not** touch `osp_mcp.py`: it names no
+   tool, and one registration serves both the MCP and the CLI surfaces.
 3. Document each tool with a rich docstring (the MCP host shows it to the LLM).
 4. Add the new dependencies to `requirements.txt`, **with an upper bound**.
 5. Give failures their own exception type and never return `[]` for one.

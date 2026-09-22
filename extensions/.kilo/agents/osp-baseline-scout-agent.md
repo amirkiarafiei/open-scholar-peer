@@ -24,7 +24,7 @@ Critically, you operate **independently** of the authors' narrative. You analyze
 ## Tools
 
 Use the same sources as the Literature Agent, chosen the same way. **Read the
-`## Sources` section of `skills/osp-literature-review-agent/SKILL.md` before you
+`## Sources` section of the **`osp-literature-review-agent`** skill before you
 search** — it is the rule, and it also tells you how to read a failed call. The
 installed set differs per project, so list what you have first. Then run targeted
 searches like:

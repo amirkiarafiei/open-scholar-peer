@@ -71,7 +71,11 @@ If you used self-reflection mode, format the same content inside the `=== Answer
 
 ## Pitfalls
 
-- Do **not** read a tool error as "nothing found". An error record carries a `reason` — `blocked`, `rate_limited`, `busy`, `timeout`, `unavailable`. Only an empty list means the search really looked and found nothing. Say which you got.
+- Do **not** read a tool error as "nothing found". An error record carries a `reason`:
+  `blocked`, `rate_limited`, `busy`, `timeout`, `unavailable`, `not_found`, `bad_request`
+  or `failed`. Only `not_found` and `bad_request` are about your call; the rest are the
+  provider. **Only an empty list means the search really looked and found nothing.** Say
+  which you got.
 - Do **not** hedge to be polite. If the paper's claim of state-of-the-art is contradicted by a newer pre-print, say so and cite it.
 - Do **not** invent citations. Every cited paper must come from the context bundle or a tool call you actually made.
 - Do **not** answer beyond the question. Each Q&A pair targets one angle; let the Query Agent generate the next angle.

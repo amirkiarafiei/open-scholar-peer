@@ -41,7 +41,11 @@ if _MODE and _MCP_DIR:
             time.sleep(30)          # far past any deadline the test sets
             return [{"title": "never returned"}]
 
+        # Both a list-returning and a dict-returning tool, so the shape of an
+        # outer timeout can be checked for each.
         _ax.search = _slow
+        _ax.read_paper = _slow
+        _ax.get_details = _slow
 
     elif _MODE == "huge":
         import providers.arxiv as _ax

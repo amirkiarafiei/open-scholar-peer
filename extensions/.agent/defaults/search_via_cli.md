@@ -8,9 +8,10 @@ MCP ones. Only the calling convention differs.
 
 ## The commands
 
-Use the absolute path. The program must be started from anywhere, and a wrong
-working directory cannot be reported as JSON — the shell fails before Python
-starts.
+**Run these from the project root** — the directory holding `.brain/`. The
+paths below are relative to it. From anywhere else, put the project root in
+front of them, because a wrong working directory cannot be reported as JSON:
+the shell fails before Python starts, so there is nothing to print a `reason`.
 
 List what this project has:
 

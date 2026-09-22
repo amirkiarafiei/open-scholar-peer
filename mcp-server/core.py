@@ -89,21 +89,34 @@ zenodo_provider = _lazy("providers.zenodo")
 openalex_provider = _lazy("providers.openalex")
 
 
-def warm_providers() -> None:
+def warm_providers(sources: set[str] | None = None) -> None:
     """Import every enabled provider now, instead of on first call.
 
-    For the MCP server only. It is one long-lived process, so paying 149 ms once
-    at start-up is free, and it removes any question about two concurrent calls
-    racing to be the first to touch the same lazy module. The CLI never calls
-    this: one process serves one call, and start cost is the thing being saved.
+    `importlib.util.LazyLoader` swaps a module's `__class__` on first attribute
+    access and takes no lock of its own, so two threads reaching a cold provider
+    at the same moment is a race. Anything that runs more than one call in a
+    process must warm first.
+
+    That is the MCP server, which is long-lived and pays 149 ms once at
+    start-up; and `osp_cli.py batch`, which dispatches a whole round together.
+    A single `osp_cli.py call` does NOT warm: one call cannot race itself, and
+    start cost is the thing that path is saving.
     """
     by_source = {
         "arxiv": arxiv_provider, "semantic_scholar": ss_provider,
         "google_scholar": gs_provider, "europepmc": epmc_provider,
         "zenodo": zenodo_provider, "openalex": openalex_provider,
     }
-    for source in enabled_sources():
-        getattr(by_source[source], "__name__", None)  # forces the exec
+    wanted = sources if sources is not None else enabled_sources()
+    for source in wanted:
+        mod = by_source.get(source)
+        if mod is not None:
+            try:
+                getattr(mod, "__name__", None)  # forces the exec
+            except Exception:  # noqa: BLE001
+                # A provider whose import is broken must not stop the others
+                # from warming. The call against it will report the reason.
+                pass
 
 
 # ---------- The error envelope ---------------------------------------------
@@ -370,6 +383,23 @@ def input_schema(fn: Callable[..., Any]) -> dict[str, Any]:
     return dict(sorted(out.items()))
 
 
+def returns_list(fn: Callable[..., Any]) -> bool:
+    """Does this tool declare a list of records, or a single record?
+
+    14 of the 22 declare `list[dict]` and return their own failures as
+    `[_err(...)]`; the other 8 declare `dict` and return `_err(...)` bare. A
+    front end that catches an error ABOVE the tool has to match the shape the
+    tool would have used, or an agent that does `for paper in result` gets a
+    dict and iterates its keys.
+    """
+    import typing
+    try:
+        ann = typing.get_type_hints(fn).get("return")
+    except Exception:  # noqa: BLE001 - an unresolvable annotation is not fatal
+        return False
+    return typing.get_origin(ann) is list
+
+
 def required_args(fn: Callable[..., Any]) -> list[str]:
     """Which arguments have no default.
 
@@ -393,8 +423,9 @@ async def _run(fn, *args, **kwargs) -> Any:
             timeout=timeout,
         )
     except asyncio.TimeoutError:
+        shown = int(timeout) if float(timeout).is_integer() else timeout
         raise TimeoutError(
-            f"{fn.__name__} timed out after {timeout}s and was abandoned. "
+            f"{fn.__name__} timed out after {shown}s and was abandoned. "
             f"Nothing was searched — this is not an empty result.")
 
 

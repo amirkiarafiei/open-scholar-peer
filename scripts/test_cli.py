@@ -272,6 +272,30 @@ def test_timeout_bounds_the_process() -> None:
     check("a timeout of zero: reason", r.reason, "bad_request")
 
 
+def test_error_shape_matches_the_tool() -> None:
+    """An error caught ABOVE the tool must keep the tool's declared shape.
+
+    14 tools declare `list[dict]` and return their own failures as `[_err]`;
+    8 declare `dict` and return `_err` bare. When the CLI catches an outer
+    timeout it used to emit a bare dict for both — so an agent doing
+    `for paper in result` got a dict on the error path and iterated its keys.
+    """
+    r = run(["call", "search_arxiv", '{"query":"x"}', "--timeout", "1"],
+            mode="slow", timeout=30)
+    check("a list-returning tool: timeout exit code", r.rc, 1)
+    check_true("a list-returning tool: an outer timeout still returns a LIST",
+               isinstance(r.json, list))
+    check("a list-returning tool: the reason survives the wrapping",
+          r.reason, "timeout")
+
+    r = run(["call", "read_arxiv_paper", '{"arxiv_id":"1706.03762"}',
+             "--timeout", "1"], mode="slow", timeout=30)
+    check("a dict-returning tool: timeout exit code", r.rc, 1)
+    check_true("a dict-returning tool: an outer timeout still returns a DICT",
+               isinstance(r.json, dict))
+    check("a dict-returning tool: the reason survives", r.reason, "timeout")
+
+
 def test_output_is_capped() -> None:
     """A result too large for the caller is cut HERE, where it can be described."""
     r = run(["call", "search_arxiv", '{"query":"x"}'], mode="huge")
@@ -417,6 +441,7 @@ TESTS = [
     ("empty stdin pipe", test_stdin_pipe_with_no_data),
     ("empty is not failure", test_empty_is_not_failure),
     ("timeout bounds the process", test_timeout_bounds_the_process),
+    ("error shape matches the tool", test_error_shape_matches_the_tool),
     ("output is capped", test_output_is_capped),
     ("one document, clean streams", test_one_document_and_clean_streams),
     ("blocked imports", test_blocked_imports),

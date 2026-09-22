@@ -143,10 +143,6 @@ docs/
 - What can break → [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md), [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
 <!-- OSP-BEGIN: managed by Open ScholarPeer; do not edit between markers -->
----
-name: osp-rules
-description: Always-on rules for Open ScholarPeer review sessions
----
 
 # Open ScholarPeer — Always-On Rules
 
@@ -179,20 +175,45 @@ These rules apply automatically in any project where Open ScholarPeer is install
 
 ## Subagent vs self-reflection
 
-- **Prefer subagents** for the Q&A engine on tools that support them — every supported tool except the two named below.
-- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) where subagents are unavailable — always on Mistral Vibe and OpenHands, and on any tool where the delegation call does not work. Finishing the phase in the weaker mode beats stopping it; note which mode was used in the artifact.
+- **Prefer subagents** for the Q&A engine wherever they are available. The `/5-osp-qa` command opens with a banner saying which mode this tool uses; that banner is generated from the tool's measured capability, so it is the authority, not any list.
+- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) where subagents are unavailable, and on any tool where the delegation call does not work. Finishing the phase in the weaker mode beats stopping it; note which mode was used in the artifact.
 - Self-reflection is a documented weaker substitute. See `KNOWN_LIMITATIONS.md`.
 
 ## Phase blocks (required on every phase invocation)
 
 Every phase prints two blocks: an opening one before it does any work, and a closing one when it
-ends. **`defaults/phase_block_template.md` is the only definition of their format** — the rail, the
+ends. **`.agents/defaults/phase_block_template.md` is the only definition of their format** — the rail, the
 rules, the labels, the widths and the ASCII fallback all live there and nowhere else. Do not restate
 them, here or in a command.
 
 Each phase's command supplies only the values. The closing block must say **what was done** —
 findings, counts, highlights — not merely which command comes next. The user is learning the system
 as they go, so orient them every time, including on a re-run.
+
+## Reaching the search tools
+
+OSP ships the search tools two ways: as MCP tools, and as a program you run
+through `bash`. **MCP is the default. The shell program is the fallback and is
+second class** — it costs a process per call, and an approval on hosts that ask
+for one.
+
+`/0-osp-onboarding` decides which one this project uses and records it in
+`session.json` as `mcp.interface`. Follow what is recorded. If the field is
+missing — the project was set up before this existed — decide it yourself, the
+same way, and write it.
+
+**One `.env` governs both surfaces**, so the shell program never has a database
+MCP lacks. A missing tool is never a reason to change interface.
+
+**If a search fails while the recorded interface is `mcp`, re-probe once and
+rewrite the field before you report a gap.** A server that died mid-session
+leaves `mcp` recorded, and a server nobody can reach looks exactly like a
+database with nothing in it. That is the one confusion this whole layer exists
+to prevent.
+
+`.agents/defaults/search_via_cli.md` holds the commands, the `batch` form to prefer, and
+what each failure reason means. Read it when the interface is `cli`, or when you
+fall back.
 
 ## Output discipline
 
@@ -221,10 +242,7 @@ decided.
 
 ## File references in user-facing output
 
-- When mentioning a `.brain/` artifact in a report or reply, use the vendor-provided native file reference format for your tool:
-  - Claude Code / Cursor / Gemini CLI / Codex CLI / Qwen Code / OpenCode / Junie / Kiro: `@.brain/raw/01_summary.md`
-  - Copilot CLI: `#file:.brain/raw/01_summary.md`
-  - Kimi Code / Mistral Vibe / OpenHands / Antigravity: plain path (no native shorthand)
+- When mentioning a `.brain/` artifact in a report or reply, use whatever file-reference syntax your own tool provides — `@.brain/raw/01_summary.md` on most, `#file:.brain/raw/01_summary.md` on Copilot CLI. Where a tool has none, write the plain path.
 - Always pair the native reference with the plain `.brain/…` path on the continuation line under `DONE`, so users can locate the file whatever their tool does with markdown.
 
 ## File ownership

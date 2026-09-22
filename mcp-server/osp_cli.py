@@ -380,6 +380,21 @@ def cmd_call(name: str, raw_args: str | None, deadline: float) -> int:
     raise AssertionError("unreachable: _dispatch always exits")  # pragma: no cover
 
 
+def _shaped(name: str, fn: Any, envelope: dict[str, Any]) -> Any:
+    """Return an error in the shape this tool would have used itself.
+
+    A search tool declares `list[dict]` and returns its own failures as
+    `[_err(...)]`. When the CLI catches something ABOVE the tool — an outer
+    timeout, a cancellation — returning a bare dict would hand the agent a
+    different shape on the error path than on every other path, and an agent
+    doing `for paper in result` would silently iterate the dict's keys.
+    """
+    try:
+        return [envelope] if core.returns_list(fn) else envelope
+    except Exception:  # noqa: BLE001 - shape detection must never be fatal
+        return envelope
+
+
 async def _dispatch(name: str, fn: Any, kwargs: dict[str, Any],
                     deadline: float) -> None:
     """Run the tool, write exactly one JSON document, and leave.
@@ -405,15 +420,16 @@ async def _dispatch(name: str, fn: Any, kwargs: dict[str, Any],
             "bad_request",
         ), code=2)
     except (asyncio.TimeoutError, TimeoutError):
-        _emit_and_exit(core._err(name, TimeoutError(
+        _emit_and_exit(_shaped(name, fn, core._err(name, TimeoutError(
             f"{name} passed the {deadline}s limit set by --timeout and was "
-            f"abandoned. Nothing was searched — this is not an empty result.")))
+            f"abandoned. Nothing was searched — this is not an empty result."))))
     except asyncio.CancelledError:
         # CancelledError is a BaseException, so the tools' own `except
         # Exception` does not swallow it and mislabel it as `failed`.
-        _emit_and_exit(core._err(name, TimeoutError(f"{name} was cancelled")))
+        _emit_and_exit(_shaped(name, fn,
+                               core._err(name, TimeoutError(f"{name} was cancelled"))))
     except Exception as exc:  # noqa: BLE001 — mirror the server's own catch-all
-        _emit_and_exit(core._err(name, exc))
+        _emit_and_exit(_shaped(name, fn, core._err(name, exc)))
 
     _emit_and_exit(_cap(result))
 
@@ -547,17 +563,24 @@ def cmd_batch(raw: str | None, deadline: float) -> int:
                 f"{name} rejected those arguments: {exc}. "
                 f"Run `osp_cli.py schema {name}`.", "bad_request")
         except (asyncio.TimeoutError, TimeoutError):
-            result = core._err(name, TimeoutError(
+            result = _shaped(name, tools[name].fn, core._err(name, TimeoutError(
                 f"{name} passed the {deadline}s per-call limit and was "
-                f"abandoned. Nothing was searched — not an empty result."))
+                f"abandoned. Nothing was searched — not an empty result.")))
         except asyncio.CancelledError:
-            result = core._err(name, TimeoutError(f"{name} was cancelled"))
+            result = _shaped(name, tools[name].fn,
+                             core._err(name, TimeoutError(f"{name} was cancelled")))
         except Exception as exc:  # noqa: BLE001
-            result = core._err(name, exc)
+            result = _shaped(name, tools[name].fn, core._err(name, exc))
         return {"tool": name, "ok": not _is_error(result), "result": result}
 
     async def run_all() -> None:
         core.CALL_TIMEOUT.set(float(deadline))
+        # Providers load lazily, and LazyLoader takes no lock: two threads
+        # reaching a cold provider at the same moment is a race. A single
+        # `call` cannot race itself, but a batch dispatches together — so warm
+        # exactly the sources this batch will touch, before anything runs.
+        core.warm_providers({tools[p["tool"]].source
+                             for p in plans if p["tool"] in tools})
         # Together, not one after the other — the same instruction the skill
         # gives. arXiv calls still serialise on its own lock; everything else
         # overlaps. gather with return_exceptions so one failure cannot take
@@ -607,17 +630,26 @@ def main() -> int:
         description="Open ScholarPeer search tools over the command line, "
                     "for agents without an MCP client.",
     )
-    parser.add_argument("--verbose", action="store_true",
+    # --verbose is accepted BEFORE or AFTER the subcommand. argparse only
+    # offers the first, and every example in the guide reads the second way —
+    # `call <tool> ... --verbose` — so it is declared in both places rather
+    # than telling agents the flag order matters.
+    def _verbose_flag(pp: argparse.ArgumentParser) -> None:
+        pp.add_argument("--verbose", action="store_true", default=False,
                         help="let the search layer log to stderr; off by "
                              "default so `2>&1` still parses as JSON")
+
+    _verbose_flag(parser)
     sub = parser.add_subparsers(dest="command")
 
     p_list = sub.add_parser("list", help="show every enabled search tool")
     p_list.add_argument("--json", action="store_true", dest="as_json",
                         help="machine-readable, with full input schemas")
+    _verbose_flag(p_list)
 
     p_schema = sub.add_parser("schema", help="show one tool's arguments")
     p_schema.add_argument("tool")
+    _verbose_flag(p_schema)
 
     p_call = sub.add_parser("call", help="run one tool")
     p_call.add_argument("tool")
@@ -629,6 +661,7 @@ def main() -> int:
     p_call.add_argument("--max-bytes", type=int, default=None, dest="max_bytes",
                         help=f"cut the result to fit this many bytes "
                              f"(default {MAX_BYTES}; 0 means no limit)")
+    _verbose_flag(p_call)
 
     p_batch = sub.add_parser(
         "batch", help="run several tools in ONE process — prefer this")
@@ -640,6 +673,7 @@ def main() -> int:
     p_batch.add_argument("--max-bytes", type=int, default=None, dest="max_bytes",
                          help=f"cut the whole response to fit this many bytes "
                               f"(default {MAX_BYTES}; 0 means no limit)")
+    _verbose_flag(p_batch)
 
     args = parser.parse_args()
     _configure_io(getattr(args, "verbose", False))
@@ -677,7 +711,9 @@ def main() -> int:
         return cmd_batch(args.calls, deadline)
 
     _emit(_envelope(
-        "no command given. Use `list`, `schema <tool>` or `call <tool> '<json>'`.",
+        "no command given. Use `list`, `schema <tool>`, "
+        "`call <tool> '<json>'`, or `batch '<json array>'` to run several "
+        "calls in one process, which is the preferred form.",
         "bad_request",
     ))
     return 2

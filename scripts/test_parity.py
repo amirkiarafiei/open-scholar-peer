@@ -96,6 +96,47 @@ TOOLS = [
 _BARE_DEFAULTS_RE = re.compile(r"`defaults/[A-Za-z0-9_\-]+\.md`")
 
 
+def check_reason_vocabulary() -> list[str]:
+    """Every file that teaches an agent about `reason` must teach all of it.
+
+    `reason` is the contract that separates "the provider failed" from "there
+    are no papers". A file that lists five of the eight leaves an agent with no
+    instruction for the other three, and the one it is most likely to meet —
+    `unavailable`, which is what a database switched off by OSP_SOURCES
+    returns — was missing from three files at once.
+
+    Read from core.py rather than hard-coded here, so adding a reason to the
+    code fails this until every agent-facing file has been told about it.
+    """
+    import re
+    problems: list[str] = []
+    core_src = (REPO_ROOT / "mcp-server" / "core.py").read_text(encoding="utf-8")
+    block = re.search(r"_REASON_BY_EXCEPTION[^{]*\{(.*?)\n\}", core_src, re.S)
+    if not block:
+        return ["could not read _REASON_BY_EXCEPTION from core.py"]
+    reasons = set(re.findall(r':\s*"([a-z_]+)"', block.group(1))) | {"failed"}
+
+    # The files that tell an agent what to do about a failure.
+    teaching = [
+        SHARED / "defaults" / "search_via_cli.md",
+        SHARED / "skills" / "osp-literature-review-agent" / "SKILL.md",
+        SHARED / "skills" / "osp-answer-generator-agent" / "SKILL.md",
+        REPO_ROOT / "mcp-server" / "README.md",
+    ]
+    for path in teaching:
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        missing = sorted(r for r in reasons
+                         if not re.search(rf"`?\b{re.escape(r)}\b`?", text))
+        if missing:
+            problems.append(
+                f"[reasons] {path.relative_to(REPO_ROOT)} never mentions "
+                f"{', '.join(missing)} — an agent that receives one has no "
+                f"instruction for it")
+    return problems
+
+
 def check_defaults_refs() -> list[str]:
     """No generated file may point at `defaults/x.md`.
 
@@ -297,6 +338,12 @@ def main() -> int:
         all_issues.extend(ref_issues)
     else:
         print("  \u2713 defaults/ references resolve to a real per-tool path")
+
+    reason_problems = check_reason_vocabulary()
+    if reason_problems:
+        all_issues.extend(reason_problems)
+    else:
+        print("  \u2713 every agent-facing file names all 8 failure reasons")
 
     registry_issues = check_registries_match()
     if registry_issues:

@@ -45,6 +45,14 @@ _ENABLED = core.enabled_sources()
 for _tool in core.enabled_tools().values():
     mcp.tool()(_tool.fn)
 
+# Warm the lazy providers here rather than under __main__. This process is
+# long-lived and serves calls concurrently, and `LazyLoader` swaps a module's
+# __class__ on first access without taking a lock — so two calls reaching a
+# cold provider together is a race. Paying 149 ms once at import removes the
+# question, and it covers a harness that imports this module and serves from
+# it rather than running it as a script.
+core.warm_providers(_ENABLED)
+
 
 if __name__ == "__main__":
     if os.environ.get("SEMANTIC_SCHOLAR_API_KEY"):
@@ -59,8 +67,4 @@ if __name__ == "__main__":
                  len(core._ALL_SOURCES))
     log.info("Starting Open ScholarPeer MCP server (osp_mcp), timeout=%ss",
              core.CALL_TIMEOUT.get())
-    # One long-lived process, so the lazy provider imports are paid once here
-    # rather than on the first call of each — and no two concurrent calls can
-    # race to be the first to touch the same module.
-    core.warm_providers()
     mcp.run(transport="stdio")

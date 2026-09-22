@@ -81,8 +81,14 @@ being absent proves nothing. Use these checks, in order:
    the network**, because some hosts allow no outbound traffic from `bash`:
 
    ```bash
-   python3 -c "import urllib.request as u;u.urlopen('https://api.openalex.org/works?per-page=1',timeout=5).read(1);print('NET_OK')" 2>/dev/null || echo NET_BLOCKED
+   .open-scholar-peer/mcp/.venv/bin/python -c "import urllib.request as u;r=u.Request('https://api.openalex.org/works?per-page=1',headers={'User-Agent':'open-scholar-peer'});u.urlopen(r,timeout=5).read(1);print('NET_OK')" 2>/dev/null || echo NET_BLOCKED
    ```
+
+   Use the interpreter OSP installed, not a bare `python3`: a system Python may
+   be absent from `PATH` or missing root certificates, and either would look
+   exactly like a blocked network. The `User-Agent` is there because a database
+   is entitled to refuse an anonymous one, and a refusal must not be read as "no
+   network".
 
    `NET_OK` → record `cli`. `NET_BLOCKED` → record `none` and **say so plainly**:
    this host cannot reach the paper databases from the shell. A blocked shell
