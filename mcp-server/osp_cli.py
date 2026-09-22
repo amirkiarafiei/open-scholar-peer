@@ -315,7 +315,7 @@ def _reject_unknown(name: str, tools: dict[str, Any]) -> int:
     return 2
 
 
-def _read_args(raw: str | None) -> tuple[dict[str, Any] | None, int]:
+def _read_args(raw: str | None, expect: str = "object") -> tuple[Any, int]:
     """Parse the JSON argument blob from argv or stdin.
 
     Reading stdin when nothing is piped in would sit there until killed, which
@@ -336,12 +336,14 @@ def _read_args(raw: str | None) -> tuple[dict[str, Any] | None, int]:
         raw = sys.stdin.read()
     raw = (raw or "").strip()
     if not raw:
-        return {}, 0
+        return ([] if expect == "array" else {}), 0
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError as exc:
         _emit(_envelope(f"arguments are not valid JSON: {exc}", "bad_request"))
         return None, 2
+    if expect == "array":
+        return parsed, 0
     if not isinstance(parsed, dict):
         _emit(_envelope(
             f"arguments must be a JSON object naming each one, not a "
@@ -448,6 +450,133 @@ def _emit_and_exit(result: Any, code: int | None = None) -> None:
     os._exit(code)
 
 
+MAX_BATCH = 32
+
+
+def cmd_batch(raw: str | None, deadline: float) -> int:
+    """Run several calls in ONE process.
+
+    The process boundary is the only real difference between this surface and
+    MCP. One MCP server is one process, so the arXiv lock, the three-second
+    gap, the eight-entry parsed-text cache and the in-flight de-duplication all
+    work. Every separate CLI call throws that away and pays a fresh start-up:
+    measured, a three-round literature phase is ~18 calls at ~0.44s of start-up
+    each, plus an enforced 3s between arXiv calls — over a minute of pure
+    overhead per phase, against roughly nothing here.
+
+    It needs no change to the prompts. The literature skill says "fire
+    everything you chose in the same dispatch batch", which stays true on both
+    surfaces — which is the point.
+
+    Four rules, and each one exists to keep a failure attributable:
+      * a deadline PER ITEM, never one for the whole batch;
+      * one envelope per item, so a failure names its own call;
+      * a failing item never stops the others;
+      * the output cap applies per item AND to the whole response.
+    """
+    import asyncio
+
+    payload, code = _read_args(raw, expect="array")
+    if payload is None:
+        return code
+    if not isinstance(payload, list):
+        _emit(_envelope(
+            "batch takes a JSON array of calls, each "
+            '{"tool": "...", "arguments": {...}}.', "bad_request"))
+        return 2
+    if not payload:
+        _emit(_envelope("the batch is empty — nothing to run.", "bad_request"))
+        return 2
+    if len(payload) > MAX_BATCH:
+        _emit(_envelope(
+            f"a batch is limited to {MAX_BATCH} calls and this one has "
+            f"{len(payload)}. Split it: a batch that is too long is more likely "
+            f"to meet a rate limit part-way through, and a partial answer is "
+            f"harder to reason about than two whole ones.", "bad_request"))
+        return 2
+
+    tools = _registered()
+    plans: list[dict[str, Any]] = []
+    for i, item in enumerate(payload):
+        if not isinstance(item, dict) or "tool" not in item:
+            _emit(_envelope(
+                f"call {i} is not an object naming a tool. Each call is "
+                '{"tool": "...", "arguments": {...}}.', "bad_request"))
+            return 2
+        name = item["tool"]
+        kwargs = item.get("arguments") or {}
+        if not isinstance(kwargs, dict):
+            _emit(_envelope(
+                f"call {i} ({name}): arguments must be a JSON object.",
+                "bad_request"))
+            return 2
+        plans.append({"tool": name, "arguments": kwargs})
+
+    async def run_one(plan: dict[str, Any]) -> dict[str, Any]:
+        name, kwargs = plan["tool"], plan["arguments"]
+        if name not in tools:
+            if core.is_gated_off(name):
+                why = _envelope(
+                    f"{name} is a real tool, but its database is switched off "
+                    f"for this project. Nothing was searched — this is not an "
+                    f"empty result.", "unavailable")
+            else:
+                why = _envelope(
+                    f"No tool named {name}. Run `osp_cli.py list`.",
+                    "bad_request")
+            return {"tool": name, "ok": False, "result": why}
+        missing = [k for k in _required(tools[name]) if k not in kwargs]
+        if missing:
+            return {"tool": name, "ok": False, "result": _envelope(
+                f"{name} needs {', '.join(missing)}. "
+                f"Run `osp_cli.py schema {name}`.", "bad_request")}
+        try:
+            result = await asyncio.wait_for(tools[name].fn(**kwargs),
+                                            timeout=deadline + _GRACE)
+        except TypeError as exc:
+            # Same mistake, same reason as `call`. A wrong argument NAME
+            # arrives as a TypeError from the call itself, and reporting it as
+            # a generic failure would send the agent looking at the provider
+            # instead of at its own arguments.
+            result = _envelope(
+                f"{name} rejected those arguments: {exc}. "
+                f"Run `osp_cli.py schema {name}`.", "bad_request")
+        except (asyncio.TimeoutError, TimeoutError):
+            result = core._err(name, TimeoutError(
+                f"{name} passed the {deadline}s per-call limit and was "
+                f"abandoned. Nothing was searched — not an empty result."))
+        except asyncio.CancelledError:
+            result = core._err(name, TimeoutError(f"{name} was cancelled"))
+        except Exception as exc:  # noqa: BLE001
+            result = core._err(name, exc)
+        return {"tool": name, "ok": not _is_error(result), "result": result}
+
+    async def run_all() -> None:
+        core.CALL_TIMEOUT.set(float(deadline))
+        # Together, not one after the other — the same instruction the skill
+        # gives. arXiv calls still serialise on its own lock; everything else
+        # overlaps. gather with return_exceptions so one failure cannot take
+        # the batch down, which is the whole promise.
+        done = await asyncio.gather(*(run_one(p) for p in plans),
+                                    return_exceptions=True)
+        out: list[Any] = []
+        for plan, item in zip(plans, done):
+            if isinstance(item, BaseException):
+                item = {"tool": plan["tool"], "ok": False,
+                        "result": core._err(plan["tool"], item)
+                        if isinstance(item, Exception)
+                        else _envelope(f"{item!r}", "failed")}
+            # Per item first, so one huge result cannot crowd out the others.
+            item["result"] = _cap(item["result"], max(2_000, MAX_BYTES // len(plans)))
+            out.append(item)
+        failed = sum(1 for i in out if not i["ok"])
+        # And the whole response, in case many small results still overflow.
+        _emit_and_exit(_cap(out), code=1 if failed else 0)
+
+    asyncio.run(run_all())
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
 class _JsonArgumentParser(argparse.ArgumentParser):
     """An argument parser that fails in the same shape as everything else here.
 
@@ -496,6 +625,17 @@ def main() -> int:
                         help=f"cut the result to fit this many bytes "
                              f"(default {MAX_BYTES}; 0 means no limit)")
 
+    p_batch = sub.add_parser(
+        "batch", help="run several tools in ONE process — prefer this")
+    p_batch.add_argument("calls", nargs="?", default=None,
+                         help='JSON array of {"tool": ..., "arguments": {...}}; '
+                              "omit or pass '-' to read stdin")
+    p_batch.add_argument("--timeout", type=float, default=None,
+                         help="seconds allowed for EACH call, not the batch")
+    p_batch.add_argument("--max-bytes", type=int, default=None, dest="max_bytes",
+                         help=f"cut the whole response to fit this many bytes "
+                              f"(default {MAX_BYTES}; 0 means no limit)")
+
     args = parser.parse_args()
     _configure_io(getattr(args, "verbose", False))
 
@@ -520,6 +660,16 @@ def main() -> int:
                             "bad_request"))
             return 2
         return cmd_call(args.tool, args.arguments, deadline)
+    if args.command == "batch":
+        if args.max_bytes is not None:
+            MAX_BYTES = args.max_bytes
+        deadline = (args.timeout if args.timeout is not None
+                    else core.CALL_TIMEOUT.get())
+        if deadline <= 0:
+            _emit(_envelope("--timeout must be greater than zero.",
+                            "bad_request"))
+            return 2
+        return cmd_batch(args.calls, deadline)
 
     _emit(_envelope(
         "no command given. Use `list`, `schema <tool>` or `call <tool> '<json>'`.",
