@@ -122,6 +122,18 @@ run_fault "the cap drops error envelopes again" mcp-server/osp_cli.py \
   's/^        errors = \[i for i in payload$/        errors = [] or [i for i in []/' \
   "survives the cap"
 
+# 13. The batch budget goes back to being divided, so the recommended path
+#     returns less the more you ask for.
+run_fault "the batch budget is divided across items" mcp-server/osp_cli.py \
+  's/item\["result"\] = _cap(item\["result"\], MAX_BYTES)/item["result"] = _cap(item["result"], max(2_000, MAX_BYTES \/\/ len(plans)))/' \
+  "worse deal"
+
+# 14. The cap goes back to shrinking only the largest STRING, so a record whose
+#     weight is a list is emitted over the limit while claiming to be cut.
+run_fault "the cap only shrinks strings again" mcp-server/osp_cli.py \
+  's/^            elif isinstance(value, (list, tuple)) and len(value) > 0:$/            elif False:/' \
+  "actually caps"
+
 echo
 # The point of the copy: prove the tracked tree was never written to at all.
 for f in "${TARGETS[@]}"; do

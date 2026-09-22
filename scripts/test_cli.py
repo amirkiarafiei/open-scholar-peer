@@ -386,6 +386,54 @@ def test_a_cut_document_says_it_is_cut() -> None:
     check_true(f"...in a sane number of windows ({windows})", 1 < windows <= 20)
 
 
+def test_the_cap_actually_caps() -> None:
+    """Whatever is heavy must shrink, not only the largest string.
+
+    `get_openalex_work` carries `referencedWorks`, a list of a few thousand
+    ids. Shrinking only the largest STRING left the document untouched and
+    emitted 101 KB against a 24 KB limit — while claiming to have been cut. The
+    host then truncated it mid-record, which is the outcome the cap exists to
+    prevent.
+    """
+    r = run(["call", "get_openalex_work", '{"identifier":"W1"}'], mode="huge_list")
+    check("an oversized list field: exit code", r.rc, 0)
+    check_true("an oversized list field: the result actually fits "
+               f"({len(r.out.encode())} B)", len(r.out.encode()) <= 26_000)
+    check_true("an oversized list field: still valid JSON", r.json is not None)
+    d = r.json or {}
+    check("an oversized list field: says it was cut", d.get("osp_truncated"), True)
+    check_true("an oversized list field: names what was cut",
+               "referencedWorks" in d.get("osp_how_to_get_the_rest", ""))
+    check_true("an oversized list field: keeps some of the list",
+               0 < len(d.get("referencedWorks", [])) < 3000)
+
+
+def test_batch_returns_what_separate_calls_would() -> None:
+    """A batch must not be a worse deal than the calls it replaces.
+
+    The budget used to be divided across items, so the recommended path
+    returned less the more you asked for: measured on real-sized records, a
+    batch of 6 gave one record per source and a batch of 12 gave none, because
+    the floor was smaller than a single record. The invariant held — every item
+    was marked truncated — but the corpus did not.
+    """
+    one = run(["call", "search_arxiv", '{"query":"x"}'], mode="ten_records")
+    baseline = len([i for i in (one.json or []) if "arxiv_id" in i])
+    check("a single call returns ten records", baseline, 10)
+
+    for size in (2, 6, 12):
+        calls = [{"tool": "search_arxiv", "arguments": {"query": f"q{i}"}}
+                 for i in range(size)]
+        r = run(["batch", json.dumps(calls)], mode="ten_records")
+        check(f"a batch of {size}: exit code", r.rc, 0)
+        items = r.json or []
+        check(f"a batch of {size}: every call is answered", len(items), size)
+        worst = min((len([x for x in i["result"] if "arxiv_id" in x])
+                     for i in items), default=0)
+        check(f"a batch of {size}: each item returns as much as one call alone",
+              worst, baseline)
+
+
 def test_one_document_and_clean_streams() -> None:
     """Exactly one JSON document on stdout, and `2>&1` still parses."""
     for args, mode in ((["list", "--json"], ""),
@@ -507,6 +555,8 @@ TESTS = [
     ("output is capped", test_output_is_capped),
     ("a failure survives the cap", test_a_failure_survives_the_cap),
     ("a cut document says it is cut", test_a_cut_document_says_it_is_cut),
+    ("the cap actually caps", test_the_cap_actually_caps),
+    ("batch is not a worse deal", test_batch_returns_what_separate_calls_would),
     ("one document, clean streams", test_one_document_and_clean_streams),
     ("blocked imports", test_blocked_imports),
     ("batch", test_batch),

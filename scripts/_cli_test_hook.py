@@ -121,6 +121,31 @@ if _MODE and _MCP_DIR:
 
         _ax.read_paper = _huge_read
 
+    elif _MODE == "huge_list":
+        # A record whose weight is a LIST, not a string — the shape a real
+        # `get_openalex_work` has, with thousands of referenced works. Cutting
+        # only the largest string left the document over the limit.
+        import providers.openalex as _oa
+
+        def _huge_work(identifier, **k):
+            return {"id": identifier, "title": "A much-cited review",
+                    "referencedWorks": [f"https://openalex.org/W{i}"
+                                        for i in range(3000)]}
+
+        _oa.get_work = _huge_work
+
+    elif _MODE == "ten_records":
+        # Ten records of realistic size, so a batch can be compared against a
+        # single call on identical data.
+        import providers.arxiv as _ax
+
+        def _ten(*a, **k):
+            return [{"arxiv_id": f"24{i:02d}.00001", "title": "T" * 60,
+                     "summary": "x" * 1700, "authors": ["A. One", "B. Two"]}
+                    for i in range(10)]
+
+        _ax.search = _ten
+
     elif _MODE == "blocked_provider":
         import providers.google_scholar as _gs
 

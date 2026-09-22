@@ -75,6 +75,11 @@ core: Any = None
 # without telling anyone. See _cap().
 MAX_BYTES = 24_000
 
+# The smallest cap that can still hold a record and an honest description of
+# what was removed. Below this the description wins, so the caller always
+# learns that something was cut even when nothing else fits.
+MIN_BYTES = 1_024
+
 # Slack between the per-call timeout and the outer wall, so the inner one
 # normally wins and names the provider that hung.
 _GRACE = 0.5
@@ -142,6 +147,13 @@ def _cap(payload: Any, max_bytes: int = None) -> Any:
     A truncated search is not a failed one: the records returned are real and
     complete, and an agent that treated this as an error would throw away good
     papers. The exit code stays 0 and the truth sits in the data.
+
+    Two cases exceed the cap on purpose, and both are the lesser evil:
+
+    * an error envelope is never dropped, so a failure whose message alone is
+      larger than the cap still arrives with its `reason`;
+    * below MIN_BYTES there is no room for the record AND an honest account of
+      what was cut, so the account wins.
     """
     limit = MAX_BYTES if max_bytes is None else max_bytes
     if limit <= 0 or _size(payload) <= limit:
@@ -186,19 +198,59 @@ def _cap(payload: Any, max_bytes: int = None) -> Any:
         if _is_paged_text(payload):
             return _recut_paged_text(payload, limit)
 
-        # Any other record: shrink the largest string and keep the rest, so the
-        # metadata an agent needs to cite still arrives.
-        biggest = max(
-            (k for k, v in payload.items() if isinstance(v, str)),
-            key=lambda k: len(payload[k]), default=None)
-        if biggest is not None:
-            out = dict(payload)
-            original = len(out[biggest])
-            over = _size(payload) - limit
-            keep = max(0, len(out[biggest]) - over - 800)
-            out[biggest] = out[biggest][:keep]
-            out.update(_marker(keep, original, "field", field=biggest))
-            return out
+        # Any other record: shrink whatever is actually heavy, which is not
+        # always a string. `get_openalex_work` carries `referencedWorks`, a
+        # list of a few thousand ids — shrinking only the largest STRING left
+        # a 101 KB document that claimed to have been cut to 24 KB, and the
+        # host then truncated it mid-record. That is precisely what this
+        # function exists to prevent, so the loop below works on the heaviest
+        # field of any type and keeps going until the result actually fits.
+        out = dict(payload)
+        cuts: dict[str, str] = {}
+        # Measure the WHOLE document every time, never a field on its own.
+        # A field measured in isolation is cheaper than the same field nested
+        # inside a record, because nesting adds indentation to every line —
+        # so an isolated estimate said "this fits" and the document came out
+        # over the limit anyway.
+        reserve = _size(_marker(0, 0, "fields", field="x" * 300))
+        if limit <= reserve:
+            # No room for the record AND an honest description of what was cut.
+            # The description wins: a caller who cannot be told what happened
+            # is the failure mode this whole function exists to avoid.
+            return _marker(0, 0, "fields", field="the whole record")
+        for _ in range(400):
+            if _size(out) + reserve <= limit:
+                break
+            heavy = max((k for k in out if k not in _MARKER_KEYS),
+                        key=lambda k: _size(out[k]), default=None)
+            if heavy is None:
+                break
+            value = out[heavy]
+            room = limit - reserve - _size({k: v for k, v in out.items()
+                                            if k != heavy})
+            if isinstance(value, str) and value:
+                # One proportional guess, then halve until it really fits.
+                # Halving alone converges but throws away up to half of what
+                # would have fitted.
+                # At least a fifth off each pass. A proportional guess alone
+                # can shrink by one element at a time when the estimate is
+                # close, which never converges inside the loop bound.
+                guess = int(len(value) * max(room, 0) / max(_size(value), 1))
+                keep = min(max(0, guess), int(len(value) * 0.8), len(value) - 1)
+                out[heavy] = value[:keep]
+                cuts[heavy] = f"{heavy} ({keep} of {len(value)} characters)"
+            elif isinstance(value, (list, tuple)) and len(value) > 0:
+                guess = int(len(value) * max(room, 0) / max(_size(value), 1))
+                keep = min(max(0, guess), int(len(value) * 0.8), len(value) - 1)
+                out[heavy] = list(value)[:keep]
+                cuts[heavy] = f"{heavy} ({keep} of {len(value)} entries)"
+            else:
+                del out[heavy]
+                cuts[heavy] = f"{heavy} (dropped)"
+        if cuts:
+            out.update(_marker(0, 0, "fields",
+                               field="; ".join(cuts.values())[:300]))
+        return out
 
     return _marker(0, 0, "opaque")
 
@@ -246,6 +298,10 @@ def _recut_paged_text(rec: dict[str, Any], limit: int) -> dict[str, Any]:
     return out
 
 
+_MARKER_KEYS = {"osp_truncated", "osp_returned", "osp_total", "osp_note",
+                "osp_how_to_get_the_rest"}
+
+
 def _marker(returned: int, total: int, kind: str, field: str = "") -> dict[str, Any]:
     """The record that says a result was cut. Loud on purpose."""
     if kind == "list":
@@ -255,6 +311,9 @@ def _marker(returned: int, total: int, kind: str, field: str = "") -> dict[str, 
         how = ("This window was shortened to fit. `next_offset` has been "
                "corrected, so keep calling with `offset` set to it until it is "
                "null — the document is complete only when it is.")
+    elif kind == "fields":
+        how = (f"Cut to fit: {field}. Ask for fewer results, page with any "
+               f"offset the tool takes, or raise --max-bytes.")
     elif kind == "field":
         how = (f"The {field!r} field was cut. If this tool takes max_chars and "
                f"offset, page through it; otherwise raise --max-bytes.")
@@ -675,12 +734,27 @@ def cmd_batch(raw: str | None, deadline: float) -> int:
                         "result": core._err(plan["tool"], item)
                         if isinstance(item, Exception)
                         else _envelope(f"{item!r}", "failed")}
-            # Per item first, so one huge result cannot crowd out the others.
-            item["result"] = _cap(item["result"], max(2_000, MAX_BYTES // len(plans)))
+            # Each item gets the budget a single `call` would have got — NOT
+            # a share of it.
+            #
+            # Dividing the budget made the recommended path strictly worse than
+            # the one it replaces. Measured on real arXiv records (mean 1,926 B):
+            # a batch of 6 returned one record per source and a batch of 12
+            # returned none, because the 2,000 B floor is smaller than a single
+            # record. And `--max-bytes 0`, documented as "no limit" and named in
+            # the truncation marker as the way to get the rest, clamped to that
+            # same floor and returned nothing at all.
+            #
+            # A batch of N calls must return what N calls would. That is the
+            # whole claim batch makes; anything less and an agent that follows
+            # the guidance gets a thinner corpus for doing so.
+            item["result"] = _cap(item["result"], MAX_BYTES)
             out.append(item)
         failed = sum(1 for i in out if not i["ok"])
-        # And the whole response, in case many small results still overflow.
-        _emit_and_exit(_cap(out), code=1 if failed else 0)
+        # The whole response is still bounded — at N times one call's budget,
+        # which is exactly what N separate calls would have produced.
+        whole = MAX_BYTES * len(plans) if MAX_BYTES > 0 else 0
+        _emit_and_exit(_cap(out, whole), code=1 if failed else 0)
 
     asyncio.run(run_all())
     raise AssertionError("unreachable")  # pragma: no cover
@@ -772,6 +846,12 @@ def main() -> int:
         return cmd_schema(args.tool)
     if args.command == "call":
         if args.max_bytes is not None:
+            if 0 < args.max_bytes < MIN_BYTES:
+                _emit(_envelope(
+                    f"--max-bytes {args.max_bytes} is below {MIN_BYTES}, which "
+                    f"is too small to hold a single record and an honest note "
+                    f"about what was cut. Use 0 for no limit.", "bad_request"))
+                return 2
             MAX_BYTES = args.max_bytes
         deadline = (args.timeout if args.timeout is not None
                     else core.CALL_TIMEOUT.get())
@@ -782,6 +862,12 @@ def main() -> int:
         return cmd_call(args.tool, args.arguments, deadline)
     if args.command == "batch":
         if args.max_bytes is not None:
+            if 0 < args.max_bytes < MIN_BYTES:
+                _emit(_envelope(
+                    f"--max-bytes {args.max_bytes} is below {MIN_BYTES}, which "
+                    f"is too small to hold a single record and an honest note "
+                    f"about what was cut. Use 0 for no limit.", "bad_request"))
+                return 2
             MAX_BYTES = args.max_bytes
         deadline = (args.timeout if args.timeout is not None
                     else core.CALL_TIMEOUT.get())
