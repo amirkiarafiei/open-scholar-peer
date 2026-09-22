@@ -27,7 +27,11 @@ if [ ! -x "$PY" ]; then
 fi
 
 GREEN=$'\033[0;32m'; RED=$'\033[0;31m'; DIM=$'\033[2m'; NC=$'\033[0m'
-failed=()
+# A plain string, not an array. Referencing an empty array under `set -u` is
+# an unbound-variable error on bash 3.2, which is what stock macOS ships — so
+# a fully passing run would have died at the summary line.
+failed=""
+failed_count=0
 started=$(date +%s)
 
 step() {
@@ -40,7 +44,8 @@ step() {
   else
     printf '%s✗%s\n' "$RED" "$NC"
     printf '%s\n' "$out" | tail -25 | sed 's/^/      /'
-    failed+=("$name")
+    failed="$failed $name"
+    failed_count=$((failed_count + 1))
   fi
 }
 
@@ -68,8 +73,8 @@ fi
 
 elapsed=$(( $(date +%s) - started ))
 echo
-if [ ${#failed[@]} -gt 0 ]; then
-  echo "  ${RED}❌ ${#failed[@]} failed:${NC} ${failed[*]}"
+if [ "$failed_count" -gt 0 ]; then
+  echo "  ${RED}❌ ${failed_count} failed:${NC}${failed}"
   echo "  ${DIM}(${elapsed}s)${NC}"
   exit 1
 fi

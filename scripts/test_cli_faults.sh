@@ -39,7 +39,11 @@ pass=0; fail=0
 run_fault() {
   local name="$1" file="$2" expr="$3" only="${4:-}"
   restore
-  if ! sed -i "$expr" "$ROOT/$file"; then
+  # Not `sed -i`: GNU reads the next argument as the expression, BSD reads it
+  # as a backup suffix and then treats the filename as the script. On macOS
+  # every fault would report "could not be applied", which looks like a stale
+  # pattern rather than a portability problem.
+  if ! sed "$expr" "$ROOT/$file" > "$ROOT/$file.tmp" || ! mv "$ROOT/$file.tmp" "$ROOT/$file"; then
     echo "  ${RED}✗ $name — the fault could not be applied (stale pattern?)${NC}"
     fail=$((fail+1)); return
   fi

@@ -189,6 +189,14 @@ equivalent, and the differences are worth knowing:
 - **Large results are cut** to fit the caller. The cut is declared in the result itself
   (`osp_truncated`), and the records that arrive are complete — but the corpus is not.
 
+**On native Windows Python the arXiv rate limit is not enforced across calls.**
+The cross-process guard is an `fcntl.flock`, and `fcntl` does not exist there —
+so each CLI call starts with a fresh in-memory timestamp and never waits. The
+installers are bash, so the route in is Git Bash driving a Windows interpreter
+rather than WSL, where it works normally. Use `batch`, which keeps the whole
+round in one process and therefore keeps the gap, or run under WSL. The symptom
+if you do neither is a 429 from arXiv that reads like a provider failure.
+
 **Three tools have no fallback at all.** Codex CLI (`network_access = false`), Antigravity IDE on
 macOS and Linux (sandboxed, per-domain allowlist), and Kiro Web at its baseline tier all block
 outbound network from the shell by default. All three have working MCP, so the fallback is missing

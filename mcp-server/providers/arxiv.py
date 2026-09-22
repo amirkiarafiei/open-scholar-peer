@@ -91,6 +91,14 @@ def _lock_path() -> "pathlib.Path":
 
     Keyed to this install and this user, so two projects on one machine do not
     serialise against each other and two users cannot collide on permissions.
+
+    **That is the decision, and it is narrower than arXiv's terms.** The note at
+    the top of this file quotes those terms as applying to every machine under
+    your control as a whole; this lock is per project. Two OSP projects open at
+    once can therefore each hold a turn, halving the gap. Accepted: serialising
+    every project on a shared machine would make one review wait on another's
+    unrelated search, and arXiv tolerates the occasional overlap from one user.
+    The gap is strict within a project and best-effort across them.
     In the temp directory rather than beside the code, because an install can
     sit on a read-only path and a lock that cannot be created must degrade
     rather than fail.
@@ -195,6 +203,12 @@ def _cross_process_turn(deadline: float):
         try:
             if locked:
                 fcntl.flock(handle, fcntl.LOCK_UN)
+        except OSError:
+            # The kernel releases the lock when the handle closes, so this call
+            # can only ever lose information. Unguarded, an OSError here
+            # REPLACES whatever exception was unwinding — an ArxivBusy and its
+            # whole explanation became a bare "[Errno 37] No locks available".
+            pass
         finally:
             handle.close()
 
