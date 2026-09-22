@@ -36,7 +36,8 @@ mkdir -p "$TARGET_DIR/.venv/bin"
 # Mirror every artefact the real init_mcp.sh leaves behind, or a tool that
 # depends on one of them passes here and fails for a user. osp_cli.py is the
 # search bridge used by tools with no MCP client.
-touch "$TARGET_DIR/osp_mcp.py" "$TARGET_DIR/osp_cli.py" "$TARGET_DIR/.venv/bin/python"
+touch "$TARGET_DIR/osp_mcp.py" "$TARGET_DIR/osp_cli.py" "$TARGET_DIR/core.py" \
+      "$TARGET_DIR/.venv/bin/python"
 export OSP_MCP_PYTHON="$TARGET_DIR/.venv/bin/python"
 export OSP_MCP_SERVER="$TARGET_DIR/osp_mcp.py"
 export OSP_SEARCH_CLI="$TARGET_DIR/osp_cli.py"
@@ -66,8 +67,14 @@ run_install_smoke() {
   fake_home="$sandbox/.fake-home"
   mkdir -p "$fake_home"
 
-  # Copy the entire repo to a writable temp location so we can stub init_mcp.sh
-  cp -r "$REPO_ROOT/." "$repo_copy/"
+  # Copy the repo to a writable temp location so we can stub init_mcp.sh.
+  #
+  # Everything EXCEPT .venv and .git. Those are 204 MB and 21 MB here, and this
+  # copy happens once per tool: the full run was moving about 5 GB to exercise
+  # a few hundred kilobytes of installer. No installer reads either directory —
+  # init_mcp.sh is stubbed out, and it would build its own venv anyway.
+  tar -c -C "$REPO_ROOT" --exclude=./.venv --exclude=./.git \
+      --exclude=./__pycache__ --exclude='*.pyc' . | tar -x -C "$repo_copy"
   stub_init_mcp "$repo_copy"
 
   # Run installer from sandbox (the installer's CWD becomes the user's project)
@@ -110,6 +117,11 @@ COMMON=(
   ".brain/review"
   ".brain/input"
   ".open-scholar-peer/mcp/osp_mcp.py"
+  # core.py holds the 22 tools; osp_cli.py is the fallback interface. Both ship
+  # with every tool now, not just the one that has no MCP client, so both are
+  # asserted for all 21 rather than for Pi alone.
+  ".open-scholar-peer/mcp/core.py"
+  ".open-scholar-peer/mcp/osp_cli.py"
   ".gitignore"
 )
 
@@ -210,7 +222,6 @@ run_install_smoke "pi" "install_pi.sh" \
   "${COMMON[@]}" \
   ".pi/prompts/0-osp-onboarding.md" \
   ".pi/skills/osp-orchestrator/SKILL.md" \
-  ".open-scholar-peer/mcp/osp_cli.py" \
   "AGENTS.md"
 
 run_install_smoke "ohmypi" "install_ohmypi.sh" \

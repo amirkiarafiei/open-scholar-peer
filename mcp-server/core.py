@@ -393,7 +393,9 @@ async def _run(fn, *args, **kwargs) -> Any:
             timeout=timeout,
         )
     except asyncio.TimeoutError:
-        raise TimeoutError(f"{fn.__name__} timed out after {timeout}s")
+        raise TimeoutError(
+            f"{fn.__name__} timed out after {timeout}s and was abandoned. "
+            f"Nothing was searched — this is not an empty result.")
 
 
 # ---------- arXiv ----------------------------------------------------------

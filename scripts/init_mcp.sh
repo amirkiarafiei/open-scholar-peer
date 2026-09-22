@@ -59,6 +59,10 @@ fi
 # Copy server files (overwrite — server source is authoritative)
 mkdir -p "$TARGET_DIR"
 cp -r "$SOURCE_DIR/." "$TARGET_DIR/"
+# Do not ship this machine's bytecode. It is stale the moment it is copied, it
+# is not ours to put in someone's project, and it grows every time a file is
+# added to mcp-server/.
+find "$TARGET_DIR" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
 echo -e "  ${GREEN}✅ MCP server copied → .open-scholar-peer/mcp/${NC}"
 
 # Set up venv
@@ -247,5 +251,29 @@ fi
 # Export paths so the calling installer can write them into MCP config
 export OSP_MCP_PYTHON="$VENV_DIR/bin/python"
 export OSP_MCP_SERVER="$TARGET_DIR/osp_mcp.py"
-# The same search tools over argv, for agents that have no MCP client.
+# The same search tools over argv. Every tool gets this: it is the documented
+# fallback when MCP is unavailable, not a special case for one vendor.
 export OSP_SEARCH_CLI="$TARGET_DIR/osp_cli.py"
+
+# Prove the search layer actually runs in THIS project, by running it.
+#
+# This file is sourced by all 21 installers, so one check here serves all of
+# them, and it runs before each tool's MCP wiring — so a broken venv is
+# reported before the tool-specific output that would bury it.
+#
+# `list` is the right probe: no network, but it exercises the venv, the
+# interpreter, core.py, the providers package and the OSP_SOURCES gating. It is
+# also the first thing an agent runs.
+#
+# Not fatal. A user with a working editor and a broken venv should still get
+# their prompts installed, and be told exactly what to run to see the error.
+if "$OSP_MCP_PYTHON" "$OSP_SEARCH_CLI" list >/dev/null 2>&1; then
+  _osp_tools="$("$OSP_MCP_PYTHON" "$OSP_SEARCH_CLI" list --json 2>/dev/null \
+    | grep -c '"name"' || true)"
+  echo -e "  ${GREEN}✅ Search layer answers — ${_osp_tools:-?} tools, verified by running it${NC}"
+  unset _osp_tools
+else
+  echo -e "  ${YELLOW}⚠️  The search layer did not run. Your prompts are installed,"
+  echo -e "      but searches will fail. Run this to see why:${NC}"
+  echo "         $OSP_MCP_PYTHON $OSP_SEARCH_CLI list"
+fi

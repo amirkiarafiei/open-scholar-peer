@@ -1,0 +1,80 @@
+# Open ScholarPeer — continuous integration.
+#
+# This file deliberately contains no list of test suites. It builds an
+# environment and calls `scripts/test_all.sh`, which is the same command a
+# person runs locally. Listing the suites here as well would create two places
+# to keep in step, and the one that goes stale is always the one nobody runs.
+#
+# Nothing here reaches a paper database. The live provider round-trip is a
+# separate, manual workflow: a red build that means "arXiv is slow today"
+# teaches people to ignore the build.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Weekly, so a provider that changes its API is found here rather than by
+    # a user mid-review. Only the live job reads this trigger.
+    - cron: "17 6 * * 1"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 is the oldest interpreter the installers accept, and the one
+        # with no `tomllib` — the TOML suite re-execs itself under a newer
+        # interpreter, and that path only runs on 3.10.
+        # What was actually verified before this file was written: the whole
+        # suite on 3.10, and the three suites that need no third-party package
+        # (sync-check, parity, TOML) on 3.11 — this machine's 3.11 has no
+        # ensurepip, so a 3.11 venv could not be built here and CI is the first
+        # place the provider suites run on it. 3.12 is left out entirely rather
+        # than claimed: it is not installed here at all. Add it after a green run.
+        python-version: ["3.10", "3.11"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: mcp-server/requirements.txt
+
+      - name: Build the venv the suites expect
+        # scripts/test_all.sh looks for ./.venv first, exactly as a developer
+        # has it, so CI runs against the same layout rather than a special case.
+        run: |
+          python -m venv .venv
+          ./.venv/bin/pip install --quiet --upgrade pip
+          ./.venv/bin/pip install --quiet -r mcp-server/requirements.txt
+
+      - name: Run every check
+        run: bash scripts/test_all.sh
+
+  # Opt-in, because it depends on six third-party services being up.
+  # Run it by hand before a release, or let the weekly run tell you a provider
+  # changed its API before a user does.
+  live-providers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: |
+          python -m venv .venv
+          ./.venv/bin/pip install --quiet -r mcp-server/requirements.txt
+      - name: Live provider round-trip
+        run: ./.venv/bin/python scripts/test_providers.py

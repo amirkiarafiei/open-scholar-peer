@@ -50,13 +50,6 @@ fi
 echo -e "  ${GREEN}✅ Search tools available as a program → ${OSP_SEARCH_CLI#./}${NC}"
 echo -e "     ${CYAN}Pi has no MCP client, so the agent calls it through bash.${NC}"
 
-# 5. Sanity check: the bridge must actually run in this project.
-if "$OSP_MCP_PYTHON" "$OSP_SEARCH_CLI" list >/dev/null 2>&1; then
-  echo -e "  ${GREEN}✅ Search bridge answers — verified by running it${NC}"
-else
-  echo -e "  ${YELLOW}⚠️  The search bridge did not run. Try it yourself to see why:${NC}"
-  echo "         $OSP_MCP_PYTHON $OSP_SEARCH_CLI list"
-fi
 
 # Closing message — shared wording lives in _post_install.sh
 . "$SCRIPTS_DIR/_post_install.sh"

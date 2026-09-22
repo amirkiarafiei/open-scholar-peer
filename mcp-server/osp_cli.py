@@ -504,7 +504,12 @@ def cmd_batch(raw: str | None, deadline: float) -> int:
                 '{"tool": "...", "arguments": {...}}.', "bad_request"))
             return 2
         name = item["tool"]
-        kwargs = item.get("arguments") or {}
+        # Read it before defaulting. `or {}` would turn a falsy wrong type —
+        # [], "", 0 — into an empty dict, so the check below never saw it and
+        # the call failed later as a missing argument instead of a bad one.
+        kwargs = item.get("arguments")
+        if kwargs is None:
+            kwargs = {}
         if not isinstance(kwargs, dict):
             _emit(_envelope(
                 f"call {i} ({name}): arguments must be a JSON object.",
