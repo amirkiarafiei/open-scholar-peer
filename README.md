@@ -86,13 +86,17 @@ Everything lands in the directory you ran the installer from. Four things:
 | --- | --- | --- |
 | **`.brain/`** — `session.json`, `raw/`, `review/`, `input/` | your project | To manage session state and write intermediary results and artifacts. Everything is saved as Markdown/JSON |
 | **Agent config** — Slash Commands, Skills, MCP config | your tool's own directory (`.claude/`, `.cursor/`, `.gemini/`, …), plus a root file for some tools: `.mcp.json`, `AGENTS.md` or `CLAUDE.md` | To teach the review protocol to your agent and prepare the environment it |
-| **`.open-scholar-peer/mcp/`** MCP server and `.venv`  | To add the MCP servers for paper search, written in python. The virtualenv keeps its dependencies out of your system Python |
+| **`.open-scholar-peer/mcp/`** — search server, CLI and a `.venv` | your project | The paper-search tools, in Python. The virtualenv keeps their dependencies out of your system Python. The same tools ship as a command-line program too, used as a fallback when MCP is unavailable |
 | **`.env`** | your project | Your optional API keys for paper search |
 
 Installer adds `.brain/`, `.open-scholar-peer/` and `.env` to
 your `.gitignore`, so a manuscript under embargo is never committed by accident. Nothing is written
 outside this directory except the MCP config that a few agents insist on keeping in your home folder.
 Nothing leaves the machine except the searches you ask for.
+
+Your agent reaches the search tools over MCP by default. If MCP is not available on your tool — or
+stops answering mid-session — it falls back to the same tools as a command-line program, and records
+which one it used in `.brain/session.json`. You do not have to configure anything for that.
 
 To remove it all: delete `.brain/`, `.open-scholar-peer/` and `.env`, plus the agent's MCP config. 
 
@@ -181,7 +185,7 @@ The MCP server loads `.env` automatically on startup.
 | [OpenHands](https://docs.openhands.dev) | ✓ CLI (`~/.openhands/mcp.json`); web UI needs a paste |
 | [Antigravity](https://antigravity.google/) | ✓ (`~/.gemini/antigravity/` + `~/.gemini/config/`) |
 | [Antigravity CLI](https://antigravity.google/cli/) | ✓ (`.agents/mcp_config.json` + `~/.gemini/antigravity-cli/`) |
-| [Pi](https://pi.dev) | n/a — Pi ships no MCP client; searches run through a bundled CLI instead |
+| [Pi](https://pi.dev) | n/a — Pi ships no MCP client; searches run through the bundled CLI, which every install carries |
 | [Oh My Pi](https://omp.sh) | ✓ (`.omp/mcp.json`) |
 | [Grok Build](https://docs.x.ai/build/overview) | ✓ (`.grok/config.toml`) |
 | [Hermes](https://hermes-agent.nousresearch.com/docs/) | ✓ (`~/.hermes/config.yaml`) |

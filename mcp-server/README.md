@@ -14,7 +14,11 @@ cover every field. The rest are one keypress away.
 ## Tools
 
 22 tools with every database on. The authority is the source:
-`grep -c '^@tool_for(' osp_mcp.py`.
+`grep -c '^@tool_for(' core.py` — the tools live in `core.py`, which knows nothing
+about MCP. `osp_mcp.py` serves them over MCP and `osp_cli.py` serves the same
+function objects over argv; neither names a tool, so neither can drift from the
+other. For what THIS project has switched on:
+`osp_cli.py list --json | python3 -c 'import json,sys;print(len(json.load(sys.stdin)))'`.
 Each tool's own docstring gives the full parameter list and return keys —
 that is what the agent reads, so keep it richer than this table.
 

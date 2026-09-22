@@ -17,11 +17,8 @@ $EDITOR extensions/_shared/skills/osp-summary-agent/SKILL.md
 # 2. Regenerate adapters
 python3 scripts/sync_adapters.py
 
-# 3. Verify parity
-python3 scripts/test_parity.py
-
-# 4. Smoke-test installers
-bash scripts/test_install.sh
+# 3. Run everything — the same command CI runs
+bash scripts/test_all.sh          # add --quick to skip the installer suite
 ```
 
 ---
@@ -83,29 +80,46 @@ The MCP server at `mcp-server/osp_mcp.py` is intentionally modular. To add a new
        ...
    ```
 
-2. **Register the FastMCP wrappers** in `osp_mcp.py`:
+2. **Register the tool** in `core.py` — not in `osp_mcp.py`, which is only the MCP
+   adapter and names no tool. One registration serves both surfaces:
 
    ```python
-   from providers import pubmed as pubmed_provider
+   # core.py — the provider alias is already lazy; do not import it eagerly.
+   pubmed_provider = _lazy("providers.pubmed")
 
-   @mcp.tool()
+   @tool_for("pubmed")
    async def search_pubmed(query: str, max_results: int = 10) -> list[dict[str, Any]]:
        """Search PubMed for biomedical literature.
 
        <Rich docstring — agents read this to decide when to call your tool.
         Include args, return shape, and use cases.>
        """
+       log.info("search_pubmed(query=%r, max=%s)", query, max_results)
        try:
-           return await asyncio.to_thread(pubmed_provider.search, query, max_results)
+           return await _run(pubmed_provider.search, query, max_results)
        except Exception as e:
-           return [{"error": f"search_pubmed failed: {e}"}]
+           return [_err("search_pubmed", e)]
    ```
 
-3. **Register it behind `@tool_for("<source>")`, not `@mcp.tool()`**, and add the source name to `_ALL_SOURCES` in `osp_mcp.py` and to the `DB_*` arrays in `install.sh`. A tool that cannot be switched off is a cost the agent pays on every request, whether or not the user wanted that database.
+   `_run` applies the timeout; `_err` maps the exception to a `reason`. Neither
+   is optional — a bare `asyncio.to_thread` has no deadline, and a hand-written
+   `{"error": ...}` with no `reason` leaves the agent unable to tell a block
+   from a bad argument.
+
+   **Use only the annotation forms already in use** — `str`, `int`, `bool`,
+   `list[str]` and their `| None` variants. The CLI derives its own JSON Schema
+   from the signature and `scripts/test_schema_parity.py` proves the two
+   derivers agree; an eighth form fails that test until both learn it.
+
+3. **Register it behind `@tool_for("<source>")`, not `@mcp.tool()`**, and add the source name to `_ALL_SOURCES` in `core.py` and to the `DB_*` arrays in `install.sh`. A tool that cannot be switched off is a cost the agent pays on every request, whether or not the user wanted that database.
 
 4. **Update `requirements.txt`** with any new dependencies, **with an upper bound**. An unbounded pin has broken this project twice: `arxiv>=2.1.0` resolved two majors up, and `mcp>=1.2.0` resolved to a version that had removed the import the server needs.
 
-5. **Give failures their own exception type**, and never return `[]` for one. Map it to a `reason` in `_err()`.
+5. **Give failures their own exception type**, and never return `[]` for one. Add its class
+   name to `_REASON_BY_EXCEPTION` in `core.py`. A guard in `test_providers_unit.py` fails if a
+   provider exports an exception no reason maps to, or if the table names a class that does not
+   exist — `_err` matches by name along the MRO, so a rename would otherwise downgrade the
+   reason to `failed` in silence.
 
 6. **Add tests.** Offline checks for the pure logic in `scripts/test_providers_unit.py`, and a live check in `scripts/test_providers.py`. Nothing else in the repository loads `mcp-server/providers/`, so an untested provider is an unchecked one.
 
@@ -135,7 +149,7 @@ The MCP server at `mcp-server/osp_mcp.py` is intentionally modular. To add a new
    - `extra_files` — additional generated files (e.g. Copilot's `AGENTS.md`).
    - `commands_as_skills` — the tool has no file-based slash commands; every skill is one. The 8 commands then ship as skill directories.
    - `agent_dir` — the tool delegates to a named *agent definition* and cannot dispatch a skill, so each persona is emitted there a second time.
-   - `search_mode` — `cli` for a tool with no MCP client; its rules gain the block telling the agent to run `osp_cli.py`.
+   - `search_mode` — `cli` for a tool with no MCP client at all. Its rules gain a short block saying the interface is always `cli`. Every other tool gets the CLI as a *fallback* through the always-on rules, so this field is not what makes the CLI available.
 
 2. If your tool has unusual quirks (different file format, frontmatter), add a transformer function and wire it into `sync_tool()`.
 
@@ -184,8 +198,9 @@ Before submitting:
 
 - [ ] Changes are made in `_shared/` (or `mcp-server/`, `scripts/`, `docs/`), never in per-tool adapter dirs.
 - [ ] `python3 scripts/sync_adapters.py` runs cleanly.
-- [ ] `python3 scripts/test_parity.py` passes.
-- [ ] `bash scripts/test_install.sh` passes.
+- [ ] `bash scripts/test_all.sh` passes — it runs every suite, and CI runs the same file.
+- [ ] If you touched `mcp-server/`: `bash scripts/test_cli_faults.sh` still catches all nine.
+      A suite that passes proves nothing until you have watched it fail.
 - [ ] If you added a command, skill, or default — `MANIFEST.md` and `ARTIFACT_CONTRACTS.md` are updated.
 - [ ] If you added an MCP provider — `mcp-server/README.md` documents the new tool with rich docstrings.
 - [ ] If user-visible behavior changed — `docs/KNOWN_LIMITATIONS.md` and/or `docs/TROUBLESHOOTING.md` are updated.

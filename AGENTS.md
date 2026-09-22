@@ -49,7 +49,7 @@ cd mcp-server && PYTHONPATH=. ../.venv/bin/python osp_mcp.py
 
 ## Architecture (one paragraph)
 
-`extensions/_shared/` is the canonical source: 8 commands + 8 skills + rules + defaults + a manifest. `scripts/sync_adapters.py` regenerates 21 per-tool adapter directories under `extensions/.{claude,cursor,gemini,agent,agents,github,junie,kiro,codex,kimi,qwen,vibe,opencode,openhands,pi,omp,grok,hermes,cline,kilo,openclaw}/`. Per-tool installers (`scripts/install_*.sh`) copy the adapter into the user's project, run `init_brain.sh` to scaffold `.brain/`, run `init_mcp.sh` to set up a self-contained Python venv at `.open-scholar-peer/mcp/`, and wire the MCP server into the tool's config — `merge_mcp_config.py` for JSON, `merge_mcp_toml.py` for TOML, or the vendor's own `<tool> mcp add` where one exists. Pi is the exception: it has no MCP client, so it reaches the same 22 search tools through `osp_cli.py` over bash. State during a review lives at `<user-project>/.brain/` (gitignored).
+`extensions/_shared/` is the canonical source: 8 commands + 8 skills + rules + defaults + a manifest. `scripts/sync_adapters.py` regenerates 21 per-tool adapter directories under `extensions/.{claude,cursor,gemini,agent,agents,github,junie,kiro,codex,kimi,qwen,vibe,opencode,openhands,pi,omp,grok,hermes,cline,kilo,openclaw}/`. Per-tool installers (`scripts/install_*.sh`) copy the adapter into the user's project, run `init_brain.sh` to scaffold `.brain/`, run `init_mcp.sh` to set up a self-contained Python venv at `.open-scholar-peer/mcp/`, and wire the MCP server into the tool's config — `merge_mcp_config.py` for JSON, `merge_mcp_toml.py` for TOML, or the vendor's own `<tool> mcp add` where one exists. Every install also ships `osp_cli.py`, the same 22 search tools over argv. MCP is the default on all 21 tools; the CLI is the documented fallback, chosen by a mechanical rule at onboarding and recorded in `session.json` as `mcp.interface`. Pi is the one tool where it is the only path — it ships no MCP client at all. State during a review lives at `<user-project>/.brain/` (gitignored).
 
 ## The Golden Rule
 
@@ -129,7 +129,7 @@ docs/
 - `src/frontend` (Deep Agents UI fork) — deferred.
 - Plugin marketplace integrations — explicitly avoided (vendor lock-in).
 - PyPI publishing of `osp-mcp` — deferred; current model is self-contained venv per project.
-- CI drift checks — manual today; future GH Actions running `test_parity.py`.
+- CI — `.github/workflows/ci.yml` runs `scripts/test_all.sh` on every push. That script is also the one command to run locally; it holds the suite list so CI and a developer cannot drift.
 - Multi-paper sessions — currently one paper per `.brain/`.
 
 ## Pointers

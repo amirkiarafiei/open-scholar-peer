@@ -167,30 +167,46 @@ Or leave Google Scholar out at install time — the picker lets you. Retrying do
 
 ---
 
-## 9. Pi has no MCP client, so its searches run through a bundled program
+## 9. The shell fallback is second class, and on three tools it is unavailable
 
-**What:** Pi ships no MCP support and no web access. Its built-in tools are `read`, `bash`, `edit`,
-`write`, `grep`, `find`, `ls`. Both omissions are deliberate — the author's words are *"No MCP. Build
-CLI tools with READMEs (see Skills)"* — not gaps waiting to be filled.
+**What:** the search tools ship two ways — as MCP tools, and as a program you run in the shell
+(`.open-scholar-peer/mcp/osp_cli.py`). MCP is the default everywhere. `/0-osp-onboarding` decides
+which one your project uses and records it in `session.json` as `mcp.interface`.
 
-**Limitation:** OSP's search layer cannot be registered with Pi as an MCP server. Instead the same 22
-tools are exposed as a command-line program, `.open-scholar-peer/mcp/osp_cli.py`, and Pi's always-on
-rules tell the agent to call it through `bash`. The tools, arguments, results and error envelope are
-identical; only the calling convention differs.
+**Limitation:** the shell fallback returns the same records from the same databases, but it is not
+equivalent, and the differences are worth knowing:
 
-**Impact:** Two practical differences. The agent must read a JSON result from standard output rather
-than receive a structured tool response, which costs a little accuracy in argument handling; and it
-sees the tool list only when it runs `osp_cli.py list`, rather than having it always in context.
+- **Each call is a separate process.** The rate-limit state, the parsed-text cache and the
+  de-duplication all live in memory, so a fresh process starts without them. A lock file carries
+  arXiv's one-request-at-a-time rule and its three-second gap across processes, but **paging through
+  one paper still re-downloads it once per window** — six windows on a long paper is six downloads.
+  Use the `batch` subcommand, which runs a whole round in one process and restores all of it.
+- **The agent reads JSON from standard output** rather than receiving a structured tool response,
+  which costs a little accuracy in argument handling.
+- **It sees the tool list only when it asks for it**, rather than having it always in context.
+- **On hosts that ask permission per command** it costs 8–12 approvals per literature round, which is
+  why the guidance says to group calls into one shell invocation.
+- **Large results are cut** to fit the caller. The cut is declared in the result itself
+  (`osp_truncated`), and the records that arrive are complete — but the corpus is not.
+
+**Three tools have no fallback at all.** Codex CLI (`network_access = false`), Antigravity IDE on
+macOS and Linux (sandboxed, per-domain allowlist), and Kiro Web at its baseline tier all block
+outbound network from the shell by default. All three have working MCP, so the fallback is missing
+exactly where it is not needed — but if their MCP breaks, there is nothing behind it. Onboarding
+checks for this and records `none` rather than letting a blocked shell look like an empty corpus.
+
+**Pi is the one tool where the shell is the only path.** It ships no MCP client and no web access,
+both deliberately — the author's words are *"No MCP. Build CLI tools with READMEs (see Skills)"*. It
+also has no sandbox, so the fallback works exactly where it is the only option.
 
 **Also: project trust.** Pi ignores everything under `.pi/` — prompts, skills, settings — until you
 accept the trust prompt for the folder, and `/trust` does not reload the running session. If the OSP
 commands do not appear, start Pi in the project, accept trust, and restart it. `AGENTS.md` is the one
 file Pi loads regardless of trust, which is why OSP's rules are installed there.
 
-**Workaround:** None needed for the protocol itself; every phase runs. If you want structured tool
-calls on Pi, a third-party MCP adapter exists, but OSP does not depend on it.
-
----
+**Workaround:** none needed for the protocol itself; every phase runs on either interface. If a
+search fails while `mcp.interface` says `mcp`, the agent re-probes once and switches — a server that
+died mid-session would otherwise look exactly like a database with nothing in it.
 
 ## 10. OpenClaw is one assistant per machine, not a per-project tool
 

@@ -11,7 +11,7 @@ authority: state
 writes: agent, every session
 status: active
 covers: "Extensions phase, 2026-09-21 onward — M14 onward"
-last_updated: "2026-09-21"
+last_updated: "2026-09-22"
 ---
 
 # 📈 PROGRESS, part two — What we are building
@@ -681,11 +681,11 @@ injecting one.
 
 ---
 
-## 🏁 Milestone M18: The CLI becomes a tested second-class fallback — PLANNED
+## 🏁 Milestone M18: The CLI becomes a tested second-class fallback
 
-**Status: planned, not started.** Deliverables are unticked on purpose.
-**Revised 2026-09-21** after two independent reviews — one architecture lens, one agent-and-fresh-machine
-lens. Six HIGH findings between them. The shape survived; almost everything inside it changed.
+**Status: delivered 2026-09-22.** Planned 2026-09-21 and revised twice after two independent reviews —
+one architecture lens, one agent-and-fresh-machine lens. Six HIGH findings between them; the shape
+survived and almost everything inside it changed. The Report is at the end of this section.
 
 **Target.** `osp_cli.py` exists today for one tool: Pi has no MCP client, so it was built as Pi's only
 path (D34). This milestone makes it the documented fallback for **all 21 tools**, on a layering that
@@ -764,20 +764,20 @@ M18 promotes this path from one tool to twenty-one, so it multiplies the regress
 
 ### Deliverables
 
-- [ ] **C0 — a golden file before anything moves.** Capture `list --json` and every tool's `schema`
+- [x] **C0 — a golden file before anything moves.** Capture `list --json` and every tool's `schema`
   now; assert byte-identity after C1. Nothing currently tests the 22 wrappers, and C1 is the riskiest
   step in the milestone. Doubles as the C3 fixture.
-- [ ] **C1 — extract `mcp-server/core.py`.** Move the 22 tool functions, `_err`, `_enabled_sources`,
+- [x] **C1 — extract `mcp-server/core.py`.** Move the 22 tool functions, `_err`, `_enabled_sources`,
   the gating and `_run`. The registry is **decorator-built**, so adding tool 23 stays one edit.
   `load_dotenv()` moves to core. `logging.basicConfig()` **does not** — it configures the *root*
   logger, and each front end must own its own logging (see C6). `osp_mcp.py` keeps only the FastMCP
   import, the server object, a registration loop, and `mcp.run()`.
-- [ ] **C2 — no import may kill the CLI silently.** The CLI must not import `mcp`; and `import core`
+- [x] **C2 — no import may kill the CLI silently.** The CLI must not import `mcp`; and `import core`
   must sit **inside** the guard that already wraps `main()`, so any `ImportError` yields
   `{"error": ..., "reason": "failed"}` on stdout with exit 1. Test by blocking `mcp`, `arxiv`,
   `requests`, `bs4` and `semanticscholar` in turn — not `mcp` alone. A wrong working directory cannot
   be fixed in Python (the shell never starts it, exit 127), so the guide must give an absolute path.
-- [ ] **C3 — one source of truth, two derivers, pinned.** The tool function's signature is the single
+- [x] **C3 — one source of truth, two derivers, pinned.** The tool function's signature is the single
   source. FastMCP reads it through pydantic; the CLI reads it through `inspect.signature`. **Neither
   owns a schema**, and this is deliberately *not* the "two artifacts a human edits" drift this project
   keeps paying for — a human edits one decorated function and both surfaces follow. Saying otherwise
@@ -788,20 +788,20 @@ M18 promotes this path from one tool to twenty-one, so it multiplies the regress
   **types and defaults**, and fail loudly on any annotation both readers have not been shown to handle
   alike. Names and required sets already match 22/22 today, so comparing only those would be a test
   that cannot fail.
-- [ ] **C4 — a hard wall-clock bound.** After the deadline the CLI emits the `timeout` envelope,
+- [x] **C4 — a hard wall-clock bound.** After the deadline the CLI emits the `timeout` envelope,
   **flushes stdout explicitly** — a hard exit skips Python's buffers, so the envelope would be lost
   exactly when it matters — and exits without waiting for a stuck worker. Reuse `_err`'s existing
   `reason: "timeout"`; do not mint a second spelling. Add `--timeout`; it needs a real path to
   `_run`, which today reads a module global at 23 call sites — use a `ContextVar` defaulting to
   `OSP_CALL_TIMEOUT`.
-- [ ] **C5 — a cross-process guard for the calls that are not batched.** Scoped down by D39: `batch`
+- [x] **C5 — a cross-process guard for the calls that are not batched.** Scoped down by D39: `batch`
   runs a round in one process, so the in-process lock, the three-second gap and the text cache all
   work there without help. What remains is the agent that issues single calls. The lock file carries
   the last-request timestamp so the gap survives a fresh process; use `fcntl.flock` so the kernel
   releases it if a process dies; keep the existing 15 s `_LOCK_WAIT` / `ArxivBusy` contract rather
   than blocking. The on-disk parsed-text cache is **deferred to O26**, and until it exists
   `KNOWN_LIMITATIONS.md` must say plainly that CLI paging re-downloads per window.
-- [ ] **C6 — output discipline, correctly diagnosed.** The first draft blamed input schemas for the
+- [x] **C6 — output discipline, correctly diagnosed.** The first draft blamed input schemas for the
   37,463 B `list --json`. Measured: schemas are 7,118 B; **descriptions are 20,698 B**. Dropping
   schemas alone reaches 30,345 B against a 5 KB target. So: `list --json` carries name, first docstring
   line and required only — measured **3,702 B** — and `schema <tool>` carries the full schema and the
@@ -810,38 +810,38 @@ M18 promotes this path from one tool to twenty-one, so it multiplies the regress
   preferred form, because shell quoting breaks on a title containing an apostrophe. Reconfigure
   stdin and stdout to UTF-8: under an ASCII locale a non-ASCII query fails with "surrogates not
   allowed" and is reported as `bad_request`, which blames the agent for the environment's fault.
-- [ ] **C7 — the start-up probe, issue #16.** Record `search_interface` inside the existing `mcp` block
+- [x] **C7 — the start-up probe, issue #16.** Record `search_interface` inside the existing `mcp` block
   of `session.json` as `interface`. Touches `.brain-template/session.json`, the fallback heredoc in
   `init_brain.sh`, and `ARTIFACT_CONTRACTS.md`. Two rules the first draft missed: **absent is not
   `none`** — `init_brain.sh` skips an existing `.brain/`, so upgraders have no field and must be
   probed, not defaulted; and the value **does** go stale — a server that dies at phase 3 leaves `mcp`
   recorded. On the first failed search of a phase, re-probe once and rewrite the field.
-- [ ] **C8 — instructions where they are cheap *and* reachable.** Move `search_via_cli.md` to
+- [x] **C8 — instructions where they are cheap *and* reachable.** Move `search_via_cli.md` to
   `defaults/`. **Caution, measured:** on 13 of 21 tools the rules merge into the project-root
   `AGENTS.md` while defaults land in `.<tool>/defaults/`, so a bare `defaults/…` pointer resolves to
   nothing. The pointer must carry the tool's real path, or the text must be inlined for those tools.
   **The same defect already ships** for `phase_block_template.md` — raised as **O23**.
-- [ ] **C9 — the CLI is tested independently.** `scripts/test_cli.py`, driven through `bash` as an
+- [x] **C9 — the CLI is tested independently.** `scripts/test_cli.py`, driven through `bash` as an
   agent drives it. Must cover: every subcommand; `schema` for all 22 tools; malformed JSON; a query
   containing an apostrophe and a double quote; non-ASCII input; a gated-off source; the timeout bound;
   exit codes asserted **together with `reason`**, not alone; JSON on stdout for every invocation;
   stdout and stderr separate; each blocked import; stdin as an open pipe with no data; and — the case
   whose absence made criterion 11 toothless — **a result larger than the cap**, asserting that what
   reaches the caller is valid JSON that declares its own truncation.
-- [ ] **C10 — prove it on a new machine, reusing what exists.** `install_pi.sh:53` already runs
+- [x] **C10 — prove it on a new machine, reusing what exists.** `install_pi.sh:53` already runs
   `osp_cli.py list` after a real install and reports the result. Extend that check to all 21
   installers rather than inventing a new test. `test_install.sh` stubs `init_mcp.sh`, so the stub must
   also create `core.py`, and it writes no `.env`, so `OSP_SOURCES` is untested there.
-- [ ] **C11 — documentation.** `ARCHITECTURE.md` §9; `KNOWN_LIMITATIONS.md` §9 rewritten from "Pi only"
+- [x] **C11 — documentation.** `ARCHITECTURE.md` §9; `KNOWN_LIMITATIONS.md` §9 rewritten from "Pi only"
   to "the fallback for everyone"; `TROUBLESHOOTING.md` gains the stall and rate-limit symptoms;
   `CONTRIBUTING.md` gains "add a tool to both surfaces"; README one line. Also
   `osp-literature-review-agent/SKILL.md` and `2-osp-literature.md`, which the first draft missed.
-- [ ] **C12 — bound the size of a result.** The CLI caps its own stdout (`--max-bytes`, default
+- [x] **C12 — bound the size of a result.** The CLI caps its own stdout (`--max-bytes`, default
   ~24 KB). When it truncates it emits a *valid* envelope saying so: returned count, total count, and
   how to page. Measured need: `search_arxiv max_results=50` is 104,939 B and `read_arxiv_paper`
   defaults to 44,708 B, while `max_chars` is documented to 200,000. Consider a lower default
   `max_chars` on the CLI surface.
-- [ ] **C13 — make the surface choice mechanical, and prove the shell can reach the network.** A reviewer's conclusion, accepted: **an agent
+- [x] **C13 — make the surface choice mechanical, and prove the shell can reach the network.** A reviewer's conclusion, accepted: **an agent
   cannot reliably answer "are the OSP tools in my tool list?"** Hosts differ on a crashed server, a
   tool list can be a start-up snapshot, and partial `OSP_SOURCES` gating makes per-tool reasoning
   actively wrong. The rule becomes three ordered checks: `osp_cli.py` absent → `none`; any OSP tool
@@ -862,11 +862,11 @@ M18 promotes this path from one tool to twenty-one, so it multiplies the regress
   HTTPS fetch rather than a TCP connect because a proxy accepts the connect then refuses. Probe a host
   OSP actually calls — Antigravity allowlists per domain, so one approved host proves nothing about
   the others.
-- [ ] **C14 — something must run the tests.** There is **no CI at all** — no workflows, no Makefile
+- [x] **C14 — something must run the tests.** There is **no CI at all** — no workflows, no Makefile
   (`AGENTS.md:132` says so). After M18 there would be five manual suites, and every "the test fails if
   they diverge" in this plan would be words. Add a CI job running sync-check, parity, providers, TOML
   and CLI suites.
-- [ ] **C16 — a `batch` call, so a round runs in one process.** D39, resolving O24. Takes a JSON array
+- [x] **C16 — a `batch` call, so a round runs in one process.** D39, resolving O24. Takes a JSON array
   of calls and returns an array of results in the same order. The process boundary is the only real
   difference between CLI mode and MCP mode, and batch removes it for the common path: the arXiv lock,
   the three-second gap, the eight-entry text cache and the in-flight de-duplication all start working
@@ -877,7 +877,7 @@ M18 promotes this path from one tool to twenty-one, so it multiplies the regress
   response. The literature skill keeps saying "dispatch them together" — that sentence stays true on
   both surfaces, which is why no prompt changes.
 
-- [ ] **C15 — fix the guide's exit-code contract.** `search_via_cli.md` is wrong in both directions,
+- [x] **C15 — fix the guide's exit-code contract.** `search_via_cli.md` is wrong in both directions,
   measured: a gated-off source exits **2** while the file says 2 means "fix and retry" — a switched-off
   database is not fixable, and three lines later the same file says to record it as a corpus gap; and a
   bad argument *value* exits **1** while the file says malformed is 2. The instruction becomes
@@ -885,7 +885,13 @@ M18 promotes this path from one tool to twenty-one, so it multiplies the regress
 
 ### Order
 
-C0 → C1 → C2 → C3: nothing else is safe until the layering holds, no import can kill the process
+**Planned C0 → C1 → C2 → C3. Executed C0 → C1 → C3 → C2, because the planned order is impossible:**
+C2 removes the CLI's `mcp` import, but the CLI read its whole surface — tool list, descriptions *and*
+schemas — off FastMCP's pydantic objects, so it could not stop importing `mcp` until C3 gave it a
+schema of its own. C6 also moved up to sit beside C2: until it landed, `list --json` still carried
+schemas and was still exposed to an unknown annotation. (D41.)
+
+Nothing else is safe until the layering holds, no import can kill the process
 silently, and the two derivers are pinned. Then C4, C5, C6, C12 in any order. Then C7, C8, C13, C15 —
 prompt and contract work. Then C9, C10, C14, which judge all of it. C11 last.
 
@@ -951,6 +957,78 @@ false.
   project-root `AGENTS.md`. C8 must not repeat it, and the existing case needs fixing.
 - **Bash approvals.** On hosts that prompt per command, CLI mode costs 8–12 approvals per literature
   round. CLI-mode guidance should tell the agent to group calls into one shell invocation.
+
+### Report — 2026-09-22
+
+Delivered in six commits on `feat/richer-search`, each verified before the next began.
+
+**The layering.** `osp_mcp.py` went from **952 lines to 66** and holds only the four MCP-specific
+lines it always had. `core.py` (1,163 lines) holds the 22 tool functions, moved **verbatim**, plus
+the error envelope, the gating and the timeout. `osp_cli.py` imports `core` and **never `mcp`**
+(measured: 0 occurrences).
+
+**What made the move checkable.** Nothing tested the 22 wrappers, so C0 captured **220 files** first
+— `list`, `list --json`, every tool's `schema`, six error paths and the `mcp.list_tools()` dump,
+across three `OSP_SOURCES` settings (22 / 17 / 3 tools), each with stdout, stderr *and* exit code.
+After C1: byte-identical. After C3+C2: byte-identical. After C6: **3 files changed, and they were
+exactly the three `list --json` captures C6 targets.** The `list_tools()` dump matching matters
+independently: it proves MCP clients were handed the same surface throughout.
+
+**Two silent regressions the golden caught that a coarser check would not.** `_is_gated_off` compared
+`fn.__module__` against the importing module's name, so after the move it would have returned False
+for every tool and turned *"this database is switched off — edit OSP_SOURCES"* into *"no tool named
+X"*. Both exit 2. And `sync_adapters.py` resolved `defaults/…` pointers *before* appending the CLI
+addendum, so any pointer inside it shipped dead — proven by reverting the fix and watching parity
+report `[pi] bare defaults/... reference resolves to nothing`.
+
+**Against the acceptance criteria** — every figure measured on 2026-09-22, none carried forward:
+
+| | Criterion | Result |
+|---|---|---|
+| 1 | each of 5 dependencies blocked in turn | **passes outright** — `list` works with `mcp`, `arxiv`, `requests`, `bs4`, `semanticscholar` *and* `dotenv` blocked; no envelope needed. A `call` against the broken one returns an envelope naming it an install problem |
+| 2 | start cost | `call` **104 ms = 76.6% below** (≥70%); `list` **38 ms = 91.5% below** (≥90%). Both required lazy providers *and* moving `asyncio` out of the import path |
+| 3 | derivers agree on names, required, types, defaults | **22/22 byte-identical**, descriptions too; 218 checks; an 8th annotation form fails the frozen census |
+| 4 | `--timeout 2` on a cold `read_arxiv_paper` | **2,123 ms**, under 3.0 s. An 8 s stuck worker with a 1 s deadline exits at **1,076 ms** (was 6,010 ms) |
+| 5 | arXiv guard | consecutive calls in **separate processes 3.01 s apart** (was: never slept, gap computed as ~1.79 billion seconds); two concurrent processes **never overlap**. Six-windows-one-download holds in MCP and in `batch`; **O26** for single calls |
+| 6 | `list --json` under 5 KB | **3,703 B**, from 37,463. Schemas were only 23% of it — descriptions were 70% |
+| 7 | stdout purity | one JSON document per invocation; `2>&1` parses; stderr empty by default |
+| 8 | apostrophe and double quote | passes through argv (properly quoted) and through stdin |
+| 9 | `session.json` carries the interface | field added to template and to the installer heredoc; absent ≠ `none` |
+| 10 | fresh install runs `osp_cli.py list` | **verified with a real venv**: "Search layer answers — 22 tools, verified by running it", on `install_claude.sh` — a tool that never had a check. One edit in `init_mcp.sh` serves all 21 |
+| 11 | the suite fails when faulted | **9 of 9 faults caught**, tree restored byte-identical |
+| 12 | a 50-result search | **103,399 → 22,108 B**, valid JSON, declares "11 of 50" |
+| 13 | exit codes asserted with `reason` | no test in `test_cli.py` asserts an exit code alone |
+| 14 | CI runs every suite | `.github/workflows/ci.yml` calls `scripts/test_all.sh`; full local run **103 s** |
+| 15 | a batch is one process start | **1,229 ms against 2,622 ms** for the same three calls separately; the 3 s arXiv gap held *inside* the batch |
+| 16 | one failing item keeps the rest | verified with a malformed call beside three good ones |
+
+**Suites:** 259 provider checks (was 251), 218 schema-parity (new), 114 CLI (new), 9 fault injections
+(new), 54 TOML, 21-tool parity, 21 installer smoke tests, sync-check. All green. `test_install.sh`
+stopped copying `.venv` and `.git` per tool — about 5 GB a run — and went from minutes to **20 s**.
+
+**Defects found by the new tests, in the code those tests were written for:** `batch` turned a falsy
+wrong type (`"arguments": []`) into `{}` through `or {}`, so the type check never saw it and the call
+failed later as a *missing* argument rather than a bad one; the inner timeout message did not say
+nothing had been searched, and the inner timeout is the one that normally fires; and `batch` reported
+a wrong argument *name* as a generic `failed` where `call` reported `bad_request` with the schema
+command — the same mistake, two different answers.
+
+**And two gaps in the new tests themselves**, found by the fault injector on its first run: the batch
+fault flipped `return_exceptions`, which proves nothing because `run_one` catches everything itself;
+and the unicode test set `LC_ALL=C`, which on this interpreter still yields a UTF-8 stdout because
+PEP 538 coerces the C locale — `PYTHONCOERCECLOCALE=0` and `PYTHONUTF8=0` are needed to get the
+environment a user on a bare container actually has. Without them that check passed either way.
+
+**Not in the plan, done anyway:** stopped shipping this machine's `__pycache__` into users' projects,
+and fixed a broken table row in `README.md` where the `.open-scholar-peer/mcp/` entry was missing a
+cell. The contributor guide's example was wrong before this milestone — it showed `@mcp.tool()` and a
+bare `asyncio.to_thread`, contradicting the step two lines below it — and now matches the code.
+
+**Issue #16** was already closed by the owner (*"Done in `feat/richer-search`"*), so C7/C13 fulfil a
+promise already made in public rather than closing an open issue. **PR #18**, still open from an
+outside contributor, covers the same ground and is superseded on three counted grounds: it names
+three specific tools (breaks M14/D26), it **halts** on a missing tool (breaks M15), and it asks the
+agent to inspect its own tool list, which C13 concludes cannot be done reliably.
 
 ### Out of scope
 

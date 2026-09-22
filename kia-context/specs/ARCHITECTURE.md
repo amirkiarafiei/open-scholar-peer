@@ -12,7 +12,7 @@ authority: blueprint
 writes: agent, when explicitly refactoring
 status: active
 covers: the system as it is today
-last_updated: "2026-09-21"
+last_updated: "2026-09-22"
 ---
 
 # 🏗️ ARCHITECTURE — How this project is built
@@ -248,7 +248,7 @@ The transforms are:
 | Q&A banner injection | A content-level branch with three outcomes: `subagent`, `prefer-subagent` (try, then degrade), `self-reflection`. |
 | Commands → skill directories | Hermes and OpenClaw have no file-based slash commands at all — every skill is one. Cline retired its command mechanism in favour of skills. On those three the 8 commands ship as `<skill_dir>/<name>/SKILL.md`. |
 | Skills → flat agent definitions | Oh My Pi, Grok Build and Kilo Code delegate to a named agent file and cannot dispatch a skill, so each persona is emitted a second time under `agent_dir`. |
-| Rules + CLI addendum | Pi has no MCP client, so its always-on file gains the block telling the agent to reach the search tools by running `osp_cli.py`. |
+| Rules + CLI addendum | A tool with no MCP client at all (Pi) gains a short block in its always-on file saying the interface is always `cli`. Every other tool gets the fallback through the always-on rules instead. The `defaults/...` pointer inside the addendum is resolved **after** it is joined on — resolving first rewrote only the base file and shipped the pointer dead. |
 | `defaults/x.md` → `.<tool>/defaults/x.md` | Nothing is ever installed at `<project>/defaults/`; the adapter lands in `.claude/`, `.codex/`, `.agents/`. The canonical files keep the short form so they stay tool-agnostic, and each adapter gets a path that resolves. `install_dir` names it, and is **not** derivable from `root` — `--check` clones tools with a temporary root. |
 
 Three guards keep this honest: `sync_adapters.py --check` regenerates into a temp tree and byte-compares
@@ -290,8 +290,15 @@ means they are strong conventions rather than hard gates — worth knowing when 
 
 ## 9. The search layer
 
-22 MCP tools over six databases, exposed by `mcp-server/osp_mcp.py` — but only the databases this
-project enabled have their tools registered.
+22 tools over six databases, defined in `mcp-server/core.py` — but only the databases this project
+enabled are served.
+
+**Three files, and the split is the point.** `providers/` does the network work and knows nothing
+above it. `core.py` holds the 22 tool functions, the error envelope, the gating and the timeout, and
+imports no transport. `osp_mcp.py` (66 lines) serves them over MCP; `osp_cli.py` serves the same
+function objects over argv. Neither front end names a tool, so neither can drift from the other, and
+**the CLI does not import `mcp`** — a fallback that fails with the thing it is a fallback for is not
+a fallback (M18, D34).
 
 | Database | Tools | Key | Character |
 |---|---|---|---|
@@ -302,7 +309,8 @@ project enabled have their tools registered.
 | Zenodo | 1 | none | Not a paper search. Code, datasets and software releases: *did the authors release their code?* |
 | OpenAlex | 2 | optional | ~327 million works. Carries `is_retracted`, which nothing else here can see, and field-normalised citation impact. |
 
-*Measured 2026-09-20: `grep -c '^@tool_for(' mcp-server/osp_mcp.py` → 22.*
+*Measured 2026-09-22: `grep -c '^@tool_for(' mcp-server/core.py` → 22. The tools moved out of the
+server file in M18; `osp_mcp.py` names none of them.*
 
 **Which tools exist is a per-project decision.** The installer asks, and writes the answer to `.env` as
 `OSP_SOURCES`; `osp_mcp.py` reads it once at start-up and registers only those. An unset value means all
@@ -319,12 +327,25 @@ answer arrives and never *what* it is: one HTTP client per provider, and an eigh
 arXiv text so paging through a paper does not re-download it, and one
 download per paper however many callers ask at once (D25, O17).
 
+**Both caches are per process, and that is a real limit on the CLI surface.** One MCP server is one
+process, so they work. Every `osp_cli.py call` is a new process, so they do not. Two of the three
+mechanisms were restored across processes by a lock file carrying arXiv's timestamp — the
+one-at-a-time rule and the three-second gap, which were not degraded in CLI mode but **absent**: a
+fresh process read `_last_raw_request = 0.0`, computed a gap of ~1.79 billion seconds, and never
+slept. The parsed-text cache was not, so paging through one paper still re-downloads it once per
+window (**O26**). The `batch` subcommand removes the whole problem for the common case by running a
+round in one process (D39).
+
 Three operational details worth knowing.
 
 Every provider call goes through `_run()`, which pushes the synchronous call into a thread with
-`asyncio.wait_for` and a timeout (`OSP_CALL_TIMEOUT`, default 90 s). Because `asyncio.to_thread` cannot
-cancel a running thread, that timeout alone is not enough — a provider that hangs keeps working after
-the caller has given up. So each one also bounds itself from the inside: arXiv waits at most 15 s for
+`asyncio.wait_for` and a timeout (`OSP_CALL_TIMEOUT`, default 90 s, overridable per call through a
+`ContextVar`). Because `asyncio.to_thread` cannot cancel a running thread, that timeout alone is not
+enough — a provider that hangs keeps working after the caller has given up, and `asyncio.run()` then
+*joins* it on the way out. Measured: a 1 s deadline against a 6 s call raised at 1.00 s and the
+process did not return until 6.01 s. The CLI therefore writes its result inside the event loop and
+leaves through `os._exit` after an explicit flush, so the answer is never held hostage to the thing
+that already timed out. So each one also bounds itself from the inside: arXiv waits at most 15 s for
 the single connection its terms allow, pins the package to three attempts and caps a download at 35 s,
 for a worst case of 66 s on search and 78 s on a full-text read; Google Scholar's whole retry budget is
 63 s; Europe PMC's is 60 s. Each is pinned by a test, because the point is to stay
@@ -361,22 +382,56 @@ query formulations, not sequentially — a paper ranked low in one index is ofte
 
 ### The same tools, without MCP
 
-`mcp-server/osp_cli.py` exposes the identical 22 tools over argv and JSON, for a tool that has no MCP
-client. Pi is the only such tool today: MCP and web access are both stated non-features there, and its
-built-in set is `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls` — so without this the protocol
-would run with nothing to retrieve. Pi's author prescribes exactly this shape: *"Build CLI tools with
-READMEs (see Skills)."*
+`mcp-server/osp_cli.py` exposes the identical 22 tools over argv and JSON. It began as Pi's only
+path — MCP and web access are both stated non-features there, so without it the protocol would have
+run with nothing to retrieve (D34) — and M18 made it **the documented fallback for all 21 tools**.
 
-It is a bridge, not a second implementation, and deliberately has no list of its own: it reads the
-registered tool set back off the FastMCP server at run time and calls the same function objects, so the
-two surfaces cannot drift, and `OSP_SOURCES` gating applies unchanged. A name that is present in the
-module but unregistered is precisely the set a project switched off, which is how it tells "this
-database is off" apart from "no such tool" without a second table. Its exit codes carry the distinction
-this layer exists to protect: **0** the call ran (an empty list means nothing matched), **1** it failed
-and the envelope names a `reason`, **2** the call itself was malformed. `init_mcp.sh` ships it with
-every install and exports `OSP_SEARCH_CLI`; only Pi's rules currently mention it (D34).
+**MCP stays the default everywhere. The CLI is second class**, and which one a project uses is
+decided once, by a mechanical rule, and recorded in `session.json` as `mcp.interface`:
 
----
+| | Check | Outcome |
+|---|---|---|
+| 1 | `osp_cli.py` is not on disk | `none` — the search layer was never installed |
+| 2 | an OSP tool answers | `mcp` |
+| 3 | otherwise, and the shell can reach the network | `cli` |
+| 4 | otherwise | `none` — reported plainly, never as an empty corpus |
+
+The fourth row exists because three tools block outbound network from the shell by default — Codex
+CLI, Antigravity IDE on macOS/Linux, and Kiro Web at its baseline tier (O25). All three have working
+MCP, so the fallback is missing only where it is not needed; they also have **no fallback at all** if
+their MCP breaks. The rule deliberately does *not* ask the agent to inspect its own tool list: hosts
+disagree about what a crashed server looks like, a tool list can be a start-up snapshot, and
+`OSP_SOURCES` gating makes per-tool reasoning actively wrong. **One `.env` governs both surfaces**,
+so the CLI never has a database MCP lacks — a missing tool is never a reason to change interface.
+
+The value goes stale, so a failed search under `mcp` re-probes once and rewrites the field. A server
+that died mid-session looks exactly like a database with nothing in it, and telling those two apart
+is what this whole layer is for.
+
+**Neither surface owns a schema.** FastMCP derives one from the tool's signature through pydantic;
+the CLI derives the same one through `inspect.signature`. A human edits one decorated function and
+both follow. `scripts/test_schema_parity.py` pins the derivation rules — names, required sets, types
+and defaults field by field, then the whole document byte for byte — plus a frozen census of the
+seven annotation forms the 22 tools use, so an eighth cannot arrive unnoticed.
+
+Three properties of the CLI that MCP does not need, all added in M18 and all measured:
+
+- **A hard wall-clock bound.** See the timeout note above.
+- **An output cap.** A 50-result search wrote 103,399 bytes (~24,500 tokens); a host truncating that
+  mid-document leaves an agent holding a fragment it reports as complete. The cut now happens in the
+  CLI, where it can be described: shape preserved, a marker naming how many of how many, and
+  deliberately *not* the error envelope shape — a truncated search is not a failed one.
+- **`batch`.** One process for a whole round, which restores the rate limit, the caches and the
+  de-duplication and pays one start-up instead of eighteen (D39).
+
+Its exit codes carry the distinction this layer exists to protect — **0** the call ran (an empty list
+means nothing matched), **1** it failed and the envelope names a `reason`, **2** the call itself was
+malformed — but the shipped guidance tells the agent to **branch on `reason`, never on the exit
+code**. Measured, the codes are genuinely ambiguous: a database switched off by `OSP_SOURCES` and a
+misspelled tool both exit 2 and need opposite responses.
+
+`init_mcp.sh` ships it with every install, exports `OSP_SEARCH_CLI`, and **proves it runs** by
+calling `osp_cli.py list` before reporting success — one check in the file all 21 installers source.
 
 ## 10. The terminal is the interface
 

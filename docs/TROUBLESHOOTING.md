@@ -90,18 +90,67 @@ Try running it manually to surface errors:
 ```
 The server runs on stdio and stays open waiting for MCP protocol messages. If it exits immediately with a Python traceback, that's the bug.
 
-### Pi: the agent says it has no search tools
+### The agent says it has no search tools
 
-Expected — Pi ships no MCP client, so OSP gives it the same 22 tools as a program instead. Check it
-runs:
+First find out which interface it should be using. Run the search layer yourself:
 
 ```bash
 .open-scholar-peer/mcp/.venv/bin/python .open-scholar-peer/mcp/osp_cli.py list
 ```
 
-That should print the enabled tools. If it does, the search layer is healthy and the agent simply
-needs to call it through `bash` — the instructions are in the OSP block of your `AGENTS.md`, which Pi
-loads whether or not the project is trusted.
+- **It prints the tools** → the search layer is healthy. The agent can always reach it this way.
+  Check `.brain/session.json` — if `mcp.interface` says `mcp` but MCP is not answering, delete the
+  value and re-run `/0-osp-onboarding`, which decides it again.
+- **It prints a JSON error** → read the `reason`. If the message mentions a missing dependency, the
+  venv is incomplete: re-run the installer.
+- **It prints nothing at all** → the file or the interpreter is missing. Re-run the installer.
+
+On **Pi** this is expected and not a fault: Pi ships no MCP client, so the program is the only path.
+The instructions are in the OSP block of your `AGENTS.md`, which Pi loads whether or not the project
+is trusted.
+
+### A search command seems to hang
+
+It is waiting on a provider, not on you. Every call is bounded, but the ceiling is 90 seconds by
+default and a slow full-text read can use most of it. To see what it is doing:
+
+```bash
+.open-scholar-peer/mcp/.venv/bin/python .open-scholar-peer/mcp/osp_cli.py \
+  call read_arxiv_paper '{"arxiv_id": "1706.03762"}' --timeout 20 --verbose
+```
+
+`--verbose` puts the search layer's own logging on stderr, including the `arxiv` package's retries.
+`--timeout` lowers the ceiling; the call then returns an envelope with `"reason": "timeout"` rather
+than waiting. **A timeout is never an empty result** — nothing was searched, and it should be
+recorded as a gap in the corpus.
+
+### Searches are slow, or arXiv keeps saying `busy`
+
+arXiv's terms allow one request at a time with three seconds between them, and OSP enforces both.
+In the shell that enforcement is a lock file shared by every OSP process on the machine, so two
+reviews running side by side will wait for each other. That is correct behaviour, not a fault.
+
+If you see `"reason": "busy"`, another call held the connection for longer than 15 seconds. Retry it
+after the other providers rather than immediately.
+
+**Use `batch` for a round of searches.** One process instead of one per call, and the rate limit,
+the parsed-text cache and the de-duplication all work inside it:
+
+```bash
+.open-scholar-peer/mcp/.venv/bin/python .open-scholar-peer/mcp/osp_cli.py batch '[
+  {"tool": "search_arxiv",    "arguments": {"query": "...", "max_results": 10}},
+  {"tool": "search_openalex", "arguments": {"query": "...", "limit": 10}}
+]'
+```
+
+### A result says `osp_truncated`
+
+The result was larger than the output limit and was cut here, deliberately, so that it could say so
+— an uncut result gets truncated further downstream without telling anyone. The records you received
+are complete and real; the rest were not returned.
+
+Ask for fewer results, page with `offset`/`max_chars` where the tool supports it, or raise
+`--max-bytes`. Do not treat a cut result as the whole corpus.
 
 ### `markitdown` MCP not converting PDFs
 
