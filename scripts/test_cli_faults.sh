@@ -26,7 +26,7 @@ GREEN=$'\033[0;32m'; RED=$'\033[0;31m'; NC=$'\033[0m'
 ROOT="$(mktemp -d)/repo"
 mkdir -p "$ROOT"
 tar -c -C "$REAL_ROOT" --exclude=./.venv --exclude=./.git \
-    --exclude='*.pyc' --exclude=./__pycache__ . | tar -x -C "$ROOT"
+    --exclude=__pycache__ --exclude='*.pyc' --exclude=./.env . | tar -x -C "$ROOT"
 TARGETS=(mcp-server/core.py mcp-server/osp_cli.py)
 BACKUP="$(mktemp -d)"
 for f in "${TARGETS[@]}"; do install -D "$ROOT/$f" "$BACKUP/$f"; done

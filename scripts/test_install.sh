@@ -69,12 +69,16 @@ run_install_smoke() {
 
   # Copy the repo to a writable temp location so we can stub init_mcp.sh.
   #
-  # Everything EXCEPT .venv and .git. Those are 204 MB and 21 MB here, and this
+  # Everything EXCEPT .venv, .git and .env. Those are 204 MB and 21 MB here, and this
   # copy happens once per tool: the full run was moving about 5 GB to exercise
   # a few hundred kilobytes of installer. No installer reads either directory —
   # init_mcp.sh is stubbed out, and it would build its own venv anyway.
+  # .env is excluded because this copies the WORKING TREE, so a developer's
+  # real API keys would otherwise be written into a temp directory for no
+  # reason — nothing in the sandbox reads them. __pycache__ is unanchored so
+  # nested ones go too, not just the one at the root.
   tar -c -C "$REPO_ROOT" --exclude=./.venv --exclude=./.git \
-      --exclude=./__pycache__ --exclude='*.pyc' . | tar -x -C "$repo_copy"
+      --exclude=__pycache__ --exclude='*.pyc' --exclude=./.env . | tar -x -C "$repo_copy"
   stub_init_mcp "$repo_copy"
 
   # Run installer from sandbox (the installer's CWD becomes the user's project)
