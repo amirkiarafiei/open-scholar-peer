@@ -73,6 +73,19 @@ echo -e "  ${GREEN}✅ MCP server copied → .open-scholar-peer/mcp/${NC}"
 
 # Set up venv
 VENV_DIR="$TARGET_DIR/.venv"
+
+# A venv is a set of symlinks to one interpreter. If the OS removed that
+# interpreter — a distro upgrade past the version it was built against — the
+# directory is still there and still looks valid, but nothing in it runs. The
+# install then failed at `pip install` with a log, which is legible but is not
+# the same as fixing itself. Rebuild instead: the venv holds nothing the user
+# owns.
+if [[ -d "$VENV_DIR" ]] && ! "$VENV_DIR/bin/python" -V &>/dev/null; then
+  echo -e "  ${YELLOW}⚠️  The existing virtualenv no longer runs — its Python is gone."
+  echo -e "      Rebuilding it.${NC}"
+  rm -rf "$VENV_DIR"
+fi
+
 if [[ ! -d "$VENV_DIR" ]]; then
   if ! command -v python3 &>/dev/null; then
     echo -e "  ${RED}✗ python3 not found in PATH; install Python 3.10+ and re-run${NC}"
