@@ -22,14 +22,32 @@ if _MODE and _MCP_DIR:
         # Make one dependency unimportable, the way a broken install does.
         _target = _MODE.split(":", 1)[1]
 
-        class _Blocker:
-            def find_module(self, name, path=None):
-                if name == _target or name.startswith(_target + "."):
-                    return self
-                return None
+        import importlib.abc
+        import importlib.machinery
 
-            def load_module(self, name):
-                raise ImportError(f"No module named {name!r} (test hook)")
+        class _BlockedLoader(importlib.abc.Loader):
+            def create_module(self, spec):
+                raise ImportError(f"No module named {spec.name!r} (test hook)")
+
+            def exec_module(self, module):  # pragma: no cover - never reached
+                raise ImportError("blocked by the test hook")
+
+        class _Blocker(importlib.abc.MetaPathFinder):
+            """Make one module unimportable, the way a broken install does.
+
+            find_spec, NOT find_module. The old two-method protocol
+            (find_module/load_module) was deprecated in 3.4 and REMOVED from
+            importlib in 3.12: a finder without find_spec is skipped in
+            silence, so the blocker would stop blocking and the tests that
+            think they are offline would quietly call the real arXiv instead —
+            a red build that looks like a code regression, and a breach of this
+            suite's promise to touch no network.
+            """
+
+            def find_spec(self, name, path=None, target=None):
+                if name == _target or name.startswith(_target + "."):
+                    return importlib.machinery.ModuleSpec(name, _BlockedLoader())
+                return None
 
         sys.meta_path.insert(0, _Blocker())
 

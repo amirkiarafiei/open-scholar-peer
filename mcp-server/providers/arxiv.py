@@ -106,7 +106,21 @@ def _lock_path() -> "pathlib.Path":
     except Exception:  # noqa: BLE001 - no passwd entry in some containers
         who = str(os.getuid()) if hasattr(os, "getuid") else "nouser"
     tag = hashlib.sha256(f"{here}:{who}".encode()).hexdigest()[:16]
-    return pathlib.Path(tempfile.gettempdir()) / f"osp-arxiv-{tag}.lock"
+
+    # In a directory of our own, mode 0700, rather than loose in a shared /tmp.
+    # The file name is derivable by anyone with a shell on the box — it is a
+    # hash of the install path and the username — and `_throttle` truncates
+    # whatever it opens. A symlink planted at that name therefore truncates the
+    # target: demonstrated by a reviewer against a 140-byte file. Modern Linux
+    # (fs.protected_symlinks) and macOS's per-user TMPDIR both prevent it, but
+    # that is the kernel's mitigation and not ours.
+    uid = os.getuid() if hasattr(os, "getuid") else 0
+    home = pathlib.Path(tempfile.gettempdir()) / f"osp-{uid}"
+    try:
+        home.mkdir(mode=0o700, exist_ok=True)
+    except OSError:
+        return pathlib.Path(tempfile.gettempdir()) / f"osp-arxiv-{tag}.lock"
+    return home / f"arxiv-{tag}.lock"
 
 
 @contextmanager
@@ -127,12 +141,21 @@ def _cross_process_turn(deadline: float):
     """
     try:
         import fcntl
+        import os
     except ImportError:          # not a Unix; in-process locking only
         yield None
         return
     try:
-        handle = open(_lock_path(), "a+")
+        # O_NOFOLLOW so a symlink planted at this name is refused rather than
+        # followed and then truncated. 0o600 so nobody else can read or write
+        # it even if they reach the directory.
+        path = _lock_path()
+        fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        handle = os.fdopen(fd, "r+")
     except OSError:
+        # Includes ELOOP — something is already there and is a symlink. Not
+        # ours to fix, and not a reason to refuse to search: degrade to the
+        # in-process lock.
         yield None
         return
     # Two different OSErrors come out of flock and they mean opposite things.

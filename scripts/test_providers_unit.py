@@ -1271,7 +1271,8 @@ def test_cross_process_arxiv_guard() -> None:
 
     lock = ax._lock_path()
     check_true("the lock path is outside the install tree",
-               "osp-arxiv-" in lock.name)
+               lock.name.startswith("arxiv-") and lock.name.endswith(".lock")
+               and "osp-" in str(lock.parent))
 
     real_gap = ax._MIN_GAP
     try:
@@ -1344,6 +1345,45 @@ def test_cross_process_arxiv_guard() -> None:
                    f"({_elapsed:.2f}s)", _elapsed < ax._LOCK_WAIT / 2)
     finally:
         _fcntl.flock = _real_flock
+        ax._last_raw_request = 0.0
+
+    # --- the lock must not follow a symlink -------------------------------
+    # The file name is a hash of the install path and the username, so anyone
+    # with a shell on the box can compute it, and _throttle truncates whatever
+    # it opens. A symlink planted at that name therefore truncates the target.
+    # Verified against a 140-byte file before the fix: 18 bytes afterwards.
+    # O_NOFOLLOW refuses it; the 0700 directory means an attacker cannot
+    # normally reach the name in the first place.
+    import os as _os
+    import stat as _stat
+    import tempfile as _tempfile
+
+    _lock = ax._lock_path()
+    check_true("the lock lives in a directory of our own, not loose in /tmp",
+               _lock.parent != Path(_tempfile.gettempdir()))
+    _lock.parent.mkdir(mode=0o700, exist_ok=True)
+    check("the lock directory is private",
+          _stat.S_IMODE(_os.stat(_lock.parent).st_mode), 0o700)
+
+    _victim = _lock.parent / "victim.txt"
+    _victim.write_text("X" * 140)
+    try:
+        if _lock.exists() or _lock.is_symlink():
+            _lock.unlink()
+        _os.symlink(str(_victim), str(_lock))
+        ax._last_raw_request = 0.0
+        try:
+            with ax._arxiv_turn():
+                pass
+        except Exception:  # noqa: BLE001 - refusing is also an acceptable end
+            pass
+        check("a symlink at the lock path does not get truncated",
+              len(_victim.read_text()), 140)
+    finally:
+        if _lock.is_symlink():
+            _lock.unlink()
+        if _victim.exists():
+            _victim.unlink()
         ax._last_raw_request = 0.0
 
 

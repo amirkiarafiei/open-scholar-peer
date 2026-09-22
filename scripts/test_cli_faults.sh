@@ -10,15 +10,28 @@
 # byte-identical afterwards — a fault left switched on would be far worse than
 # no fault test at all.
 set -u
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PY="$ROOT/.venv/bin/python"; [ -x "$PY" ] || PY=python3
-BACKUP="$(mktemp -d)"
-TARGETS=(mcp-server/core.py mcp-server/osp_cli.py)
+REAL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PY="$REAL_ROOT/.venv/bin/python"; [ -x "$PY" ] || PY=python3
 GREEN=$'\033[0;32m'; RED=$'\033[0;31m'; NC=$'\033[0m'
 
+# Faults are injected into a COPY, never into the tracked tree.
+#
+# The previous version edited mcp-server/*.py in place and restored them from an
+# EXIT trap. That is correct for a clean exit and for Ctrl-C, and wrong for
+# SIGKILL, a closed terminal, an OOM kill, or two runs at once — and
+# `test_all.sh` runs this suite by default, so a contributor's first ever run
+# was the exposure. The damage would be silent: fault 5 deletes one line and
+# leaves something that still imports, still looks like working code, and still
+# passes most of the suite. You would find it days later, or commit it.
+ROOT="$(mktemp -d)/repo"
+mkdir -p "$ROOT"
+tar -c -C "$REAL_ROOT" --exclude=./.venv --exclude=./.git \
+    --exclude='*.pyc' --exclude=./__pycache__ . | tar -x -C "$ROOT"
+TARGETS=(mcp-server/core.py mcp-server/osp_cli.py)
+BACKUP="$(mktemp -d)"
 for f in "${TARGETS[@]}"; do install -D "$ROOT/$f" "$BACKUP/$f"; done
 restore() { for f in "${TARGETS[@]}"; do cp "$BACKUP/$f" "$ROOT/$f"; done; }
-trap 'restore; rm -rf "$BACKUP"' EXIT
+trap 'rm -rf "$BACKUP" "$(dirname "$ROOT")"' EXIT
 
 pass=0; fail=0
 
@@ -109,14 +122,15 @@ run_fault "the cap drops error envelopes again" mcp-server/osp_cli.py \
   's/^        errors = \[i for i in payload$/        errors = [] or [i for i in []/' \
   "survives the cap"
 
-restore
 echo
-if ! cmp -s "$ROOT/mcp-server/core.py" "$BACKUP/mcp-server/core.py" \
-  || ! cmp -s "$ROOT/mcp-server/osp_cli.py" "$BACKUP/mcp-server/osp_cli.py"; then
-  echo "  ${RED}❌ THE TREE WAS NOT RESTORED. Check git status before committing.${NC}"
-  exit 2
-fi
-echo "  restored, byte-identical"
+# The point of the copy: prove the tracked tree was never written to at all.
+for f in "${TARGETS[@]}"; do
+  if ! cmp -s "$REAL_ROOT/$f" "$BACKUP/$f"; then
+    echo "  ${RED}❌ $f CHANGED IN THE REAL TREE. Check git status before committing.${NC}"
+    exit 2
+  fi
+done
+echo "  the tracked tree was never written to"
 if [ "$fail" -gt 0 ]; then
   echo "  ${RED}❌ $fail of $((pass+fail)) faults went undetected${NC}"
   exit 1
