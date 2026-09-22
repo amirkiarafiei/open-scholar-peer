@@ -1093,10 +1093,38 @@ run red for the wrong reason and silently network-dependent.
 218 schema-parity, 148 CLI, 14 fault injections all caught, 54 TOML, 21-tool
 parity, 21 installer smoke tests. Full run 68 s.
 
-**Verdicts.** Refactor fidelity: the 22 tool bodies moved byte-identically, 762
-contiguous lines, zero diff. Fresh machine: installs cleanly, all ten findings
-fixed, nothing outstanding. Documentation truth: an agent following the
-documents would *not* have behaved correctly — six real defects, now fixed.
+**Verdicts, all four complete.** Refactor fidelity: the 22 tool bodies moved
+byte-identically — 762 contiguous lines, zero diff. Fresh machine: installs
+cleanly, all ten findings fixed. Documentation truth: an agent following the
+documents would *not* have behaved correctly — six real defects. **The
+invariant: it holds.** Across five rounds the reviewer could not construct any
+path — import failure at any level, either timeout, stdout closed or full or
+broken mid-write, a gated-off database, an unknown tool, a truncated list, a
+truncated record, a truncated full-text window, a failing batch item or a
+dropped one — where a provider failure reaches the agent as an empty result, as
+a complete document, or as exit 0.
+
+The case the milestone was about, measured live at the end: two windows,
+43,180 of 43,180 characters, `returned_chars == len(text)` in both, the chain
+terminating exactly at `total_chars`. It began the review at 21,673 characters
+claiming to be whole.
+
+### Two things to carry past this milestone
+
+**The guard was the bug, four times over.** Every one of the invariant
+reviewer's six findings was in `_cap` or its neighbours — code added *to protect
+the invariant*, which broke it in four distinct ways: erasing a paper's paging
+contract, deleting an error envelope and flipping the exit code, not capping at
+all, and starving the recommended path to zero records. Three of them only
+appeared on the second or third look at code that had already been reviewed. **A
+guard deserves the same adversarial pass as the thing it guards, and more than
+once.**
+
+**The prompt is the product, and it had no injector.** Twice, a correct code fix
+left the guidance describing behaviour that no longer existed, and the agent
+acts on the guidance — so for that window the documentation *was* the defect.
+The fault injector catches a stale test; nothing played that role for the
+prose. It does now (D49), and it found a real gap on its first run.
 
 ### Out of scope
 

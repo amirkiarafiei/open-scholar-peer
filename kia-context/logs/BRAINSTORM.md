@@ -511,6 +511,16 @@ behind it** — rule 7 applies to a grep, not only to a count.
 **So the promise is:** strict within a project, best-effort across them. Stated in the docstring rather than left to be inferred from the code.
 **Found by a reviewer**, not by us, and not as a bug — as two sentences in one file that disagreed.
 
+### D49 · The guidance gets a fault injector, because prose rots silently — 2026-09-23
+
+**Considered:** rely on review to notice when a code change makes a document wrong / write the shapes into the documents and hope / derive the shapes from the code and fail the build when a document does not describe one
+**Chose:** derive and fail.
+**The measurement that decided it.** Twice in one milestone a *correct* code fix left `search_via_cli.md`, `TROUBLESHOOTING.md` and `KNOWN_LIMITATIONS.md` describing a truncation shape that no longer existed. Both times the code was right, the tests were green, and the agent was being told to look in the wrong place — which for this project is the more serious half, because **the prompts are the product**: the agent acts on the guidance, not on the source.
+**Why review alone is not enough.** It caught both, but only because someone was reading for it. `scripts/test_cli_faults.sh` exists precisely because a test that has never failed is not evidence; the same argument applies to a sentence that has never been checked. Nothing played that role for prose.
+**What it does.** `check_truncation_shapes` reads the shapes out of `osp_cli.MARKER_KINDS` and fails when an agent-facing file does not say where that shape puts its marker. A fourth shape fails the build until the guidance has been told about it, and the failure says so in those words.
+**It earned its place immediately:** on its first run it found `KNOWN_LIMITATIONS.md` describing the shapes conceptually while never saying where to look — a reader could not tell an extra last element from a marker merged into the record.
+**The same pattern now guards two contracts,** and it is the shape to reach for again: the `reason` vocabulary is read out of `core._REASON_BY_EXCEPTION`, and the truncation shapes out of `osp_cli.MARKER_KINDS`. Both fail when the code gains something the prompts were not told about. **Deriving the check from the code is what makes it impossible to satisfy by editing the test.**
+
 ---
 
 ## Open questions
