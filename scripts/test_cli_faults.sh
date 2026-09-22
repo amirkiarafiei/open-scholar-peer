@@ -56,7 +56,7 @@ run_fault "a truncated result stops saying so" mcp-server/osp_cli.py \
 
 # 3. The cap stops applying, so the host truncates mid-document instead.
 run_fault "the output cap stops applying" mcp-server/osp_cli.py \
-  's/^    _emit_and_exit(_cap(result))$/    _emit_and_exit(result)/' "capped"
+  's/_emit_and_exit(_cap(result), code=/_emit_and_exit(result, code=/' "capped"
 
 # 4. The process waits for a stuck worker again.
 run_fault "the timeout stops bounding the process" mcp-server/osp_cli.py \
@@ -87,6 +87,27 @@ run_fault "a failed call in a batch stops carrying its own reason" mcp-server/os
 run_fault "UTF-8 reconfiguration is dropped" mcp-server/osp_cli.py \
   's/^            stream.reconfigure(encoding="utf-8", errors="replace")$/            pass/' \
   "unicode"
+
+# 10. A failure that does not fit comes back as exit 0 with no reason.
+#     TWO mechanisms prevent this — the exit code is read off the UNCAPPED
+#     result, and the cap refuses to drop an error envelope — and either alone
+#     is sufficient. So this fault disables both; removing just one leaves the
+#     suite green, which is the point of having two.
+run_fault "a failure that does not fit exits 0" mcp-server/osp_cli.py \
+  's/_emit_and_exit(_cap(result), code=1 if _is_error(result) else 0)/_emit_and_exit(_cap(result))/;
+   s/^        errors = \[i for i in payload$/        errors = [] or [i for i in []/' \
+  "survives the cap"
+
+# 11. A shortened full-text window stops correcting its own paging contract,
+#     so half a paper reports itself as whole.
+run_fault "a cut document stops correcting next_offset" mcp-server/osp_cli.py \
+  's/^    out\["next_offset"\] = end if end < total else None$/    pass/' \
+  "says it is cut"
+
+# 12. The cap stops protecting error envelopes from being dropped.
+run_fault "the cap drops error envelopes again" mcp-server/osp_cli.py \
+  's/^        errors = \[i for i in payload$/        errors = [] or [i for i in []/' \
+  "survives the cap"
 
 restore
 echo

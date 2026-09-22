@@ -324,6 +324,68 @@ def test_output_is_capped() -> None:
                len(r.out.encode()) <= 5_000)
 
 
+def test_a_failure_survives_the_cap() -> None:
+    """An error too large to fit must not be cut away.
+
+    The cap keeps whole elements, so a one-element error envelope that did not
+    fit was deleted and replaced by a truncation marker — and the exit code was
+    then read off the capped result. Measured: a Google Scholar block with a
+    30 KB message came back as exit 0, no `error`, no `reason`, presented as a
+    size problem with advice to ask for fewer results. That is the M11 defect
+    arriving through the machinery added to prevent it.
+    """
+    r = run(["call", "search_google_scholar", '{"query":"x"}'], mode="huge_error")
+    check("an oversized failure: exit code", r.rc, 1)
+    check("an oversized failure: keeps its reason", r.reason, "blocked")
+    check_true("an oversized failure: fits the cap",
+               len(r.out.encode()) <= 26_000)
+    doc = r.json
+    check_true("an oversized failure: the envelope is still there",
+               any(isinstance(i, dict) and "error" in i for i in doc or []))
+
+
+def test_a_cut_document_says_it_is_cut() -> None:
+    """A shortened full-text window must correct its own paging contract.
+
+    The record carries offset / returned_chars / total_chars / truncated /
+    next_offset, and the tool tells the agent to keep calling while next_offset
+    is not null. Cutting `text` and leaving those alone made a half-read paper
+    describe itself as complete — an agent stops, then reports that a cited
+    work "does not report" a number that was in the half it never saw. A
+    fabricated finding is worse than an empty result.
+    """
+    r = run(["call", "read_arxiv_paper", '{"arxiv_id":"9999.00001"}'],
+            mode="huge_text")
+    check("a cut window: exit code", r.rc, 0)
+    d = r.json or {}
+    check_true("a cut window: fits the cap", len(r.out.encode()) <= 26_000)
+    check("a cut window: returned_chars matches the text actually delivered",
+          d.get("returned_chars"), len(d.get("text", "")))
+    check("a cut window: says it is truncated", d.get("truncated"), True)
+    check("a cut window: next_offset chains exactly",
+          d.get("next_offset"), (d.get("offset") or 0) + len(d.get("text", "")))
+    check("a cut window: declares the cut in its own right",
+          d.get("osp_truncated"), True)
+
+    # And the loop the docstring describes must actually reach the end.
+    seen, offset, windows, total = 0, 0, 0, None
+    while windows < 20:
+        rr = run(["call", "read_arxiv_paper",
+                  json.dumps({"arxiv_id": "9999.00001", "offset": offset})],
+                 mode="huge_text")
+        dd = rr.json or {}
+        if "text" not in dd:
+            break
+        windows += 1
+        seen += len(dd["text"])
+        total = dd.get("total_chars")
+        if dd.get("next_offset") is None:
+            break
+        offset = dd["next_offset"]
+    check("paging reaches the end of the document", seen, total)
+    check_true(f"...in a sane number of windows ({windows})", 1 < windows <= 20)
+
+
 def test_one_document_and_clean_streams() -> None:
     """Exactly one JSON document on stdout, and `2>&1` still parses."""
     for args, mode in ((["list", "--json"], ""),
@@ -443,6 +505,8 @@ TESTS = [
     ("timeout bounds the process", test_timeout_bounds_the_process),
     ("error shape matches the tool", test_error_shape_matches_the_tool),
     ("output is capped", test_output_is_capped),
+    ("a failure survives the cap", test_a_failure_survives_the_cap),
+    ("a cut document says it is cut", test_a_cut_document_says_it_is_cut),
     ("one document, clean streams", test_one_document_and_clean_streams),
     ("blocked imports", test_blocked_imports),
     ("batch", test_batch),

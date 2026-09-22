@@ -74,6 +74,35 @@ if _MODE and _MCP_DIR:
         import providers.arxiv as _ax
         _ax.search = lambda *a, **k: []
 
+    elif _MODE == "huge_error":
+        # A provider failure whose MESSAGE alone is past the output cap. The
+        # envelope must survive the cut; dropping it turned a block into a
+        # size problem with exit 0.
+        import providers.google_scholar as _gs
+
+        def _huge_block(*a, **k):
+            raise _gs.GoogleScholarBlocked("CAPTCHA. " + "detail " * 5000)
+
+        _gs.search = _huge_block
+
+    elif _MODE == "huge_text":
+        # A full-text window larger than the cap, carrying the real paging
+        # contract. Cutting `text` without correcting returned_chars,
+        # truncated and next_offset made half a paper claim to be whole.
+        import providers.arxiv as _ax
+
+        _BODY = ("Paragraph %d. " % 0) + "\n\n".join(
+            f"Paragraph {i}. " + "word " * 120 for i in range(200))
+
+        def _huge_read(arxiv_id, max_chars=50000, offset=0, **k):
+            from providers import window
+            out = window(_BODY, max_chars, offset)
+            out.update({"arxiv_id": arxiv_id, "source": "latex", "format": "text",
+                        "bibliography": []})
+            return out
+
+        _ax.read_paper = _huge_read
+
     elif _MODE == "blocked_provider":
         import providers.google_scholar as _gs
 

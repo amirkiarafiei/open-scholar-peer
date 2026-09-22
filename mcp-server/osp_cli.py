@@ -148,18 +148,46 @@ def _cap(payload: Any, max_bytes: int = None) -> Any:
         return payload
 
     if isinstance(payload, list):
+        # Error envelopes are kept first and never dropped. A failure that does
+        # not fit is still the most important thing in the result, and deleting
+        # it to make room turns "the provider refused us" into "this was too
+        # big" — losing the distinction the whole layer exists to protect.
+        errors = [i for i in payload
+                  if isinstance(i, dict) and "error" in i and "reason" in i]
+        records = [i for i in payload if i not in errors]
         kept: list[Any] = []
-        for item in payload:
+        for env in errors:
+            env = dict(env)
+            room = limit - _size(kept + [_marker(0, len(payload), "list")])
+            if _size([env]) > max(room, 0):
+                # Shrink the message rather than the envelope. `reason` and the
+                # fact of failure survive at any size.
+                env["error"] = str(env.get("error", ""))[:800] + " […cut]"
+            kept.append(env)
+        for item in records:
             probe = kept + [item, _marker(len(kept) + 1, len(payload), "list")]
             if _size(probe) > limit:
                 break
             kept.append(item)
+        if len(kept) == len(payload):
+            return kept
         return kept + [_marker(len(kept), len(payload), "list")]
 
     if isinstance(payload, dict):
-        # One field is almost always the whole weight — the full text of a
-        # paper. Shrink the largest string and leave every other field intact,
-        # so the metadata an agent needs to page or cite still arrives.
+        # A full-text record carries its OWN paging contract — offset,
+        # returned_chars, total_chars, truncated, next_offset — and the agent
+        # is told to page until next_offset is null. Cutting `text` and leaving
+        # those fields alone made a half-read paper describe itself as whole:
+        # measured on 1706.03762, 21,673 of 43,180 chars delivered with
+        # truncated=false and next_offset=null. An agent stops there, then
+        # reports that a cited work "does not report" a number that was in the
+        # half it never saw. That is worse than an empty result — it is a
+        # fabricated finding.
+        if _is_paged_text(payload):
+            return _recut_paged_text(payload, limit)
+
+        # Any other record: shrink the largest string and keep the rest, so the
+        # metadata an agent needs to cite still arrives.
         biggest = max(
             (k for k, v in payload.items() if isinstance(v, str)),
             key=lambda k: len(payload[k]), default=None)
@@ -175,11 +203,58 @@ def _cap(payload: Any, max_bytes: int = None) -> Any:
     return _marker(0, 0, "opaque")
 
 
+_PAGED_KEYS = {"text", "offset", "returned_chars", "total_chars",
+               "truncated", "next_offset"}
+
+
+def _is_paged_text(rec: dict[str, Any]) -> bool:
+    """Does this record carry the full-text paging contract?"""
+    return _PAGED_KEYS <= set(rec) and isinstance(rec.get("text"), str)
+
+
+def _recut_paged_text(rec: dict[str, Any], limit: int) -> dict[str, Any]:
+    """Cut a full-text window down, and keep its own contract true.
+
+    `providers.window` guarantees that `offset + returned_chars` chains
+    exactly, and the tool's docstring tells the agent to keep calling while
+    `next_offset` is not null. So a shorter window is fine — a shorter window
+    that still claims the old length is not.
+
+    The same snapping rule is reused rather than reimplemented: the cut moves
+    back to a paragraph, line or space boundary, because a blind cut between
+    "26.3" and "0" leaves a reader a plausible, wrong number.
+    """
+    out = dict(rec)
+    text = rec["text"]
+    total = int(rec.get("total_chars") or len(text))
+    start = int(rec.get("offset") or 0)
+
+    over = _size(rec) - limit
+    budget = max(200, len(text) - over - 900)   # room for the marker itself
+    if budget >= len(text):
+        return out
+
+    from providers import window as _window   # pure, no third-party imports
+    snapped = _window(text, budget, 0)["text"]
+    end = start + len(snapped)
+
+    out["text"] = snapped
+    out["returned_chars"] = len(snapped)
+    out["truncated"] = end < total
+    out["next_offset"] = end if end < total else None
+    out.update(_marker(len(snapped), total, "paged"))
+    return out
+
+
 def _marker(returned: int, total: int, kind: str, field: str = "") -> dict[str, Any]:
     """The record that says a result was cut. Loud on purpose."""
     if kind == "list":
         how = ("Re-run with a smaller max_results, or raise --max-bytes. "
                "The records above are complete; the rest were not returned.")
+    elif kind == "paged":
+        how = ("This window was shortened to fit. `next_offset` has been "
+               "corrected, so keep calling with `offset` set to it until it is "
+               "null — the document is complete only when it is.")
     elif kind == "field":
         how = (f"The {field!r} field was cut. If this tool takes max_chars and "
                f"offset, page through it; otherwise raise --max-bytes.")
@@ -431,7 +506,13 @@ async def _dispatch(name: str, fn: Any, kwargs: dict[str, Any],
     except Exception as exc:  # noqa: BLE001 — mirror the server's own catch-all
         _emit_and_exit(_shaped(name, fn, core._err(name, exc)))
 
-    _emit_and_exit(_cap(result))
+    # The exit code is read off the UNCAPPED result. Capping can delete a
+    # one-element error envelope that does not fit, and then nothing downstream
+    # can tell a blocked provider from a large one: measured, a Google Scholar
+    # block with a 30 KB message came back as exit 0 with no `error` and no
+    # `reason`, presented as a size problem with advice to ask for fewer
+    # results. That is the M11 defect, reintroduced through the cap.
+    _emit_and_exit(_cap(result), code=1 if _is_error(result) else 0)
 
 
 def _emit_and_exit(result: Any, code: int | None = None) -> None:
