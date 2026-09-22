@@ -37,7 +37,7 @@ This file enumerates every canonical asset under `extensions/_shared/`. It is do
 | Path | Notes |
 |---|---|
 | `rules/osp-rules.md` | Brain protocol summary — read session.json, load prior artifacts, update session.json, prefer subagent over self-reflection |
-| `rules/search_via_cli.md` | Appended to the always-on file **only** for a tool whose `search_mode` is `cli` — one with no MCP client. Tells the agent to reach the search tools by running `osp_cli.py`. Today that is Pi alone. Not synced on its own; it is merged into the rules content at sync time. |
+| `rules/search_via_cli.md` | Appended to the always-on file **only** for a tool whose `search_mode` is `cli` — one with no MCP client, which is Pi alone. Eight lines saying the interface is always `cli` and pointing at the full guide. Not synced on its own; merged into the rules content at sync time, and the `defaults/` pointer inside it is resolved **after** the merge. |
 
 ### Defaults (templates and fallback content)
 
@@ -47,6 +47,7 @@ This file enumerates every canonical asset under `extensions/_shared/`. It is do
 | `defaults/qa_pair_template.md` | `/5-osp-qa` to enforce the N-pair structure per criterion (N = `session.json.qa_pairs_per_criterion`, default 2) |
 | `defaults/round_strategy_template.md` | `/2-osp-literature` — one file per round actually run |
 | `defaults/phase_block_template.md` | every phase — the one definition of the opening and closing blocks printed to the **terminal**. Never written to `.brain/` |
+| `defaults/search_via_cli.md` | read on demand when `session.json` records `mcp.interface` as `cli`, or when an MCP search fails. The commands, the `batch` form, and the `reason` → action table. Never written to `.brain/` |
 
 ## What gets generated where
 

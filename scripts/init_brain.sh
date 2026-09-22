@@ -47,7 +47,8 @@ with open('$BRAIN_DIR/session.json', 'w') as f:
     "qa":             { "status": "pending", "started_at": "", "completed_at": "", "notes": "", "skip_reason": "", "criteria_progress": {} },
     "review":         { "status": "pending", "started_at": "", "completed_at": "", "notes": "", "skip_reason": "" }
   },
-  "mcp": { "semantic_scholar_api_key_present": false },
+  "_interface_values": ["mcp", "cli", "none"],
+  "mcp": { "semantic_scholar_api_key_present": false, "interface": "" },
   "resume_from": "onboarding",
   "notes": ""
 }

@@ -99,6 +99,45 @@ The turn markers force the LLM to make the role boundary explicit in its own att
 
 Re-invoking a step whose phase is `completed` overwrites the artifact and resets the phase status to `in_progress` → `completed`. The agent **must** print a one-line warning to the user before overwriting.
 
+## What `session.json` holds
+
+The file every phase reads first. Three parts worth naming, because nothing
+else documents them:
+
+| Key | What it is |
+|---|---|
+| `phases.<name>.status` | one of `pending`, `in_progress`, `completed`, `skipped`. A skip is a user's choice and is recorded, never inferred |
+| `phases.<name>.skip_reason` | why, in the user's terms, so the final review can say what it did not have |
+| `phases.literature.rounds_completed` | how many retrieval rounds actually ran. Three is a recommendation, not a requirement |
+| `qa_criteria[]` | one entry per venue criterion, with `slug`, `label` and `definition` |
+| `mcp.semantic_scholar_api_key_present` | whether a key was found, so a thin Semantic Scholar result can be explained |
+| `mcp.interface` | how this project reaches the search tools: `mcp`, `cli` or `none` |
+
+### `mcp.interface`
+
+Written by `/0-osp-onboarding` and followed by every later phase, so the
+decision is made once rather than guessed per phase.
+
+- `mcp` — the search tools answer as tool calls. The normal case.
+- `cli` — no MCP client, or MCP is not answering, and the shell can reach the
+  network. `osp_cli.py` is used instead. Second class but complete.
+- `none` — the search layer cannot be reached at all: it is not installed, or
+  this host blocks outbound network from the shell. **The protocol still runs**,
+  on the agent's own knowledge and whatever web search the host provides, and
+  every artifact must say the corpus had no database behind it.
+
+Two rules that are easy to get wrong:
+
+**Missing is not `none`.** A project set up before this field existed has no
+value, and `init_brain.sh` never touches an existing `.brain/`. An absent field
+means "nobody has checked yet" — decide it and write it, do not assume the
+worst.
+
+**It goes stale.** A server that dies mid-session leaves `mcp` recorded. If a
+search fails while the field says `mcp`, re-probe once and rewrite it before
+reporting a gap. A server nobody can reach looks exactly like a database with
+nothing in it, and that confusion is the one thing this layer exists to prevent.
+
 ## Update protocol for `session.json`
 
 After writing its artifact, every step updates the matching `phases.<name>` block:

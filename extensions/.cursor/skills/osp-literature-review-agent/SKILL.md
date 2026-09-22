@@ -95,7 +95,7 @@ Relying on only one source biases the corpus. A paper that ranks low in one inde
 
 ## File templates
 
-Use `extensions/_shared/defaults/round_strategy_template.md` (or its synced equivalent in your tool's `defaults/` directory) as the skeleton for each round. Fill in:
+Use `.cursor/defaults/round_strategy_template.md` as the skeleton for each round. Fill in:
 - `Strategy:` field at top of `## Method`
 - Queries you ran (verbatim) in `## Provenance`
 - Retained papers in the table inside `## Output`
@@ -142,7 +142,9 @@ After the last round the user chose to run, once its file and the consolidated f
 - Do **not** synthesize a narrative — that's the Historian's job. Just retrieve and tabulate.
 - Do **not** skip a round *on your own initiative* because you "already covered it" — the strategy differentiation is the point. If the **user** chooses to stop, that is their call: record it and move on without arguing.
 - Do **not** discard pre-prints just because they're unpublished — round 3's whole purpose is catching them.
-- Do **not** silently fail a tool — if `osp-mcp` is unreachable, list it in Provenance under "Tools unavailable" so the user knows.
+- Do **not** silently fail a tool. If the search layer is unreachable at all — whichever
+  interface this project uses — list that in Provenance under "Tools unavailable" so the user
+  knows the corpus is thin and why. An unreachable search layer is not an empty field.
 - Do **not** read a tool error as "no papers found". An error record carries a
   `reason`: `blocked`, `rate_limited`, `busy`, `timeout`, `unavailable`,
   `not_found`, `bad_request` or `failed`. Only

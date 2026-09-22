@@ -1,7 +1,7 @@
 ---
 description: "OSP Phase 0: Venue lookup, paper detection, criteria scaffolding"
 reads: [".brain/session.json"]
-writes: [".brain/raw/00_review_guidelines.md", ".brain/raw/05_qa_<slug>.md (per criterion)", ".brain/session.json"]
+writes: [".brain/raw/00_review_guidelines.md", ".brain/raw/05_qa_<slug>.md (per criterion)", ".brain/session.json (incl. mcp.interface)"]
 ---
 
 # /0-osp-onboarding — Stage 0: Onboarding
@@ -64,6 +64,34 @@ afterwards.
   otherwise today. Say in one line why it matters: *work published after this date was not available to
   the authors, so it cannot count as a missing citation.*
 
+### 2c. Decide how you reach the search tools, and write it down
+
+Do this once, here, and record the answer. Every later phase follows it instead
+of working it out again.
+
+**Do not try to answer this by looking at your own tool list.** Hosts disagree
+about what a crashed server looks like, a tool list can be a snapshot taken at
+start-up, and this project may have switched some databases off — so a tool
+being absent proves nothing. Use these checks, in order:
+
+1. **Is `.open-scholar-peer/mcp/osp_cli.py` on disk?** If not, OSP's search
+   layer was never installed. Record `none`, tell the user in one line, and
+   carry on — the protocol still runs, on your own knowledge and web search.
+2. **Call one OSP search tool.** If it answers, record `mcp` and stop here.
+3. **Otherwise the shell is the fallback — but first check the shell can reach
+   the network**, because some hosts allow no outbound traffic from `bash`:
+
+   ```bash
+   python3 -c "import urllib.request as u;u.urlopen('https://api.openalex.org/works?per-page=1',timeout=5).read(1);print('NET_OK')" 2>/dev/null || echo NET_BLOCKED
+   ```
+
+   `NET_OK` → record `cli`. `NET_BLOCKED` → record `none` and **say so plainly**:
+   this host cannot reach the paper databases from the shell. A blocked shell
+   that goes unreported becomes an empty corpus that reads like a complete one.
+
+Write the answer to `session.json` at `mcp.interface`. Then confirm it in one
+line, for example *"Search: MCP (22 tools)"* or *"Search: shell fallback"*.
+
 ### 3. Identify the venue
 
 - **Always ask the user explicitly**, even if the paper's title page, header, or metadata already shows a venue. Do not auto-fill from the paper.
@@ -79,7 +107,7 @@ Try in order, stop at the first that succeeds:
 
 1. **Web search** for the venue's official review form / reviewer instructions / scoring rubric. Use queries like `"<venue> <year> reviewer guidelines"`, `"<venue> review form"`, `"<venue> reviewer checklist"`.
 2. **Ask the user** to paste guidelines if web search came up empty or returned irrelevant content.
-3. **Generic fallback:** copy `extensions/_shared/defaults/generic_review_guidelines.md` (or its synced equivalent in your tool's `defaults/` directory) into `.brain/raw/00_review_guidelines.md`.
+3. **Generic fallback:** copy `.cursor/defaults/generic_review_guidelines.md` into `.brain/raw/00_review_guidelines.md`.
 
 Set `venue.criteria_source` in `session.json` to `"web"`, `"user"`, or `"generic"` accordingly. Set `venue.source_url` if web-sourced.
 
@@ -117,7 +145,8 @@ This is a **structural nudge**: when the Query Agent runs in Phase 5, the empty 
 
 - `phases.onboarding.status = "completed"`
 - `phases.onboarding.completed_at = <now ISO 8601 UTC>`
-- `phases.onboarding.notes = "Venue: <name>; criteria: <N>; paper: <path>; guidelines source: <web|user|generic>"`
+- `phases.onboarding.notes = "Venue: <name>; criteria: <N>; paper: <path>; guidelines source: <web|user|generic>; search: <mcp|cli|none>"`
+- `mcp.interface = "<mcp|cli|none>"` from step 2c, if not already written
 - `resume_from = "summary"`
 
 ## Closing block (print when the phase ends)

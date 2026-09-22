@@ -45,6 +45,31 @@ Each phase's command supplies only the values. The closing block must say **what
 findings, counts, highlights — not merely which command comes next. The user is learning the system
 as they go, so orient them every time, including on a re-run.
 
+## Reaching the search tools
+
+OSP ships the search tools two ways: as MCP tools, and as a program you run
+through `bash`. **MCP is the default. The shell program is the fallback and is
+second class** — it costs a process per call, and an approval on hosts that ask
+for one.
+
+`/0-osp-onboarding` decides which one this project uses and records it in
+`session.json` as `mcp.interface`. Follow what is recorded. If the field is
+missing — the project was set up before this existed — decide it yourself, the
+same way, and write it.
+
+**One `.env` governs both surfaces**, so the shell program never has a database
+MCP lacks. A missing tool is never a reason to change interface.
+
+**If a search fails while the recorded interface is `mcp`, re-probe once and
+rewrite the field before you report a gap.** A server that died mid-session
+leaves `mcp` recorded, and a server nobody can reach looks exactly like a
+database with nothing in it. That is the one confusion this whole layer exists
+to prevent.
+
+`.omp/defaults/search_via_cli.md` holds the commands, the `batch` form to prefer, and
+what each failure reason means. Read it when the interface is `cli`, or when you
+fall back.
+
 ## Output discipline
 
 - Every `.brain/raw/*.md` file uses the universal artifact structure: `## Method`, `## Output`, `## Provenance`.

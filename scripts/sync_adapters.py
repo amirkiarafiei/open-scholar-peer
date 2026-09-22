@@ -628,7 +628,7 @@ def sync_tool(tool: ToolCaps) -> list[str]:
     # Rules
     rules_src = SHARED / "rules" / "osp-rules.md"
     if rules_src.exists():
-        rules_content = resolve_defaults_refs(rules_src.read_text(encoding="utf-8"), tool)
+        rules_content = rules_src.read_text(encoding="utf-8")
 
         # A tool with no MCP client reaches the search layer through a program
         # instead. That instruction has to arrive in the always-on file, or the
@@ -641,6 +641,12 @@ def sync_tool(tool: ToolCaps) -> list[str]:
                     + "\n\n"
                     + cli_src.read_text(encoding="utf-8")
                 )
+
+        # Resolved AFTER the addendum is joined on, not before. Resolving first
+        # rewrote only the base file, so a `defaults/...` pointer inside the
+        # appended block shipped unresolved — dead on arrival, and invisible
+        # because the two are one string by the time anything looks.
+        rules_content = resolve_defaults_refs(rules_content, tool)
 
         if tool.rule_dir is not None:
             ext = "mdc" if tool.name == "cursor" else "md"
