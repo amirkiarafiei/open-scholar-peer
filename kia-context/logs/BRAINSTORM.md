@@ -10,7 +10,7 @@ authority: background
 writes: agent, whenever a decision is made
 status: active
 covers: "Extensions phase, 2026-04-23 onward — D1 onward, O1 onward"
-last_updated: "2026-09-22"
+last_updated: "2026-09-23"
 ---
 
 # 🧠 BRAINSTORM — Why we chose what we chose
@@ -491,6 +491,25 @@ behind it** — rule 7 applies to a grep, not only to a count.
 **Why the watchdog loses, and it is not close.** A timer thread would also bound `list` and `schema`, which `wait_for` does not cover. But if it fires *during* the write, it truncates the JSON document mid-flight — which is **exactly the failure D45 exists to prevent**, arriving through the mechanism meant to protect us. `list` and `schema` touch no network and no provider, so it buys almost nothing and can go wrong in the worst available way.
 **The one thing that must not be reordered.** `os._exit` skips every buffer Python owns, so stdout is flushed explicitly *first*. Get that order wrong and the envelope is lost precisely on the path where there is nothing else to tell the agent what happened.
 **Why the hard exit is safe here:** the CLI holds no file handles, and the arXiv lock is an `fcntl.flock` the kernel releases when the process dies — which is why C5 chose `flock` over a lock file it would have had to delete.
+
+### D47 · A batch of N must return what N calls return — 2026-09-23
+
+**Considered:** divide the output budget across the items in a batch / give each item the budget a single call gets, and bound the whole response at N times that
+**Chose:** the full per-call budget for each item.
+**The measurement.** The first version divided: `max(2_000, MAX_BYTES // n)`. On real arXiv records, mean 1,926 B, a batch of six returned **one** record per source and a batch of twelve returned **none** — the 2,000 B floor is smaller than a single record. Meanwhile `search_via_cli.md` says to prefer `batch`, the literature skill says to fire every source in one dispatch, and a literature phase is about eighteen calls. **Following the guidance produced a thinner corpus than ignoring it.**
+**The part that made it worse.** `--max-bytes 0` is documented as "no limit" and the truncation marker names it as the way to recover; `max(2_000, 0 // n)` clamped it to the floor and returned nothing at all. The advertised repair was the most destructive input available.
+**Why the invariant did not catch it.** Every item was correctly marked `osp_truncated`, so no agent was ever told "no papers exist". The rule held and the corpus still went. That is worth remembering: **the invariant is a floor, not a definition of working** — an honest report of an empty corpus is still an empty corpus.
+**The principle, stated so the next reader does not re-derive it.** A convenience that replaces N operations must not return less than those N operations would. Otherwise the recommendation punishes the agent for following it, and the fix is invisible because nothing is technically wrong.
+**Cost accepted:** a batch of eighteen can now produce eighteen times one call's output. It is bounded — N times the budget, plus 10% for nesting — and that is exactly what eighteen separate calls would have produced.
+
+### D48 · The arXiv lock is per project, and the gap is best-effort across them — 2026-09-23
+
+**Considered:** one lock for every OSP install on the machine / one lock per project
+**Chose:** per project, keyed by install path and user.
+**Why this needed writing down.** The file said both things. Its header quotes arXiv's terms as applying to *"all of the machines under your control as a whole"*; the lock is keyed per install and its docstring presents that as the point. Both sentences were true and a reader could not tell which was the decision — which is exactly the kind of thing this log exists for.
+**The reasoning.** A machine-wide lock would make one review wait on another review's unrelated search, with a fifteen-second ceiling and a `busy` envelope at the end of it. Two projects open at once is a normal working day; two projects hitting arXiv in the same second is not. arXiv tolerates the occasional overlap from one user, and the alternative degrades the common case to protect the rare one.
+**So the promise is:** strict within a project, best-effort across them. Stated in the docstring rather than left to be inferred from the code.
+**Found by a reviewer**, not by us, and not as a bug — as two sentences in one file that disagreed.
 
 ---
 

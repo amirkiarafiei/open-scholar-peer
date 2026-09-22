@@ -11,7 +11,7 @@ authority: state
 writes: agent, every session
 status: active
 covers: "Extensions phase, 2026-09-21 onward — M14 onward"
-last_updated: "2026-09-22"
+last_updated: "2026-09-23"
 ---
 
 # 📈 PROGRESS, part two — What we are building
@@ -1029,6 +1029,74 @@ promise already made in public rather than closing an open issue. **PR #18**, st
 outside contributor, covers the same ground and is superseded on three counted grounds: it names
 three specific tools (breaks M14/D26), it **halts** on a missing tool (breaks M15), and it asks the
 agent to inspect its own tool list, which C13 concludes cannot be done reliably.
+
+### Review round — 2026-09-22/23: four reviewers, four lenses
+
+Two subagents and two `agy` runs (Gemini 3.8 Flash, high), on lenses chosen not
+to overlap: **the invariant**, **the fresh machine**, **refactor fidelity**, and
+**documentation truth**. Seventeen defects, every one reproduced before it was
+fixed, and one rejected as false after testing it.
+
+**The two that justified the round on their own**, both in the output cap added
+by C12 — machinery built to protect the invariant, breaking it:
+
+1. **A half-read paper reported itself as complete.** The cap shortened a
+   full-text record's `text` and left its own paging contract untouched:
+   21,673 of 43,180 characters delivered with `truncated: false` and
+   `next_offset: null`. The agent stops there. Not an empty result — a
+   *fabricated finding*, because it then reports that a cited work "does not
+   report" a number that was in the half it never saw. It was the default path
+   for every full-text read through the CLI.
+2. **A blocked provider could exit 0 with no `reason`.** A one-element error
+   envelope too large to fit was deleted to make room and replaced by a
+   truncation marker, and the exit code was read off the capped result. A 30 KB
+   Google Scholar block arrived as exit 0, no error, presented as a size problem
+   with advice to ask for fewer results. That is the M11 defect exactly.
+
+**What the round says about this milestone's own habits**, which is the part
+worth carrying forward:
+
+- **The invariant is a floor, not a definition of working.** The batch budget
+  bug (D47) marked every item truncated and was therefore invariant-clean, while
+  returning zero records on the path the documentation recommends. An honest
+  report of an empty corpus is still an empty corpus.
+- **Twice, fixing the code left the prompts describing the old behaviour.** The
+  truncation guidance still said "the last element" and "the records you got are
+  complete" after two new marker shapes were added that merge into the record
+  and mean the opposite. The prompts *are* the product here, so a fix that does
+  not reach them is half a fix.
+- **A fix can be worse than the bug it replaces.** The first `warm_providers`
+  probe called a function that swallows exceptions, so it reported a healthy
+  install on an interpreter with no dependencies at all. The test written to
+  check the fix caught it.
+- **A test that has never failed is not evidence.** The fault injector found
+  two guarantees the CLI suite was not actually testing, and later found one of
+  its own patterns had gone stale and was silently changing nothing — it reports
+  a no-op fault as a failure rather than a pass, which is the only reason that
+  surfaced.
+
+**One HIGH finding was wrong, and is recorded as wrong.** A reviewer concluded
+the onboarding probe would always report `NET_BLOCKED` because OpenAlex rejects
+a default `Python-urllib` User-Agent with 403 — reasoned from the provider's own
+UA constant rather than tested. Tested: HTTP 200. The half that was right was
+taken anyway: the probe now uses the interpreter OSP installs rather than a bare
+`python3`, which may be absent from `PATH` or missing root certificates.
+
+**Three classes of defect this project could not have found on its own machine:**
+a filesystem that refuses `flock` (every arXiv call burning 15 s and then
+blaming a process that did not exist); BSD `sed` and bash 3.2, which would have
+broken both developer suites on stock macOS before running a line of code; and
+`find_module`, removed in Python 3.12, which would have made the first 3.12 CI
+run red for the wrong reason and silently network-dependent.
+
+**Counts after the round:** 264 offline provider checks (was 251 before M18),
+218 schema-parity, 148 CLI, 14 fault injections all caught, 54 TOML, 21-tool
+parity, 21 installer smoke tests. Full run 68 s.
+
+**Verdicts.** Refactor fidelity: the 22 tool bodies moved byte-identically, 762
+contiguous lines, zero diff. Fresh machine: installs cleanly, all ten findings
+fixed, nothing outstanding. Documentation truth: an agent following the
+documents would *not* have behaved correctly — six real defects, now fixed.
 
 ### Out of scope
 

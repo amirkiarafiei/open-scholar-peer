@@ -12,7 +12,7 @@ authority: blueprint
 writes: agent, when explicitly refactoring
 status: active
 covers: the system as it is today
-last_updated: "2026-09-22"
+last_updated: "2026-09-23"
 ---
 
 # 🏗️ ARCHITECTURE — How this project is built
@@ -418,11 +418,19 @@ Three properties of the CLI that MCP does not need, all added in M18 and all mea
 
 - **A hard wall-clock bound.** See the timeout note above.
 - **An output cap.** A 50-result search wrote 103,399 bytes (~24,500 tokens); a host truncating that
-  mid-document leaves an agent holding a fragment it reports as complete. The cut now happens in the
-  CLI, where it can be described: shape preserved, a marker naming how many of how many, and
-  deliberately *not* the error envelope shape — a truncated search is not a failed one.
+  mid-document leaves an agent holding a fragment it reports as complete. The cut happens in the CLI
+  instead, where it can be described. Every cut is declared under `osp_truncated`, in one of three
+  shapes: a **list** gains a last element and the records above it are whole; a **record** has its
+  heaviest fields shrunk and the marker merged in, naming each field and the unit; a **full-text
+  window** is re-cut with `returned_chars`, `truncated` and `next_offset` corrected, so paging still
+  chains exactly. The marker is deliberately *not* the error envelope shape — a truncated search is
+  not a failed one. **Two things exceed the cap on purpose:** an error envelope is never dropped, so
+  a failure whose message alone is oversized still arrives with its `reason`; and below a floor there
+  is no room for both the record and an honest account of what was cut, so the account wins.
 - **`batch`.** One process for a whole round, which restores the rate limit, the caches and the
-  de-duplication and pays one start-up instead of eighteen (D39).
+  de-duplication and pays one start-up instead of eighteen (D39). **Each item gets the budget a
+  single call gets**, not a share of it — dividing it made the recommended path return less the more
+  you asked for, which is the opposite of what `batch` is for (D47).
 
 Its exit codes carry the distinction this layer exists to protect — **0** the call ran (an empty list
 means nothing matched), **1** it failed and the envelope names a `reason`, **2** the call itself was
