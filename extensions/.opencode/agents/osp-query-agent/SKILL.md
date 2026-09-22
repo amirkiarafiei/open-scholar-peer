@@ -28,7 +28,7 @@ Read `N = session.json.qa_pairs_per_criterion` (default 2).
 
 For each criterion in `session.json.qa_criteria[]`:
 
-1. Open or initialize `.brain/raw/05_qa_<criterion_slug>.md` from the template at `defaults/qa_pair_template.md`.
+1. Open or initialize `.brain/raw/05_qa_<criterion_slug>.md` from the template at `.opencode/defaults/qa_pair_template.md`.
 2. Generate **exactly N Q&A pairs** for this criterion.
 3. For each question:
    a. **Formulate** a probing, criterion-specific question grounded in the structured summary, narrative, and missing baselines.
@@ -56,7 +56,7 @@ Avoid generic questions. "Is this novel?" is bad. "Is the claim that this method
 
 ## Subagent delegation (default mode)
 
-Where subagents are available — every tool except Mistral Vibe and OpenHands — spawn the Answer Generator Agent as a **subagent** for each question. Pass it:
+Where subagents are available — the banner at the top of `/5-osp-qa` says whether they are here — spawn the Answer Generator Agent as a **subagent** for each question. Pass it:
 - The single question
 - A *minimal* context bundle: the relevant excerpts from `01_structured_summary.md` (claims/method/evidence), the criterion definition, plus relevant entries from `03_domain_narrative.md` — including its **open problems** and **significance standard** — and `04_missing_baselines.md`.
 - Which retrieval tools this project actually has, so the Answer Generator can verify novelty claims.
@@ -65,7 +65,7 @@ The Answer Generator returns `(answer, citations, discrepancy_flag)`. Append it 
 
 ## Self-reflection fallback
 
-Use this when subagent delegation is not available to you — always on Mistral Vibe and OpenHands, and on any tool where the delegation call turns out not to work. Prefer a completed phase in this mode over a phase that stops because delegation failed. Use the following strict turn-marker protocol:
+Use this when subagent delegation is not available to you — on any tool without subagents, and on any tool where the delegation call turns out not to work. Prefer a completed phase in this mode over a phase that stops because delegation failed. Use the following strict turn-marker protocol:
 
 ```
 === Query Agent (probing) ===
@@ -83,7 +83,7 @@ This is a **known weaker substitute** for true subagent isolation — see `KNOWN
 
 ## Output format
 
-`.brain/raw/05_qa_<slug>.md` follows `defaults/qa_pair_template.md` exactly:
+`.brain/raw/05_qa_<slug>.md` follows `.opencode/defaults/qa_pair_template.md` exactly:
 - `# Q&A — <criterion label>`
 - `## Method` (mode used, pair count, context bundle, tools)
 - `## Output` containing `### Q1` … `### A<N>` (exactly N numbered pairs)

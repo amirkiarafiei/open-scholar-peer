@@ -247,3 +247,5 @@ fi
 # Export paths so the calling installer can write them into MCP config
 export OSP_MCP_PYTHON="$VENV_DIR/bin/python"
 export OSP_MCP_SERVER="$TARGET_DIR/osp_mcp.py"
+# The same search tools over argv, for agents that have no MCP client.
+export OSP_SEARCH_CLI="$TARGET_DIR/osp_cli.py"

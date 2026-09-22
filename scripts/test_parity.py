@@ -15,6 +15,7 @@ Exit codes:
 """
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +32,19 @@ class ToolSpec:
     command_ext: str
     skill_dir: str
     rule_paths: list[str]  # files that the rules content lands at (relative to root)
+    # Tools where the 8 commands ship as skill directories instead of files.
+    commands_as_skills: bool = False
+    # Tools that additionally need each persona as a subagent definition.
+    agent_dir: str | None = None
+
+
+# This list is deliberately written out by hand rather than imported from
+# `sync_adapters`. If the test derived its expectations from the code under
+# test, a wrong path in the capability matrix would produce a wrong adapter
+# and a passing test. The cost of that independence is that the two lists can
+# drift, so `check_registries_match()` compares the tool *names* — enough to
+# catch a tool added to one and forgotten in the other, without making the
+# path check tautological.
 
 
 TOOLS = [
@@ -62,7 +76,66 @@ TOOLS = [
              "commands", "md", "agents", ["AGENTS.md"]),
     ToolSpec("openhands", REPO_ROOT / "extensions" / ".openhands",
              "commands", "md", "skills", ["AGENTS.md"]),
+    ToolSpec("pi", REPO_ROOT / "extensions" / ".pi",
+             "prompts", "md", "skills", ["AGENTS.md"]),
+    ToolSpec("ohmypi", REPO_ROOT / "extensions" / ".omp",
+             "commands", "md", "skills", ["RULES.md"], agent_dir="agents"),
+    ToolSpec("grok", REPO_ROOT / "extensions" / ".grok",
+             "commands", "md", "skills", ["rules/osp-rules.md"], agent_dir="agents"),
+    ToolSpec("hermes", REPO_ROOT / "extensions" / ".hermes",
+             "skills", "md", "skills", ["AGENTS.md"], commands_as_skills=True),
+    ToolSpec("cline", REPO_ROOT / "extensions" / ".cline",
+             "skills", "md", "skills", ["rules/osp-rules.md"], commands_as_skills=True),
+    ToolSpec("kilo", REPO_ROOT / "extensions" / ".kilo",
+             "commands", "md", "skills", ["AGENTS.md"], agent_dir="agents"),
+    ToolSpec("openclaw", REPO_ROOT / "extensions" / ".openclaw",
+             "skills", "md", "skills", ["AGENTS.md"], commands_as_skills=True),
 ]
+
+
+_BARE_DEFAULTS_RE = re.compile(r"`defaults/[A-Za-z0-9_\-]+\.md`")
+
+
+def check_defaults_refs() -> list[str]:
+    """No generated file may point at `defaults/x.md`.
+
+    Nothing is ever installed at `<project>/defaults/`; the adapter lands in
+    `.claude/`, `.codex/`, `.agents/` and so on. A bare reference resolved from
+    the project root finds nothing, and the file it sends the agent to read is
+    the only definition of the phase block. The canonical files under
+    `_shared/` keep the short form on purpose — they must stay tool-agnostic —
+    so this checks the generated output only.
+    """
+    issues: list[str] = []
+    for tool in TOOLS:
+        if not tool.root.exists():
+            continue
+        for path in tool.root.rglob("*"):
+            if path.suffix not in (".md", ".toml") or not path.is_file():
+                continue
+            if _BARE_DEFAULTS_RE.search(path.read_text(encoding="utf-8")):
+                issues.append(
+                    f"[{tool.name}] bare `defaults/...` reference resolves to nothing: "
+                    f"{path.relative_to(REPO_ROOT)}")
+    return issues
+
+
+def check_registries_match() -> list[str]:
+    """The capability matrix and this file must know about the same tools."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from sync_adapters import TOOLS as SYNC_TOOLS  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001
+        return [f"could not import the capability matrix to compare against: {exc}"]
+
+    here = {t.name for t in TOOLS}
+    there = set(SYNC_TOOLS)
+    issues = []
+    for missing in sorted(there - here):
+        issues.append(f"{missing} is in sync_adapters.TOOLS but not in test_parity.TOOLS")
+    for extra in sorted(here - there):
+        issues.append(f"{extra} is in test_parity.TOOLS but not in sync_adapters.TOOLS")
+    return issues
 
 
 def list_canonical_commands() -> list[str]:
@@ -84,9 +157,13 @@ def check_tool(tool: ToolSpec, commands: list[str], skills: list[str], defaults:
         issues.append(f"[{tool.name}] adapter root missing: {tool.root.relative_to(REPO_ROOT)}")
         return issues
 
-    # Commands
+    # Commands — a file under command_dir, or a skill directory on the tools
+    # where skills are the slash commands.
     for cmd in commands:
-        target = tool.root / tool.command_dir / f"{cmd}.{tool.command_ext}"
+        if tool.commands_as_skills:
+            target = tool.root / tool.skill_dir / cmd / "SKILL.md"
+        else:
+            target = tool.root / tool.command_dir / f"{cmd}.{tool.command_ext}"
         if not target.exists():
             issues.append(f"[{tool.name}] missing command: {target.relative_to(REPO_ROOT)}")
 
@@ -95,6 +172,15 @@ def check_tool(tool: ToolSpec, commands: list[str], skills: list[str], defaults:
         target = tool.root / tool.skill_dir / skill / "SKILL.md"
         if not target.exists():
             issues.append(f"[{tool.name}] missing skill: {target.relative_to(REPO_ROOT)}")
+
+    # Subagent definitions — the same personas again, where delegation reads a
+    # different file than skill discovery does.
+    if tool.agent_dir:
+        for skill in skills:
+            target = tool.root / tool.agent_dir / f"{skill}.md"
+            if not target.exists():
+                issues.append(
+                    f"[{tool.name}] missing subagent definition: {target.relative_to(REPO_ROOT)}")
 
     # Rules
     for rel in tool.rule_paths:
@@ -205,6 +291,18 @@ def main() -> int:
         all_issues.extend(block_issues)
     else:
         print("  ✓ phase block: one definition, 60-column rules, 7 markers")
+
+    ref_issues = check_defaults_refs()
+    if ref_issues:
+        all_issues.extend(ref_issues)
+    else:
+        print("  \u2713 defaults/ references resolve to a real per-tool path")
+
+    registry_issues = check_registries_match()
+    if registry_issues:
+        all_issues.extend(registry_issues)
+    else:
+        print("  ✓ tool registries agree: sync_adapters and test_parity")
 
     if all_issues:
         print("\n  ❌ Drift detected:")

@@ -5,7 +5,7 @@
 
 ## What this project is
 
-Open ScholarPeer (OSP) implements the paper *"ScholarPeer: A Context-Aware Multi-Agent Framework for Automated Peer Review"* as a portable set of skills, slash commands, and an MCP server that install into a user's project across 14 AI tools (Claude Code, Cursor, Gemini CLI, Copilot CLI, Antigravity, Antigravity CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, Kimi Code, Mistral Vibe, OpenHands).
+Open ScholarPeer (OSP) implements the paper *"ScholarPeer: A Context-Aware Multi-Agent Framework for Automated Peer Review"* as a portable set of skills, slash commands, and an MCP server that install into a user's project across 21 AI tools (Claude Code, Cursor, Gemini CLI, Copilot CLI, Antigravity, Antigravity CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, Kimi Code, Mistral Vibe, OpenHands, Pi, Oh My Pi, Grok Build, Hermes, Cline, Kilo Code, OpenClaw).
 
 **There is no runtime code.** OSP is configuration-as-code. The library is the prompts and the sync infrastructure that keeps them consistent across tools.
 
@@ -18,7 +18,7 @@ python3 scripts/sync_adapters.py
 # Validate per-tool parity (must pass before any commit touching _shared/):
 python3 scripts/test_parity.py
 
-# Smoke-test all 14 installers in temp dirs (must pass before tagging release):
+# Smoke-test all 21 installers in temp dirs (must pass before tagging release):
 bash scripts/test_install.sh
 
 # Syntax-check shell scripts:
@@ -49,11 +49,11 @@ cd mcp-server && PYTHONPATH=. ../.venv/bin/python osp_mcp.py
 
 ## Architecture (one paragraph)
 
-`extensions/_shared/` is the canonical source: 8 commands + 8 skills + rules + defaults + a manifest. `scripts/sync_adapters.py` regenerates 14 per-tool adapter directories under `extensions/.{claude,cursor,gemini,agent,agents,github,junie,kiro,codex,kimi,qwen,vibe,opencode,openhands}/`. Per-tool installers (`scripts/install_*.sh`) copy the adapter into the user's project, run `init_brain.sh` to scaffold `.brain/`, run `init_mcp.sh` to set up a self-contained Python venv at `.open-scholar-peer/mcp/`, and either auto-merge the MCP server into the tool's config (`merge_mcp_config.py`) or emit a paste-ready snippet for tools with TOML / global / non-standard configs. State during a review lives at `<user-project>/.brain/` (gitignored).
+`extensions/_shared/` is the canonical source: 8 commands + 8 skills + rules + defaults + a manifest. `scripts/sync_adapters.py` regenerates 21 per-tool adapter directories under `extensions/.{claude,cursor,gemini,agent,agents,github,junie,kiro,codex,kimi,qwen,vibe,opencode,openhands,pi,omp,grok,hermes,cline,kilo,openclaw}/`. Per-tool installers (`scripts/install_*.sh`) copy the adapter into the user's project, run `init_brain.sh` to scaffold `.brain/`, run `init_mcp.sh` to set up a self-contained Python venv at `.open-scholar-peer/mcp/`, and wire the MCP server into the tool's config — `merge_mcp_config.py` for JSON, `merge_mcp_toml.py` for TOML, or the vendor's own `<tool> mcp add` where one exists. Pi is the exception: it has no MCP client, so it reaches the same 22 search tools through `osp_cli.py` over bash. State during a review lives at `<user-project>/.brain/` (gitignored).
 
 ## The Golden Rule
 
-**Never edit `extensions/.{claude,cursor,gemini,agent,agents,github,junie,kiro,codex,kimi,qwen,vibe,opencode,openhands}/` directly.** They are generated. Edit `extensions/_shared/` and re-run sync.
+**Never edit any `extensions/.<tool>/` directory directly.** All 21 are generated and are wiped on each sync. Edit `extensions/_shared/` and re-run it.
 
 ## Code style
 
@@ -69,9 +69,9 @@ cd mcp-server && PYTHONPATH=. ../.venv/bin/python osp_mcp.py
 - `/.agents/` at repo root is leftover unrelated tooling, gitignored. The OSP Antigravity adapter is at `extensions/.agent/`, and the Antigravity CLI adapter is at `extensions/.agents/`. Do not confuse them.
 - `reviewer-os/` at repo root is an external reference (gitignored), not part of OSP.
 - When adding or renaming a command/skill, update **both** `extensions/_shared/MANIFEST.md` and `docs/ARTIFACT_CONTRACTS.md`.
-- Q&A behavior differs per tool, and `sync_adapters.py::adapt_qa_body_for_tool()` has **three** modes, not two: `subagent` (11 tools), `prefer-subagent` (Antigravity — try delegation, fall back to self-reflection rather than fail), and `self-reflection` (Mistral Vibe, OpenHands). Antigravity moved out of the self-reflection group in 2026-09 — see `kia-context/logs/BRAINSTORM.md` D16 and D17.
+- Q&A behavior differs per tool, and `sync_adapters.py::adapt_qa_body_for_tool()` has **three** modes, not two: `subagent`, `prefer-subagent` (try delegation, fall back to self-reflection rather than fail), and `self-reflection`. Measured 2026-09-21: **14 / 3 / 4** of 21. Read the split off the matrix rather than trusting this line — see `kia-context/logs/BRAINSTORM.md` D16, D17 and D36.
 - Paper hyperparameters: `k=3` literature rounds is **recommended, not fixed** — the user may stop at 1, 2 or 3, enforced by one file per round actually run and recorded in `session.json.phases.literature.rounds_completed` (D29); `N_QA` is **user-configurable** at `/5-osp-qa` start (default 2 pairs/criterion, persisted as `session.json.qa_pairs_per_criterion`). The Q&A template renders `### Q1`…`### QN` from that field.
-- Tools that share the project-root `AGENTS.md` surface (Copilot, Codex, Kimi, Vibe, OpenCode, OpenHands) all merge through `scripts/merge_agents_md.sh` using `<!-- OSP-BEGIN/OSP-END -->` markers. Do not roll your own merge logic.
+- Tools that write to a shared markdown file the user may also own — the project-root `AGENTS.md` for Copilot, Codex, Kimi, Vibe, OpenCode, OpenHands, Pi, Hermes, Kilo Code and OpenClaw, and `.omp/RULES.md` for Oh My Pi — all merge through `scripts/merge_agents_md.sh` using `<!-- OSP-BEGIN/OSP-END -->` markers. Do not roll your own merge logic, and do not plain-copy onto one of these.
 - The MCP server runs as a subprocess of the host tool over stdio. To debug, run `python3 mcp-server/osp_mcp.py` standalone — it'll wait for MCP protocol messages and surface any startup errors.
 - `init_mcp.sh` copies `mcp-server/` into `<user-project>/.open-scholar-peer/mcp/` and builds a venv there. The dev repo's `mcp-server/` is the source; the per-project copy is the runtime.
 
@@ -85,8 +85,7 @@ extensions/_shared/             ← Edit here. Single source of truth.
   ├── defaults/                  Templates that enforce structure
   └── MANIFEST.md                Sync-script catalog
 
-extensions/.{claude,cursor,gemini,agent,agents,github,
-            junie,kiro,codex,kimi,qwen,vibe,opencode,openhands}/   ← Generated. Don't edit.
+extensions/.<tool>/            21 generated adapter dirs. Don't edit.
 
 mcp-server/
   ├── osp_mcp.py                 FastMCP server entrypoint
@@ -101,7 +100,7 @@ scripts/
   ├── clean_adapter.sh           Wipes OSP-managed files before re-copy (per tool)
   ├── init_brain.sh              .brain/ scaffolding (called by installers)
   ├── init_mcp.sh                .open-scholar-peer/mcp/ setup (called by installers)
-  ├── install_*.sh               One per tool (14 total)
+  ├── install_*.sh               One per tool (21 total)
   └── test_*.{py,sh}             Parity validator + installer smoke
 
 docs/

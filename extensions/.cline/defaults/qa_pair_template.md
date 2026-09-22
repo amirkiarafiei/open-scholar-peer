@@ -1,0 +1,37 @@
+# Q&A — {{criterion_label}}
+
+> **Criterion definition:** {{criterion_definition}}
+
+## Method
+
+- **Mode:** `{{subagent | self-reflection}}` (subagent preferred where supported)
+- **Pairs:** {{qa_pairs_per_criterion}} (from `session.json.qa_pairs_per_criterion`)
+- **Context bundle loaded:** <name only the artifacts that actually existed — never list one you did not read>
+- **Query strategy:** probing weaknesses specific to {{criterion_label}}; cross-referenced against external context where applicable
+- **Discrepancy flagging policy:** any answer that contradicts a paper claim is logged with `[DISCREPANCY]` tag
+
+## Output
+
+<!-- Repeat Q/A blocks exactly {{qa_pairs_per_criterion}} times, numbered Q1/A1 … QN/AN -->
+
+### Q1
+<Probing question targeting {{criterion_label}}>
+
+### A1
+<Answer grounded in the structured summary and external context. Cite specific entries from `02_retrieved_literature.md` or `03_domain_narrative.md` where applicable. Flag discrepancies with `[DISCREPANCY]` and explain.>
+
+### Q2
+<...>
+
+### A2
+<...>
+
+<!-- … continue Q3/A3 through Q{{qa_pairs_per_criterion}}/A{{qa_pairs_per_criterion}} -->
+
+## Provenance
+
+- Papers cited in answers: <list with paperId/URL where available>
+- External tools used during answering: <name the tools you actually called>
+- Inputs absent: <artifact — and what could not be checked because it was missing, or "none">
+- Phases skipped upstream: <from session.json, or "none">
+- Discrepancy count: <N>

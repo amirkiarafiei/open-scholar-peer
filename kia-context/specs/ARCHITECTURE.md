@@ -27,7 +27,7 @@ last_updated: "2026-09-21"
 | [4](#4-the-seven-step-protocol) | The seven-step protocol |
 | [5](#5-the-session-and-how-it-moves) | The session, and how it moves |
 | [6](#6-the-artifact-contract) | The artifact contract |
-| [7](#7-one-source-fourteen-tools) | One source, fourteen tools |
+| [7](#7-one-source-twenty-one-tools) | One source, twenty-one tools |
 | [8](#8-what-the-system-refuses-to-do) | What the system refuses to do |
 | [9](#9-the-search-layer) | The search layer |
 | [10](#10-the-terminal-is-the-interface) | The terminal is the interface |
@@ -58,8 +58,8 @@ paper.pdf ─► [0] onboard ─► [1] summarise ─► [2] retrieve ×3 ─►
 
 | | |
 |---|---|
-| **The library is prompts, not code** | 1,455 lines of canonical prompt markdown against 5,851 lines of Python and 2,301 of shell — and none of that code is review logic; it is sync tooling, search and installers. §3 |
-| **One source, fourteen adapters, generated** | Editing a per-tool directory is pointless; it is wiped on the next sync. §7 |
+| **The library is prompts, not code** | 1,996 lines of canonical prompt markdown against 7,048 lines of Python and 3,317 of shell — and none of that code is review logic; it is sync tooling, search and installers. §3 |
+| **One source, twenty-one adapters, generated** | Editing a per-tool directory is pointless; it is wiped on the next sync. §7 |
 | **Paper hyperparameters are enforced by file structure** | Each retrieval round the user runs must leave its own file on disk, because a model will otherwise claim rounds it did not run. `k=3` is the recommendation; the count is the user's. §4 |
 | **The agent's memory is a JSON file** | `session.json` is the only thing connecting one slash command to the next. §5 |
 | **The orchestrator never does review work** | It reads state and names the next command. Every write is done by the persona skill that owns the step. §5 |
@@ -73,7 +73,7 @@ paper.pdf ─► [0] onboard ─► [1] summarise ─► [2] retrieve ×3 ─►
 |---|---|---|
 | **Protocol** | Markdown with YAML-ish frontmatter | The actual product. Parsed by the host AI tool, and by a deliberately simple home-grown parser in `sync_adapters.py` — keep frontmatter flat, no nesting or anchors. |
 | **Sync + tooling** | Python 3.10+, stdlib only | `sync_adapters.py`, `merge_mcp_config.py`, `test_parity.py`. No third-party dependency in the dev toolchain. |
-| **Installers** | Bash, `set -e` | 14 per-tool scripts plus a menu at `install.sh`. Must survive `curl … \| bash`. |
+| **Installers** | Bash, `set -e` | 21 per-tool scripts plus a menu at `install.sh`. Must survive `curl … \| bash`. |
 | **Search server** | Python + FastMCP (`mcp>=1.2.0,<2.0`) over stdio | Runs as a subprocess of the host tool. **The ceiling is load-bearing:** mcp 2.x deletes `mcp.server.fastmcp` and renames `FastMCP` to `MCPServer`, so an unbounded pin left the server unable to import at all. O15. |
 | **Search providers** | `arxiv`, `semanticscholar`, `scholarly` + BeautifulSoup; Europe PMC, Zenodo and OpenAlex over plain `requests` | Pinned, with upper bounds, in `mcp-server/requirements.txt`. Google Scholar is HTML scraping and is best-effort. |
 | **Runtime isolation** | A venv per user project at `.open-scholar-peer/mcp/` | Not published to PyPI; the installer builds it in place. |
@@ -86,15 +86,15 @@ paper.pdf ─► [0] onboard ─► [1] summarise ─► [2] retrieve ×3 ─►
 
 | Path | Owns |
 |---|---|
-| `extensions/_shared/` | **The canonical protocol.** 8 commands, 8 skills, 1 rules file, 4 templates, 1 manifest — 22 files. The only place a human edits protocol content. |
-| `extensions/.{tool}/` | 14 generated adapter directories, 296 files. Never edited by hand. |
+| `extensions/_shared/` | **The canonical protocol.** 8 commands, 8 skills, 2 rules files, 4 templates, 1 manifest — 23 files. The only place a human edits protocol content. |
+| `extensions/.{tool}/` | 21 generated adapter directories, 467 files. Never edited by hand. |
 | `mcp-server/` | The search server and its six providers. Source of truth; the copy in a user's project is the runtime. |
-| `scripts/` | Sync, parity check, MCP-config merge, `.brain/` and venv scaffolding, 14 installers, smoke tests. |
+| `scripts/` | Sync, parity check, MCP-config merge, `.brain/` and venv scaffolding, 21 installers, smoke tests. |
 | `docs/` | Human-facing: build phases, I/O contracts, brain layout, limitations, troubleshooting, and the source paper. |
 | `.brain-template/` | The `session.json` skeleton copied into every user project. |
 | `kia-context/` | This harness. |
 
-*Measured 2026-09-21: `find extensions/_shared -type f | wc -l` → 22; `find extensions -path extensions/_shared -prune -o -type f -print | wc -l` → 296; `ls scripts/install_*.sh | wc -l` → 14.*
+*Measured 2026-09-21: `find extensions/_shared -type f | wc -l` → 23; `find extensions -path extensions/_shared -prune -o -type f -print | wc -l` → 467; `ls scripts/install_*.sh | wc -l` → 21.*
 
 Not in the repository, created in the *user's* project by the installer: `.brain/` (review state, gitignored)
 and `.open-scholar-peer/mcp/` (the server plus its venv, gitignored).
@@ -143,15 +143,22 @@ answer its own questions; each question goes to a fresh, stateless Answer Genera
 other questions. That isolation is the point — it is what stops the verification being coloured by the
 reasoning that produced the question.
 
-12 of 14 tools support real subagents; Antigravity is one of them but tries-then-falls-back, because
-whether a persona skill is reachable through its `invoke_subagent` is unconfirmed (D17). The other two —
-Mistral Vibe and OpenHands — always use **self-reflection**: both personas in one context window, separated by hard turn markers
+17 of 21 tools support real subagents, in three groups. **14 delegate outright.** **3 try and degrade** —
+Antigravity, Hermes and OpenClaw each document a subagent framework with its own context window, but none
+documents that a persona *skill* is reachable through it, so the banner tells them to attempt delegation
+and fall back rather than stop (D17, D36). **4 always self-reflect** — Mistral Vibe, OpenHands, Pi and
+Cline — running both personas in one context window separated by hard turn markers
 (`=== Query Agent === … === Answer Generator === …`). This is a weaker substitute and is published as one
 (`docs/KNOWN_LIMITATIONS.md` §1). The banner that tells a tool which mode it is in is injected at sync
 time by `sync_adapters.py::adapt_qa_body_for_tool()` — the single semantic transform in the whole pipeline.
 
-*Measured: `python3 -c "…; sum(1 for t in TOOLS.values() if t.supports_subagent)"` → 12 of 14. It read
-11 until 2026-09-11, when Antigravity moved into the subagent group — see `logs/BRAINSTORM.md` D16.*
+Three of the delegating tools needed the persona written twice. Oh My Pi, Grok Build and Kilo Code
+dispatch to a named *agent definition* and cannot target a skill, so `sync_adapters.py` also emits each
+persona as a flat file under the tool's `agent_dir`. Without it they would have fallen back to
+self-reflection while being fully capable of the real thing (D36).
+
+*Measured 2026-09-21: `sum(1 for t in TOOLS.values() if t.supports_subagent)` → 17 of 21; qa_mode splits
+14 subagent / 3 prefer-subagent / 4 self-reflection. It read 12 of 14 until this wave — see D16, D36.*
 
 ---
 
@@ -214,20 +221,22 @@ full table is `docs/ARTIFACT_CONTRACTS.md`.
 
 ---
 
-## 7. One source, fourteen tools
+## 7. One source, twenty-one tools
 
-Fourteen AI tools disagree about nearly everything: what a command file is called, where it lives, whether
-it is Markdown or TOML, where always-on instructions go, and how MCP servers are registered. Maintaining
-fourteen copies of an eight-step protocol by hand guarantees drift.
+Twenty-one AI tools disagree about nearly everything: what a command file is called, where it lives,
+whether it is Markdown or TOML, whether a slash command is a file at all or only a skill, where always-on
+instructions go, how subagents are addressed, and how MCP servers are registered — or whether the tool
+has MCP at all. Maintaining twenty-one copies of an eight-step protocol by hand guarantees drift.
 
 ```
 extensions/_shared/  ──►  sync_adapters.py  ──►  extensions/.{claude,cursor,…}/  ──►  install_*.sh  ──►  user project
-   22 files                 capability matrix          296 files, 14 dirs              copy + wire MCP
+   23 files                 capability matrix          467 files, 21 dirs              copy + wire MCP
 ```
 
 `sync_adapters.py` holds a `ToolCaps` row per tool: subagent support, Q&A mode, command directory,
-command extension, skill directory, rules directory, and any extra always-on file. Sync **wipes** each
-target directory and regenerates it, so stale files cannot survive a rename.
+command extension, skill directory, rules directory, any extra always-on file, and three fields added
+by the 2026-09 wave — `commands_as_skills`, `agent_dir`, `search_mode` and `install_dir`. Sync **wipes** each target
+directory and regenerates it, so stale files cannot survive a rename.
 
 The transforms are:
 
@@ -236,11 +245,16 @@ The transforms are:
 | Markdown → TOML | Gemini CLI commands are TOML with the body in a `prompt = """…"""` field. |
 | Rules → `GEMINI.md` / `AGENTS.md` / `QWEN.md` / `guidelines.md` | Each tool has its own always-on instruction filename, some at the tool root rather than in a rules directory. |
 | Rules → `.mdc` with `alwaysApply: true` | Cursor's format. |
-| Q&A banner injection | The only content-level branch, and the only one with three outcomes: `subagent`, `prefer-subagent` (try, then degrade), `self-reflection`. |
+| Q&A banner injection | A content-level branch with three outcomes: `subagent`, `prefer-subagent` (try, then degrade), `self-reflection`. |
+| Commands → skill directories | Hermes and OpenClaw have no file-based slash commands at all — every skill is one. Cline retired its command mechanism in favour of skills. On those three the 8 commands ship as `<skill_dir>/<name>/SKILL.md`. |
+| Skills → flat agent definitions | Oh My Pi, Grok Build and Kilo Code delegate to a named agent file and cannot dispatch a skill, so each persona is emitted a second time under `agent_dir`. |
+| Rules + CLI addendum | Pi has no MCP client, so its always-on file gains the block telling the agent to reach the search tools by running `osp_cli.py`. |
+| `defaults/x.md` → `.<tool>/defaults/x.md` | Nothing is ever installed at `<project>/defaults/`; the adapter lands in `.claude/`, `.codex/`, `.agents/`. The canonical files keep the short form so they stay tool-agnostic, and each adapter gets a path that resolves. `install_dir` names it, and is **not** derivable from `root` — `--check` clones tools with a temporary root. |
 
 Three guards keep this honest: `sync_adapters.py --check` regenerates into a temp tree and byte-compares
 (exit 1 on drift), `test_parity.py` asserts every tool has every canonical asset, and `test_install.sh`
-smoke-tests all 14 installers in temp directories. All three pass as of 2026-09-11.
+smoke-tests all 21 installers in temp directories, and `test_parity.py` additionally asserts that its
+own hand-written tool list still matches the capability matrix. All pass as of 2026-09-21.
 
 **Installers** copy the adapter (after `clean_adapter.sh` removes OSP-managed files from a previous
 version), scaffold `.brain/`, build the MCP venv via `init_mcp.sh`, and then either merge the server into
@@ -345,6 +359,23 @@ shared by every unauthenticated caller on earth — and in practice the shared p
 The Literature Agent is instructed to fire **all** providers in the same dispatch batch with per-index
 query formulations, not sequentially — a paper ranked low in one index is often top of another.
 
+### The same tools, without MCP
+
+`mcp-server/osp_cli.py` exposes the identical 22 tools over argv and JSON, for a tool that has no MCP
+client. Pi is the only such tool today: MCP and web access are both stated non-features there, and its
+built-in set is `read`, `bash`, `edit`, `write`, `grep`, `find`, `ls` — so without this the protocol
+would run with nothing to retrieve. Pi's author prescribes exactly this shape: *"Build CLI tools with
+READMEs (see Skills)."*
+
+It is a bridge, not a second implementation, and deliberately has no list of its own: it reads the
+registered tool set back off the FastMCP server at run time and calls the same function objects, so the
+two surfaces cannot drift, and `OSP_SOURCES` gating applies unchanged. A name that is present in the
+module but unregistered is precisely the set a project switched off, which is how it tells "this
+database is off" apart from "no such tool" without a second table. Its exit codes carry the distinction
+this layer exists to protect: **0** the call ran (an empty list means nothing matched), **1** it failed
+and the envelope names a `reason`, **2** the call itself was malformed. `init_mcp.sh` ships it with
+every install and exports `OSP_SEARCH_CLI`; only Pi's rules currently mention it (D34).
+
 ---
 
 ## 10. The terminal is the interface
@@ -371,7 +402,7 @@ subagent calls, with an estimated wall-clock — *before* asking how many pairs 
 ## 11. What it depends on
 
 **On the user's machine:** `git`, `bash`, `python3` 3.10+ with `venv` (checked explicitly, because Debian
-and Ubuntu ship `python3` without `ensurepip`), and one of the 14 supported AI tools.
+and Ubuntu ship `python3` without `ensurepip`), and one of the 21 supported AI tools.
 
 **External services:** arXiv, Semantic Scholar (optional key), Google Scholar (scraped), Europe PMC,
 Zenodo, and OpenAlex (optional key). Keys live in `.env`; none is required.

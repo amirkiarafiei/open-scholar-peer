@@ -36,7 +36,7 @@ up to ~75 seconds on its own.
 
 ## Opening block (print before step 1)
 
-Render the **opening block** exactly as `defaults/phase_block_template.md` defines it — that
+Render the **opening block** exactly as `.codex/defaults/phase_block_template.md` defines it — that
 file holds the rail, the rules and the widths, and it is the only place they are written down.
 This is phase **5 of 7** (`baseline_scout`); read the rail's state from `session.json`. Values:
 
@@ -67,7 +67,7 @@ This is phase **5 of 7** (`baseline_scout`); read the rail's state from `session
 
 ## Closing block (print when the phase ends)
 
-Render the **closing block** from `defaults/phase_block_template.md`. **Build the rail from
+Render the **closing block** from `.codex/defaults/phase_block_template.md`. **Build the rail from
 `session.json`** — `●` only where `status == "completed"`, `○` for `pending` *and* `skipped`. A
 phase the user skipped must not show as done.
 This phase runs live searches, so **one `BLOCKED` line per provider that failed** — an error is not

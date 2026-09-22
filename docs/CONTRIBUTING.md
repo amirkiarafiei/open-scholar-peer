@@ -6,7 +6,7 @@ Thanks for your interest. OSP is designed to be community-extensible. This guide
 
 ## The Golden Rule
 
-**`extensions/_shared/` is the only place humans edit canonical content.** Per-tool adapter directories (`extensions/.claude/`, `.cursor/`, `.gemini/`, `.agent/`, `.agents/`, `.github/`, `.junie/`, `.kiro/`, `.codex/`, `.kimi/`, `.qwen/`, `.vibe/`, `.opencode/`, `.openhands/`) are **generated** by `scripts/sync_adapters.py`. If you edit them directly, your changes will be wiped on the next sync.
+**`extensions/_shared/` is the only place humans edit canonical content.** Per-tool adapter directories (`extensions/.claude/`, `.cursor/`, `.gemini/`, `.agent/`, `.agents/`, `.github/`, `.junie/`, `.kiro/`, `.codex/`, `.kimi/`, `.qwen/`, `.vibe/`, `.opencode/`, `.openhands/`, `.pi/`, `.omp/`, `.grok/`, `.hermes/`, `.cline/`, `.kilo/`, `.openclaw/`) are **generated** by `scripts/sync_adapters.py`. If you edit them directly, your changes will be wiped on the next sync.
 
 Workflow for any change to commands, skills, rules, or defaults:
 
@@ -127,20 +127,45 @@ The MCP server at `mcp-server/osp_mcp.py` is intentionally modular. To add a new
 
 `scripts/sync_adapters.py` has a per-tool capability matrix. To improve a tool's adapter:
 
-1. Edit the relevant `ToolCaps` entry at the top of the script. Note the existing fields:
+1. Edit the relevant `ToolCaps` entry at the top of the script. The fields:
    - `command_dir` — directory name where slash commands land.
    - `command_ext` — `md` or `toml` (Gemini uses TOML).
    - `skill_dir` — usually `skills/`.
    - `rule_dir` — None means rules go to a top-level file (e.g. Gemini's `GEMINI.md`).
    - `extra_files` — additional generated files (e.g. Copilot's `AGENTS.md`).
+   - `commands_as_skills` — the tool has no file-based slash commands; every skill is one. The 8 commands then ship as skill directories.
+   - `agent_dir` — the tool delegates to a named *agent definition* and cannot dispatch a skill, so each persona is emitted there a second time.
+   - `search_mode` — `cli` for a tool with no MCP client; its rules gain the block telling the agent to run `osp_cli.py`.
 
 2. If your tool has unusual quirks (different file format, frontmatter), add a transformer function and wire it into `sync_tool()`.
 
-3. Update `extensions/_shared/MANIFEST.md`'s "What gets generated where" table.
+3. Update `extensions/_shared/MANIFEST.md` if the *shape* of what is generated changed. The per-tool detail lives in the matrix, not in prose.
 
-4. Update `scripts/test_parity.py` with the new tool spec so parity is enforced.
+4. Update `scripts/test_parity.py` with the new tool spec so parity is enforced. It is written out by hand on purpose — deriving it from the code under test would make the check tautological — and a guard asserts the two lists still name the same tools.
 
 5. Sync, parity-test, smoke-test.
+
+### Adding a whole new tool: the full checklist
+
+Measured while adding seven at once. A tool is registered in **eight** places, and missing any one of
+them fails quietly rather than loudly:
+
+| # | File | What |
+|---|---|---|
+| 1 | `scripts/sync_adapters.py` | the `ToolCaps` entry |
+| 2 | `scripts/test_parity.py` | the matching `ToolSpec` |
+| 3 | `scripts/clean_adapter.sh` | two `case` arms — command layout, and the rules file |
+| 4 | `scripts/install_<tool>.sh` | the installer |
+| 5 | `scripts/test_install.sh` | its expected-files block |
+| 6 | `install.sh` | four **index-aligned** arrays: `TOOL_NAMES`, `TOOL_SLUGS`, `TOOL_SCRIPTS`, `TOOL_HINTS` |
+| 7 | `README.md`, `AGENTS.md`, `docs/KNOWN_LIMITATIONS.md` | the support table, the count, any limitation |
+| 8 | `kia-context/` | `ARCHITECTURE.md` counts, a `PROGRESS` entry, a `BRAINSTORM` decision if an alternative was rejected |
+
+Three things worth knowing before you research a vendor's layout, each of which has already cost us:
+
+- **A directory named `rules/` is not necessarily read.** Kilo Code ignores `.kilo/rules/` unless it is listed in an `instructions` key. Confirm the file is *loaded*, not merely conventional.
+- **Check whether the tool gates project files behind trust.** Pi, Hermes and Grok Build all do. Files we write that the tool ignores until a manual step are worse than no files, because the install looks like it worked.
+- **Never trust a vendor CLI's exit code.** Read the config back. See `BRAINSTORM.md` D38.
 
 ---
 

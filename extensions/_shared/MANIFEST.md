@@ -2,7 +2,7 @@
 
 This file enumerates every canonical asset under `extensions/_shared/`. It is documentation for humans: the sync script (`scripts/sync_adapters.py`) does **not** read it — it walks the filesystem, globbing `commands/`, `skills/`, `defaults/` and `rules/osp-rules.md`. So a new file here needs no registration to be synced, but it does need a row below, or the next reader will not know it exists.
 
-**Rule of thumb:** humans only ever edit files in `_shared/`. Per-tool directories (`extensions/.claude/`, `.cursor/`, `.gemini/`, `.agent/`, `.agents/`, `.github/`) are **generated artifacts**.
+**Rule of thumb:** humans only ever edit files in `_shared/`. Every `extensions/.<tool>/` directory is a **generated artifact**, wiped and rewritten on each sync.
 
 ## Files in `_shared/`
 
@@ -37,6 +37,7 @@ This file enumerates every canonical asset under `extensions/_shared/`. It is do
 | Path | Notes |
 |---|---|
 | `rules/osp-rules.md` | Brain protocol summary — read session.json, load prior artifacts, update session.json, prefer subagent over self-reflection |
+| `rules/search_via_cli.md` | Appended to the always-on file **only** for a tool whose `search_mode` is `cli` — one with no MCP client. Tells the agent to reach the search tools by running `osp_cli.py`. Today that is Pi alone. Not synced on its own; it is merged into the rules content at sync time. |
 
 ### Defaults (templates and fallback content)
 
@@ -49,24 +50,22 @@ This file enumerates every canonical asset under `extensions/_shared/`. It is do
 
 ## What gets generated where
 
-For each canonical file in `_shared/`, the sync script produces a tool-specific equivalent:
+The shape differs per tool, and the authority is the `ToolCaps` matrix in `scripts/sync_adapters.py` —
+not this file. Reproduce it whenever you need it:
 
-| Source (in `_shared/`) | Claude (`.claude/`) | Cursor (`.cursor/`) | Gemini (`.gemini/`) | Antigravity (`.agent/`) | Antigravity CLI (`.agents/`) | Copilot CLI (`.github/`) |
-|---|---|---|---|---|---|---|
-| `commands/<name>.md` | `commands/<name>.md` (frontmatter) | `commands/<name>.md` | `commands/<name>.toml` | `workflows/<name>.md` | `commands/<name>.md` | `prompts/<name>.md` |
-| `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` | `skills/<name>/SKILL.md` |
-| `rules/osp-rules.md` | `rules/osp-rules.md` | `rules/osp-rules.mdc` | `GEMINI.md` (always-on) | `rules/osp-rules.md` | `AGENTS.md` (always-on) | `instructions/osp-rules.md` + `AGENTS.md` |
-| `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` | `defaults/*.md` |
+```bash
+python3 -c "import sys; sys.path.insert(0,'scripts'); from sync_adapters import TOOLS
+for n,t in TOOLS.items(): print(f'{n:16} {t.command_dir:10} .{t.command_ext:5} skills={t.skill_dir:8} rules={t.rule_dir} qa={t.qa_mode}')"
+```
 
-## Capability flags per tool
+In outline, every tool gets the same four kinds of asset:
 
-The sync script encodes a capability matrix that customizes the Q&A workflow:
+| Source (in `_shared/`) | Becomes |
+|---|---|
+| `commands/<name>.md` | a command file under the tool's command directory — Markdown for most, TOML for Gemini CLI — or, on a tool where a skill *is* a slash command (`commands_as_skills`), a skill directory `<skill_dir>/<name>/SKILL.md` |
+| `skills/<name>/SKILL.md` | `<skill_dir>/<name>/SKILL.md`, plus a flat `<agent_dir>/<name>.md` on the tools whose delegation resolves an agent file rather than a skill |
+| `rules/osp-rules.md` | the tool's always-on file: a rules directory, or `AGENTS.md` / `GEMINI.md` / `QWEN.md` / `RULES.md` / `guidelines.md` at its root |
+| `defaults/*.md` | `defaults/*.md`, unchanged, for every tool |
 
-| Tool | Subagents | Q&A mode | MCP config path |
-|---|---|---|---|
-| Claude Code | yes | subagent (osp-answer-generator-agent) | `.mcp.json` |
-| Cursor | yes | subagent | `.cursor/mcp.json` |
-| Gemini CLI | yes | subagent | `.gemini/extensions/<ext>/gemini-extension.json` |
-| GitHub Copilot CLI | yes | subagent | `.github/copilot-cli/mcp.json` (TBD — see Phase 5) |
-| Antigravity | yes | prefer-subagent (`invoke_subagent`, self-reflection fallback) | `~/.gemini/antigravity/mcp_config.json` + `~/.gemini/config/mcp_config.json` (global, auto-merged) |
-| Antigravity CLI | yes | subagent | `.agents/mcp_config.json` (local, auto-merged) |
+The single content-level branch is the Q&A banner, which `adapt_qa_body_for_tool()` injects into
+`5-osp-qa` with one of three outcomes: `subagent`, `prefer-subagent`, `self-reflection`.

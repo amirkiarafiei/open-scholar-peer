@@ -35,7 +35,7 @@ installed, plus native web search. Expect 1-3 minutes per round.
 
 ## Opening block (print before the round starts)
 
-Render the **opening block** exactly as `defaults/phase_block_template.md` defines it — that file
+Render the **opening block** exactly as `.vibe/defaults/phase_block_template.md` defines it — that file
 holds the rail, the rules and the widths, and is the only place they are written down. This is phase
 **3 of 7** (`literature`); the rail carries `◐` while rounds remain. Values:
 
@@ -59,7 +59,7 @@ holds the rail, the rules and the widths, and is the only place they are written
    - The skill lists the retrieval tools this project installed, picks the ones that suit the paper's
      field (its `## Sources` section is the rule), and dispatches them together with **different
      query formulations**.
-   - Write the round file (`02a`, `02b`, or `02c`) using the template at `defaults/round_strategy_template.md`.
+   - Write the round file (`02a`, `02b`, or `02c`) using the template at `.vibe/defaults/round_strategy_template.md`.
 
 4. Update `session.json`:
    - Increment `phases.literature.rounds_completed`.
@@ -73,7 +73,7 @@ holds the rail, the rules and the widths, and is the only place they are written
    - If they stopped early, set `phases.literature.skip_reason` to their reason, or
      `"user moved on after round <N>"` if they gave none.
 
-5. Print the **closing block** from `defaults/phase_block_template.md`, labelled
+5. Print the **closing block** from `.vibe/defaults/phase_block_template.md`, labelled
    `LITERATURE  round N of 3`. Values:
 
        DONE     <n> retained, <m> excluded  ·  <anchor-name>

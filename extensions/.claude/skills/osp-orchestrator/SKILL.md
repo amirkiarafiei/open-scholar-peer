@@ -44,7 +44,7 @@ say once what it costs and carry on.
 
 ## Output format when invoked as `/open-scholar-peer`
 
-Print the status block defined in `defaults/phase_block_template.md`, labelled `OPEN SCHOLARPEER`.
+Print the status block defined in `.claude/defaults/phase_block_template.md`, labelled `OPEN SCHOLARPEER`.
 The rail answers "where am I" with no words; read its state from `session.json`. Values:
 
     STEPS    onboard·summary·lit·history·baseline·qa·review

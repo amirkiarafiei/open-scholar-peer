@@ -22,11 +22,15 @@ TOOL_NAMES=(
   "Claude Code" "Cursor" "Antigravity" "Gemini CLI" "Copilot CLI"
   "Codex CLI" "Qwen Code" "OpenCode" "Junie" "Kiro"
   "Kimi Code" "Mistral Vibe" "OpenHands" "Antigravity CLI"
+  "Pi" "Oh My Pi" "Grok Build" "Hermes"
+  "Cline" "Kilo Code" "OpenClaw"
 )
 TOOL_SLUGS=(
   "claude" "cursor" "antigravity" "gemini" "copilot"
   "codex" "qwen" "opencode" "junie" "kiro"
   "kimi" "vibe" "openhands" "antigravity-cli"
+  "pi" "ohmypi" "grok" "hermes"
+  "cline" "kilo" "openclaw"
 )
 TOOL_SCRIPTS=(
   "install_claude.sh" "install_cursor.sh" "install_antigravity.sh"
@@ -34,6 +38,9 @@ TOOL_SCRIPTS=(
   "install_qwen.sh" "install_opencode.sh" "install_junie.sh"
   "install_kiro.sh" "install_kimi.sh" "install_vibe.sh"
   "install_openhands.sh" "install_antigravity_cli.sh"
+  "install_pi.sh" "install_ohmypi.sh" "install_grok.sh"
+  "install_hermes.sh" "install_cline.sh" "install_kilo.sh"
+  "install_openclaw.sh"
 )
 
 # ------------------------------------------------------- capabilities ------
@@ -68,13 +75,20 @@ TOOL_HINTS=(
   "subagents $DOT ~/.copilot auto"
   "subagents $DOT codex mcp add (TOML)"
   "subagents $DOT .qwen/settings.json auto"
-  "subagents $DOT opencode mcp add"
+  "subagents $DOT .opencode/opencode.json auto"
   "subagents $DOT .junie/mcp/mcp.json auto"
   "subagents $DOT .kiro/settings/mcp.json auto"
   "subagents $DOT ~/.kimi/mcp.json auto"
-  "self-reflect $DOT manual TOML snippet"
-  "self-reflect $DOT manual snippet"
+  "self-reflect $DOT .vibe/config.toml auto"
+  "self-reflect $DOT ~/.openhands/mcp.json auto"
   "subagents $DOT .agents/mcp_config.json auto"
+  "self-reflect $DOT no MCP $DOT CLI search"
+  "subagents $DOT .omp/mcp.json auto"
+  "subagents $DOT .grok/config.toml auto"
+  "subagents* $DOT ~/.hermes config auto"
+  "self-reflect $DOT ~/.cline global auto"
+  "subagents $DOT .kilo/kilo.json auto"
+  "subagents* $DOT global $DOT set workspace"
 )
 
 # The paper databases the MCP server can use. Index-aligned, like the tools.
@@ -298,7 +312,7 @@ menu_single() {
 
 # menu_tools <context> -> MULTI_SELECTED array of indices; returns 1 if cancelled.
 #
-# The list is the 14 tools plus one focusable Install button pinned underneath.
+# The list is the 21 tools plus one focusable Install button pinned underneath.
 # Enter or space on a tool row TOGGLES it; only Enter on the button installs.
 MULTI_SELECTED=()
 menu_tools() {

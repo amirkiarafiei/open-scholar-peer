@@ -20,7 +20,7 @@ Invoke the `osp-orchestrator` skill.
      their existing config rather than replacing it.
    - `.brain/` exists but the file does not — write it from the v2 schema yourself, then carry on.
 
-2. **Print the status block** defined in `defaults/phase_block_template.md`, labelled
+2. **Print the status block** defined in `.agents/defaults/phase_block_template.md`, labelled
    `OPEN SCHOLARPEER`. The rail is the whole point here — it answers "where am I" with no words.
    Values:
 

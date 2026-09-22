@@ -6,6 +6,18 @@
 # init_mcp.sh — pip install is exercised separately.
 #
 # Pass: exit 0. Any installer producing missing/wrong artifacts: exit 1.
+#
+# KNOWN BLIND SPOT, stated so nobody mistakes a pass here for proof. Where a
+# tool's MCP wiring runs through the vendor's own CLI — Hermes, OpenClaw,
+# Codex, Cline's fallback — this test cannot exercise it, because the CLI is
+# not installed in CI. The expectations below therefore assert only the files
+# OSP writes directly. Two real defects lived in exactly that gap and were
+# found by a reviewer running the installers on a machine that *had* the CLI:
+# `hermes mcp add` blocks on an interactive prompt and returns 0 when
+# cancelled, and `openclaw mcp add` refuses a name that already exists. Both
+# are now guarded by reading the config back instead of trusting an exit
+# code — but the guard itself is not covered here. Run these installers by
+# hand on a machine with the tool before trusting them.
 
 set -e
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
@@ -21,9 +33,13 @@ stub_init_mcp() {
 # Smoke-test stub: skip venv creation, just create the directory tree and export paths.
 TARGET_DIR="$(pwd)/.open-scholar-peer/mcp"
 mkdir -p "$TARGET_DIR/.venv/bin"
-touch "$TARGET_DIR/osp_mcp.py" "$TARGET_DIR/.venv/bin/python"
+# Mirror every artefact the real init_mcp.sh leaves behind, or a tool that
+# depends on one of them passes here and fails for a user. osp_cli.py is the
+# search bridge used by tools with no MCP client.
+touch "$TARGET_DIR/osp_mcp.py" "$TARGET_DIR/osp_cli.py" "$TARGET_DIR/.venv/bin/python"
 export OSP_MCP_PYTHON="$TARGET_DIR/.venv/bin/python"
 export OSP_MCP_SERVER="$TARGET_DIR/osp_mcp.py"
+export OSP_SEARCH_CLI="$TARGET_DIR/osp_cli.py"
 echo "  [stub] init_mcp skipped venv setup"
 STUB
   chmod +x "$target"
@@ -42,10 +58,11 @@ run_install_smoke() {
   sandbox=$(mktemp -d)
   repo_copy=$(mktemp -d)
 
-  # Six installers write MCP config under $HOME (Antigravity, Antigravity CLI,
-  # Kimi, Copilot, Codex, Vibe). Without redirecting HOME this smoke test merges
-  # throwaway /tmp paths into the developer's REAL global config on every run,
-  # leaving dead `osp` entries behind when the sandbox is deleted.
+  # Several installers write MCP config under $HOME (Antigravity, Antigravity
+  # CLI, Kimi, Copilot, Codex, Cline — and Hermes and OpenClaw when their CLIs
+  # are present). Without redirecting HOME this smoke test merges throwaway
+  # /tmp paths into the developer's REAL global config on every run, leaving
+  # dead `osp` entries behind when the sandbox is deleted.
   fake_home="$sandbox/.fake-home"
   mkdir -p "$fake_home"
 
@@ -55,7 +72,11 @@ run_install_smoke() {
 
   # Run installer from sandbox (the installer's CWD becomes the user's project)
   pushd "$sandbox" >/dev/null
-  if ! HOME="$fake_home" bash "$repo_copy/scripts/$installer" </dev/null > /tmp/osp_install_${tool_name}.log 2>&1; then
+  # Unset the vars that would steer an installer out of the fake $HOME and
+  # into the developer's real config.
+  if ! env -u CLINE_DIR -u CLINE_DATA_DIR -u CLINE_MCP_SETTINGS_PATH \
+         -u OPENCLAW_WORKSPACE_DIR -u OSP_MCP_PYTHON -u OSP_MCP_SERVER \
+         HOME="$fake_home" bash "$repo_copy/scripts/$installer" </dev/null > /tmp/osp_install_${tool_name}.log 2>&1; then
     echo -e "  ${RED}✗ installer exited non-zero. Tail of log:${NC}"
     tail -15 /tmp/osp_install_${tool_name}.log
     FAIL=1
@@ -184,6 +205,56 @@ run_install_smoke "openhands" "install_openhands.sh" \
   ".agents/skills/osp-orchestrator/SKILL.md" \
   "AGENTS.md" \
   ".open-scholar-peer/openhands_mcp_snippet.json"
+
+run_install_smoke "pi" "install_pi.sh" \
+  "${COMMON[@]}" \
+  ".pi/prompts/0-osp-onboarding.md" \
+  ".pi/skills/osp-orchestrator/SKILL.md" \
+  ".open-scholar-peer/mcp/osp_cli.py" \
+  "AGENTS.md"
+
+run_install_smoke "ohmypi" "install_ohmypi.sh" \
+  "${COMMON[@]}" \
+  ".omp/commands/0-osp-onboarding.md" \
+  ".omp/skills/osp-orchestrator/SKILL.md" \
+  ".omp/agents/osp-answer-generator-agent.md" \
+  ".omp/RULES.md" \
+  ".omp/mcp.json"
+
+run_install_smoke "grok" "install_grok.sh" \
+  "${COMMON[@]}" \
+  ".grok/commands/0-osp-onboarding.md" \
+  ".grok/skills/osp-orchestrator/SKILL.md" \
+  ".grok/agents/osp-answer-generator-agent.md" \
+  ".grok/rules/osp-rules.md" \
+  ".grok/config.toml"
+
+run_install_smoke "hermes" "install_hermes.sh" \
+  "${COMMON[@]}" \
+  ".hermes/skills/0-osp-onboarding/SKILL.md" \
+  ".hermes/skills/osp-orchestrator/SKILL.md" \
+  "AGENTS.md"
+
+run_install_smoke "cline" "install_cline.sh" \
+  "${COMMON[@]}" \
+  ".cline/skills/0-osp-onboarding/SKILL.md" \
+  ".cline/skills/osp-orchestrator/SKILL.md" \
+  ".cline/rules/osp-rules.md" \
+  ".fake-home/.cline/data/settings/cline_mcp_settings.json"
+
+run_install_smoke "kilo" "install_kilo.sh" \
+  "${COMMON[@]}" \
+  ".kilo/commands/0-osp-onboarding.md" \
+  ".kilo/skills/osp-orchestrator/SKILL.md" \
+  ".kilo/agents/osp-answer-generator-agent.md" \
+  ".kilo/kilo.json" \
+  "AGENTS.md"
+
+run_install_smoke "openclaw" "install_openclaw.sh" \
+  "${COMMON[@]}" \
+  ".agents/skills/0-osp-onboarding/SKILL.md" \
+  ".agents/skills/osp-orchestrator/SKILL.md" \
+  "AGENTS.md"
 
 run_install_smoke "antigravity-cli" "install_antigravity_cli.sh" \
   "${COMMON[@]}" \

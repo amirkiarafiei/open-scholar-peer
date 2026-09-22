@@ -39,9 +39,36 @@ If commands still don't appear, verify the adapter directory is in the right loc
 ls .claude/commands/      # Claude
 ls .cursor/commands/      # Cursor
 ls .gemini/commands/      # Gemini (TOML)
-ls .agents/workflows/     # Antigravity
+ls .agent/workflows/      # Antigravity
+ls .agents/workflows/     # Antigravity CLI
 ls .github/prompts/       # Copilot CLI
+ls .pi/prompts/           # Pi
+ls .omp/commands/         # Oh My Pi
+ls .grok/commands/        # Grok Build
+ls .kilo/commands/        # Kilo Code
+ls .hermes/skills/        # Hermes    (skills are the commands)
+ls .cline/skills/         # Cline     (skills are the commands)
+ls .agents/skills/        # OpenClaw  (skills are the commands)
 ```
+
+### The files are there, but the tool still shows no commands
+
+Four tools ignore what you just installed until something else is true. This is the most common
+"it didn't work" on those tools, and in every case the install itself was fine.
+
+| Tool | Why | Fix |
+|---|---|---|
+| **Pi** | Everything under `.pi/` waits for project trust, and `/trust` does not reload the running session | Start `pi` here, accept the trust prompt, then restart it |
+| **Hermes** | Project skills are ignored until the folder is trusted | Run `hermes skills trust` in this folder |
+| **Grok Build** | Project rules load only for a trusted folder | Accept the trust prompt, or start it with `grok --trust` |
+| **OpenClaw** | It has one workspace per agent and does not look into a nested folder | Run it from here with `openclaw agent exec --cwd .`, or set that agent's `workspace` to this folder |
+
+Two tools also skip anything git ignores, so a `.gitignore` line can hide OSP completely:
+
+- **Grok Build** skips gitignored files when discovering rules and skills — do not ignore `.grok/`.
+- **Oh My Pi** skips gitignored files when discovering commands — do not ignore `.omp/`.
+
+Both installers warn you if they spot that line, but a rule added later will not be caught.
 
 ### Re-running the installer didn't pick up `_shared/` changes
 
@@ -62,6 +89,19 @@ Try running it manually to surface errors:
 .open-scholar-peer/mcp/.venv/bin/python .open-scholar-peer/mcp/osp_mcp.py
 ```
 The server runs on stdio and stays open waiting for MCP protocol messages. If it exits immediately with a Python traceback, that's the bug.
+
+### Pi: the agent says it has no search tools
+
+Expected — Pi ships no MCP client, so OSP gives it the same 22 tools as a program instead. Check it
+runs:
+
+```bash
+.open-scholar-peer/mcp/.venv/bin/python .open-scholar-peer/mcp/osp_cli.py list
+```
+
+That should print the enabled tools. If it does, the search layer is healthy and the agent simply
+needs to call it through `bash` — the instructions are in the OSP block of your `AGENTS.md`, which Pi
+loads whether or not the project is trusted.
 
 ### `markitdown` MCP not converting PDFs
 

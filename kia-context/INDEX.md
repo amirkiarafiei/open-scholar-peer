@@ -38,7 +38,7 @@ disagree, the described file wins and this one is the bug.
 
 **Open ScholarPeer** is an open-source implementation of Google's published *ScholarPeer* peer-review
 protocol — a paper-to-code project. It installs into the directory holding a paper and lets a researcher
-run all seven review steps inside the AI coding tool they already pay for, across 14 supported tools.
+run all seven review steps inside the AI coding tool they already pay for, across 21 supported tools.
 There is no runtime: the product is prompt files, a small academic-search server, and the installers that
 put both in place. **The one thing that must stay true:** it runs on the user's own tools, and every
 conclusion it reaches can be checked in a file on their disk.
@@ -77,7 +77,7 @@ Four levels, split by **authority**, not by topic.
 | File | What it is |
 |---|---|
 | `MANIFESTO.md` | The product boundary. Nine numbered rules. **Rules 6, 7 and 9 were written by the agent from observed behaviour and are not yet confirmed by the owner** — the file says which. |
-| `ARCHITECTURE.md` | The technical blueprint: the seven-step protocol, the session state machine, the artifact contract, the one-source-fourteen-adapters pipeline, what the system refuses to do, and the search layer. |
+| `ARCHITECTURE.md` | The technical blueprint: the seven-step protocol, the session state machine, the artifact contract, the one-source-twenty-one-adapters pipeline, what the system refuses to do, and the search layer. |
 | ~~`DESIGN.md`~~ | **Deleted 2026-09-11.** The project has no visual interface. Its terminal output contract — orientation blocks, report blocks, native file references — is in `ARCHITECTURE.md` §10 instead. |
 
 ### `kia-context/logs/` — state · written every session
@@ -86,7 +86,7 @@ Four levels, split by **authority**, not by topic.
 |---|---|
 | `PROGRESS.md` | **Part one, closed.** Milestones M1–M13, through 2026-09-20. M1–M7 reconstructed from git; M8 onward live. Holds the things stated once for both parts: the loop, the circuit breakers, the releases and the full milestone table. Ends with a **Reference** section holding every API URL and measurement M11–M13 used. |
 | `PROGRESS_2.md` | **Part two, active — write new entries here.** M14 onward, from 2026-09-21: the prompt and protocol work, and the outside review of all three milestones at once. Continues the numbering; it does not restart it. |
-| `BRAINSTORM.md` | Decisions D1–D33 and open questions O1–O22. D1–D11 reconstructed; D12 onward live. Closed so far: O12 (by M13), O1, O2 and O3 (by M15). |
+| `BRAINSTORM.md` | Decisions D1–D40 and open questions O1–O26. D1–D11 reconstructed; D12 onward live. Closed so far: O12 (by M13), O1, O2 and O3 (by M15), O23 and O24 (2026-09-21). |
 
 ---
 
@@ -146,7 +146,7 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 | What does step N of the review actually read and write? | `docs/ARTIFACT_CONTRACTS.md` |
 | Why does it not do X? | `docs/KNOWN_LIMITATIONS.md`, then `logs/BRAINSTORM.md` |
 | How do I add a command, skill, tool or provider? | `docs/CONTRIBUTING.md` |
-| How do I work on this repo without breaking the 14 adapters? | `AGENTS.md` |
+| How do I work on this repo without breaking the 21 adapters? | `AGENTS.md` |
 
 ---
 
@@ -154,9 +154,9 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 
 | Prefix | Means | Lives in | Currently |
 |---|---|---|---|
-| `M` | Milestone | `PROGRESS.md` (M1–M13), `PROGRESS_2.md` (M14 →) | M1–M16, all done; M17 is next |
-| `D` | Decision | `BRAINSTORM.md` | D1–D33 |
-| `O` | Open question | `BRAINSTORM.md` | O1–O22; O1, O2, O3 closed by M15 and O12 by M13, the rest open |
+| `M` | Milestone | `PROGRESS.md` (M1–M13), `PROGRESS_2.md` (M14 →) | M1–M17, all done; M18 is next |
+| `D` | Decision | `BRAINSTORM.md` | D1–D40 |
+| `O` | Open question | `BRAINSTORM.md` | O1–O26; O1, O2, O3 closed by M15 and O12 by M13, the rest open |
 | rule *n* | A manifesto rule | `MANIFESTO.md` | rules 1–9 |
 
 These are cited from other documents. **A renumber breaks every citation and nothing errors.** Append;

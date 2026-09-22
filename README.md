@@ -134,7 +134,12 @@ Supports six open databases and **None needs a paid subscription, and none needs
 | **OpenAlex** | 327 million works, with retraction flags | Free and Paid Tiers | Daily budget without API Key: $0.10/day ≈ 100 calls**, **$1/day with an optional free API Key ≈ 1,000 calls. Hard ceiling 100 requests / s |
 
 **Deliberately not included:** ACM DL, IEEE Xplore, Web of Science, Scopus, Springer and ScienceDirect all
-need a subscription or a paid key, which is the one thing this project will not require of you. 
+need a subscription or a paid key, which is the one thing this project will not require of you.
+
+Three free ones are also absent, for a different reason. **PubMed** is already covered: Europe PMC indexes
+the same corpus and adds full text. **bioRxiv** and **medRxiv** publish a feed rather than a search API —
+you can ask for a date range or a DOI, but not a keyword — and Semantic Scholar indexes both, with search.
+This governs only what OSP searches on your behalf; a paper you supply yourself is read whatever its source.
 
 **Extending Databases:** The search layer lives in [mcp-server/](mcp-server/), and
 [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) has the info for adding and extending MCP Servers for Paper Search.
@@ -176,6 +181,20 @@ The MCP server loads `.env` automatically on startup.
 | [OpenHands](https://docs.openhands.dev) | ✓ CLI (`~/.openhands/mcp.json`); web UI needs a paste |
 | [Antigravity](https://antigravity.google/) | ✓ (`~/.gemini/antigravity/` + `~/.gemini/config/`) |
 | [Antigravity CLI](https://antigravity.google/cli/) | ✓ (`.agents/mcp_config.json` + `~/.gemini/antigravity-cli/`) |
+| [Pi](https://pi.dev) | n/a — Pi ships no MCP client; searches run through a bundled CLI instead |
+| [Oh My Pi](https://omp.sh) | ✓ (`.omp/mcp.json`) |
+| [Grok Build](https://docs.x.ai/build/overview) | ✓ (`.grok/config.toml`) |
+| [Hermes](https://hermes-agent.nousresearch.com/docs/) | ✓ (`~/.hermes/config.yaml`) |
+| [Cline](https://docs.cline.bot) | ✓ (`~/.cline/data/settings/cline_mcp_settings.json`, per machine) |
+| [Kilo Code](https://kilo.ai/docs) | ✓ (`.kilo/kilo.json`) |
+| [OpenClaw](https://docs.openclaw.ai) | ✓ (global, via `openclaw mcp add`) |
+
+Two notes, because they change what you get. The Q&A step (`/5-osp-qa`) normally runs the Answer
+Generator as a separate subagent with its own context. On **Mistral Vibe**, **OpenHands**, **Pi** and
+**Cline** it cannot, so both roles run in one context window with turn markers — a documented weaker
+substitute, described in [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md). And **OpenClaw** is
+one assistant per machine rather than a per-project tool, so after installing you tell it which folder
+to work in; its installer prints how.
 
 ---
 
@@ -194,7 +213,7 @@ The MCP server loads `.env` automatically on startup.
 stay true. Start at [`kia-context/INDEX.md`](kia-context/INDEX.md).
 
 - **[`kia-context/specs/MANIFESTO.md`](kia-context/specs/MANIFESTO.md)** — The product boundary and the rules that do not move.
-- **[`kia-context/specs/ARCHITECTURE.md`](kia-context/specs/ARCHITECTURE.md)** — How the protocol, the state machine and the 14-tool sync pipeline actually work.
+- **[`kia-context/specs/ARCHITECTURE.md`](kia-context/specs/ARCHITECTURE.md)** — How the protocol, the state machine and the 21-tool sync pipeline actually work.
 - **[`kia-context/logs/BRAINSTORM.md`](kia-context/logs/BRAINSTORM.md)** — Decisions and the alternatives they beat.
 - **[`kia-context/logs/PROGRESS.md`](kia-context/logs/PROGRESS.md)** — Milestones M1–M13, and the loop the project runs on.
 - **[`kia-context/logs/PROGRESS_2.md`](kia-context/logs/PROGRESS_2.md)** — M14 onward, and what is being built now.

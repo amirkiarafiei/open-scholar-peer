@@ -58,8 +58,8 @@ cannot tell the difference.
 The banner at the top of this command says which mode your tool is in.
 
 - **Subagent mode (default):** the Query Agent delegates each question to the Answer Generator as a subagent with a fresh, minimal context bundle.
-- **Prefer-subagent mode (Antigravity):** try delegation first; if it is unavailable in your session, fall back to self-reflection and keep going rather than stopping the phase.
-- **Self-reflection mode (Mistral Vibe, OpenHands):** the Query Agent uses strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) within the main context window.
+- **Prefer-subagent mode:** try delegation first; if it is unavailable in your session, fall back to self-reflection and keep going rather than stopping the phase.
+- **Self-reflection mode:** the Query Agent uses strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) within the main context window.
 
 Whichever you end up using, record it as `Mode:` in each file's `## Method` section.
 

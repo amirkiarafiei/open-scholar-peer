@@ -213,7 +213,7 @@ async def search_arxiv(
         journal_ref.
         Returns [{"error": "..."}] on failure.
     """
-    log.info("search_arxiv(query=%r, max=%d, sort=%s, from=%s, to=%s, cats=%s)",
+    log.info("search_arxiv(query=%r, max=%s, sort=%s, from=%s, to=%s, cats=%s)",
              query, max_results, sort_by, date_from, date_to, categories)
     try:
         return await _run(arxiv_provider.search, query, max_results, sort_by,
@@ -289,7 +289,7 @@ async def read_arxiv_paper(
         bibliography.
         Returns {"error": "...", "reason": "..."} on failure.
     """
-    log.info("read_arxiv_paper(arxiv_id=%r, max_chars=%d, offset=%d)",
+    log.info("read_arxiv_paper(arxiv_id=%r, max_chars=%s, offset=%s)",
              arxiv_id, max_chars, offset)
     try:
         return await _run(arxiv_provider.read_paper, arxiv_id, max_chars, offset)
@@ -340,7 +340,7 @@ async def search_europe_pmc(
         null and there is nothing to read here — use `fullTextUrls`.
         Returns [{"error": "...", "reason": "..."}] on failure.
     """
-    log.info("search_europe_pmc(query=%r, limit=%d, oa=%s)",
+    log.info("search_europe_pmc(query=%r, limit=%s, oa=%s)",
              query, limit, open_access_only)
     try:
         return await _run(epmc_provider.search, query, limit,
@@ -381,7 +381,7 @@ async def get_europe_pmc_full_text(
         (None at the end), total_chars, truncated, source.
         Returns {"error": "...", "reason": "..."} on failure.
     """
-    log.info("get_europe_pmc_full_text(pmcid=%r, max_chars=%d, offset=%d)",
+    log.info("get_europe_pmc_full_text(pmcid=%r, max_chars=%s, offset=%s)",
              pmcid, max_chars, offset)
     try:
         return await _run(epmc_provider.get_full_text, pmcid, max_chars, offset)
@@ -444,7 +444,7 @@ async def search_semantic_scholar(
         openAccessPdf, externalIds.
         Returns [{"error": "..."}] on failure.
     """
-    log.info("search_semantic_scholar(query=%r, limit=%d, year=%s, sort=%s)",
+    log.info("search_semantic_scholar(query=%r, limit=%s, year=%s, sort=%s)",
              query, limit, year, sort)
     try:
         return await _run(
@@ -529,7 +529,7 @@ async def get_semantic_scholar_paper_references(
         isOpenAccess, openAccessPdf, externalIds, authors.
         Returns [{"error": "..."}] on failure.
     """
-    log.info("get_semantic_scholar_paper_references(paper_id=%r, limit=%d)", paper_id, limit)
+    log.info("get_semantic_scholar_paper_references(paper_id=%r, limit=%s)", paper_id, limit)
     try:
         return await _run(ss_provider.get_paper_references, paper_id, limit)
     except Exception as e:
@@ -554,7 +554,7 @@ async def get_semantic_scholar_paper_citations(
         isOpenAccess, openAccessPdf, externalIds, authors.
         Returns [{"error": "..."}] on failure.
     """
-    log.info("get_semantic_scholar_paper_citations(paper_id=%r, limit=%d)", paper_id, limit)
+    log.info("get_semantic_scholar_paper_citations(paper_id=%r, limit=%s)", paper_id, limit)
     try:
         return await _run(ss_provider.get_paper_citations, paper_id, limit)
     except Exception as e:
@@ -576,7 +576,7 @@ async def get_semantic_scholar_papers_batch(
     Returns:
         List of paper dicts. Returns [{"error": "..."}] on failure.
     """
-    log.info("get_semantic_scholar_papers_batch(n=%d)", len(paper_ids))
+    log.info("get_semantic_scholar_papers_batch(n=%s)", len(paper_ids))
     try:
         return await _run(ss_provider.get_papers_batch, paper_ids)
     except Exception as e:
@@ -622,7 +622,7 @@ async def search_semantic_scholar_authors(
         List of dicts with keys: authorId, name, url, affiliations, paperCount,
         citationCount, hIndex. Returns [{"error": "..."}] on failure.
     """
-    log.info("search_semantic_scholar_authors(query=%r, limit=%d)", query, limit)
+    log.info("search_semantic_scholar_authors(query=%r, limit=%s)", query, limit)
     try:
         return await _run(ss_provider.search_authors, query, limit)
     except Exception as e:
@@ -645,7 +645,7 @@ async def get_semantic_scholar_author_papers(
     Returns:
         List of paper dicts. Returns [{"error": "..."}] on failure.
     """
-    log.info("get_semantic_scholar_author_papers(author_id=%r, limit=%d)", author_id, limit)
+    log.info("get_semantic_scholar_author_papers(author_id=%r, limit=%s)", author_id, limit)
     try:
         return await _run(ss_provider.get_author_papers, author_id, limit)
     except Exception as e:
@@ -668,7 +668,7 @@ async def get_semantic_scholar_paper_recommendations(
     Returns:
         List of slim paper dicts. Returns [{"error": "..."}] on failure.
     """
-    log.info("get_semantic_scholar_paper_recommendations(paper_id=%r, limit=%d)", paper_id, limit)
+    log.info("get_semantic_scholar_paper_recommendations(paper_id=%r, limit=%s)", paper_id, limit)
     try:
         return await _run(ss_provider.get_paper_recommendations, paper_id, limit)
     except Exception as e:
@@ -701,7 +701,7 @@ async def search_semantic_scholar_snippets(
         title if you need one.
         Returns [{"error": "..."}] on failure.
     """
-    log.info("search_semantic_scholar_snippets(query=%r, limit=%d)", query, limit)
+    log.info("search_semantic_scholar_snippets(query=%r, limit=%s)", query, limit)
     try:
         return await _run(ss_provider.search_snippets, query, limit)
     except Exception as e:
@@ -732,7 +732,7 @@ async def search_google_scholar(query: str, num_results: int = 5) -> list[dict[s
         List of dicts with keys: title, authors, abstract, url.
         Returns [{"error": "..."}] on failure.
     """
-    log.info("search_google_scholar(query=%r, num_results=%d)", query, num_results)
+    log.info("search_google_scholar(query=%r, num_results=%s)", query, num_results)
     try:
         return await _run(gs_provider.search, query, num_results)
     except Exception as e:
@@ -841,7 +841,7 @@ async def search_zenodo(
         URL), fileCount.
         Returns [{"error": "...", "reason": "..."}] on failure.
     """
-    log.info("search_zenodo(query=%r, limit=%d, type=%s)",
+    log.info("search_zenodo(query=%r, limit=%s, type=%s)",
              query, limit, resource_type)
     try:
         return await _run(zenodo_provider.search, query, limit,
@@ -895,7 +895,7 @@ async def search_openalex(
         referencedWorks.
         Returns [{"error": "...", "reason": "..."}] on failure.
     """
-    log.info("search_openalex(query=%r, limit=%d, years=%s-%s)",
+    log.info("search_openalex(query=%r, limit=%s, years=%s-%s)",
              query, limit, from_year, to_year)
     try:
         return await _run(openalex_provider.search, query, limit, from_year,
@@ -946,7 +946,7 @@ if __name__ == "__main__":
         log.info("Databases enabled by OSP_SOURCES: %s",
                  ", ".join(sorted(_ENABLED)))
     else:
-        log.info("OSP_SOURCES not set — all %d databases enabled.",
+        log.info("OSP_SOURCES not set — all %s databases enabled.",
                  len(_ALL_SOURCES))
-    log.info("Starting Open ScholarPeer MCP server (osp_mcp), timeout=%ds", _TIMEOUT)
+    log.info("Starting Open ScholarPeer MCP server (osp_mcp), timeout=%ss", _TIMEOUT)
     mcp.run(transport="stdio")
