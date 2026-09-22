@@ -85,9 +85,86 @@ class ArxivBusy(RuntimeError):
     """Another arXiv call is still running. Not an empty result."""
 
 
+def _lock_path() -> "pathlib.Path":
+    """Where the cross-process arXiv lock lives.
+
+    Keyed to this install and this user, so two projects on one machine do not
+    serialise against each other and two users cannot collide on permissions.
+    In the temp directory rather than beside the code, because an install can
+    sit on a read-only path and a lock that cannot be created must degrade
+    rather than fail.
+    """
+    import getpass
+    import hashlib
+    import os
+    import pathlib
+    import tempfile
+    here = str(pathlib.Path(__file__).resolve().parent)
+    try:
+        who = getpass.getuser()
+    except Exception:  # noqa: BLE001 - no passwd entry in some containers
+        who = str(os.getuid()) if hasattr(os, "getuid") else "nouser"
+    tag = hashlib.sha256(f"{here}:{who}".encode()).hexdigest()[:16]
+    return pathlib.Path(tempfile.gettempdir()) / f"osp-arxiv-{tag}.lock"
+
+
+@contextmanager
+def _cross_process_turn(deadline: float):
+    """Hold arXiv's single connection against OTHER PROCESSES as well.
+
+    The in-process lock below is enough for the MCP server, which is one long
+    process. It is worth nothing to the CLI, where every call is a new process:
+    measured, a fresh process reads `_last_raw_request = 0.0`, computes a gap of
+    about 1.79 billion seconds against `_MIN_GAP`, and never sleeps. The three
+    seconds arXiv's terms ask for were not degraded in CLI mode — they were
+    absent, and so was the one-request-at-a-time rule.
+
+    flock, not a lock file we create and delete: the kernel releases it when the
+    process dies, so a killed call cannot wedge every later one. If the lock
+    cannot be made at all — an odd filesystem, no temp directory — this degrades
+    to in-process only rather than refusing to search.
+    """
+    try:
+        import fcntl
+    except ImportError:          # not a Unix; in-process locking only
+        yield None
+        return
+    try:
+        handle = open(_lock_path(), "a+")
+    except OSError:
+        yield None
+        return
+    try:
+        while True:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.time() >= deadline:
+                    raise ArxivBusy(
+                        f"another Open ScholarPeer process has held the single "
+                        f"allowed arXiv connection for more than {_LOCK_WAIT}s. "
+                        "arXiv's terms allow one request at a time, so this "
+                        "call was not sent. This is a busy provider, not an "
+                        "empty result — try again, or use the other providers."
+                    )
+                time.sleep(0.05)
+        yield handle
+    finally:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+        finally:
+            handle.close()
+
+
 @contextmanager
 def _arxiv_turn():
-    """Take the single arXiv connection, or give up rather than queue."""
+    """Take the single arXiv connection, or give up rather than queue.
+
+    Both locks share ONE deadline. Giving each its own would double the worst
+    case, and the time budget this provider promises is pinned by a test.
+    """
+    deadline = time.time() + _LOCK_WAIT
     if not _CLIENT_LOCK.acquire(timeout=_LOCK_WAIT):
         raise ArxivBusy(
             f"another arXiv request has held the single allowed connection "
@@ -96,7 +173,14 @@ def _arxiv_turn():
             "an empty result — try again, or use the other providers."
         )
     try:
-        yield
+        with _cross_process_turn(deadline) as handle:
+            # Every arXiv turn, not only the raw downloads. The `arxiv` package
+            # keeps its own gap for the search API, but only within one process,
+            # so in CLI mode consecutive searches had no gap at all. In the
+            # server this costs nothing: the package has already waited, so the
+            # recorded timestamp is old enough and this does not sleep.
+            _throttle(handle)
+            yield
     finally:
         _CLIENT_LOCK.release()
 
@@ -363,24 +447,42 @@ def _cache_put(key: str, text: str) -> None:
             _TEXT_CACHE.popitem(last=False)
 
 
-def _throttle() -> None:
-    """Keep arXiv's three seconds between our own raw downloads.
+def _throttle(handle=None) -> None:
+    """Keep arXiv's three seconds between requests, across processes too.
 
-    The `arxiv` package keeps this gap for the search API using a timestamp on
-    the client; these downloads bypass that code path, so they need their own.
+    The timestamp lives in the lock file when there is one, so a brand-new
+    process inherits it instead of starting from zero. The in-process value is
+    still kept and the later of the two wins, so the gap holds whichever way
+    the calls arrive.
     """
     global _last_raw_request
-    gap = time.time() - _last_raw_request
+    last = _last_raw_request
+    if handle is not None:
+        try:
+            handle.seek(0)
+            raw = handle.read().strip()
+            if raw:
+                last = max(last, float(raw))
+        except (OSError, ValueError):
+            pass  # unreadable stamp: fall back to the in-process one
+    gap = time.time() - last
     if gap < _MIN_GAP:
         time.sleep(_MIN_GAP - gap)
     _last_raw_request = time.time()
+    if handle is not None:
+        try:
+            handle.seek(0)
+            handle.truncate()
+            handle.write(str(_last_raw_request))
+            handle.flush()
+        except OSError:
+            pass  # cannot record it; the in-process gap still applies
 
 
 def _download(url: str) -> bytes:
     # Same turn as search: arXiv asks for a single connection at a time across
     # everything under our control, not one per library.
     with _arxiv_turn():
-        _throttle()
         # Started before the request, so a slow connect and a slow first read
         # both count against it.
         deadline = time.time() + _DOWNLOAD_BUDGET

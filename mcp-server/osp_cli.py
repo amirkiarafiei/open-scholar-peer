@@ -70,9 +70,130 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 core: Any = None
 
 
+# Set by main() from --max-bytes. A default, not a limit of the format: the
+# host that reads this output is what truncates, and it does so mid-document
+# without telling anyone. See _cap().
+MAX_BYTES = 24_000
+
+# Slack between the per-call timeout and the outer wall, so the inner one
+# normally wins and names the provider that hung.
+_GRACE = 0.5
+
+
+def _configure_io(verbose: bool = False) -> None:
+    """Make stdout and stderr behave the same way on every machine.
+
+    Two problems, both measured, both of which blame the agent for the
+    environment:
+
+    * Under an ASCII locale a non-ASCII query dies with "surrogates not
+      allowed" and is reported as `bad_request`, as though the agent had sent
+      something malformed. Reconfiguring to UTF-8 removes the whole class.
+    * Two of the three log lines an arXiv call emits come from the `arxiv`
+      package, not from OSP, so silencing our own logger is not enough — the
+      contract says `call ... 2>&1` still parses as JSON. This owns the ROOT
+      logger, which is exactly why core.py must not.
+
+    CRITICAL rather than WARNING: at WARNING a mistyped OSP_SOURCES puts a line
+    on stderr and breaks that contract on the likeliest configuration mistake
+    there is. The same condition is still visible in the tool list itself.
+    """
+    import logging
+
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass  # not a real stream, or already right; neither is fatal
+    try:
+        sys.stdin.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+    logging.basicConfig(
+        level=logging.INFO if verbose else logging.CRITICAL,
+        format="%(levelname)s %(name)s: %(message)s",
+        stream=sys.stderr,
+    )
+
+
 def _envelope(message: str, reason: str) -> dict[str, str]:
     """A CLI-level failure, in the server's own error shape."""
     return {"error": message, "reason": reason}
+
+
+def _size(payload: Any) -> int:
+    return len(json.dumps(payload, indent=2, default=str).encode("utf-8"))
+
+
+def _cap(payload: Any, max_bytes: int = None) -> Any:
+    """Cut an oversized result down, and make the cut impossible to miss.
+
+    Measured: `search_arxiv max_results=50` writes 103,399 bytes, about 24,500
+    tokens. A host that truncates that mid-document leaves the agent holding a
+    fragment of JSON; it salvages what parsed, writes a Provenance section
+    saying nothing was missing, and the review rests on a quarter of the
+    corpus. Exit 0, no `reason`, nothing to notice.
+
+    So the cut happens here, where it can be described, instead of downstream
+    where it cannot. The shape is preserved — a list stays a list, a record
+    stays a record — and a marker says what was lost and how to get it.
+
+    The marker deliberately does NOT use the `error`/`reason` envelope shape.
+    A truncated search is not a failed one: the records returned are real and
+    complete, and an agent that treated this as an error would throw away good
+    papers. The exit code stays 0 and the truth sits in the data.
+    """
+    limit = MAX_BYTES if max_bytes is None else max_bytes
+    if limit <= 0 or _size(payload) <= limit:
+        return payload
+
+    if isinstance(payload, list):
+        kept: list[Any] = []
+        for item in payload:
+            probe = kept + [item, _marker(len(kept) + 1, len(payload), "list")]
+            if _size(probe) > limit:
+                break
+            kept.append(item)
+        return kept + [_marker(len(kept), len(payload), "list")]
+
+    if isinstance(payload, dict):
+        # One field is almost always the whole weight — the full text of a
+        # paper. Shrink the largest string and leave every other field intact,
+        # so the metadata an agent needs to page or cite still arrives.
+        biggest = max(
+            (k for k, v in payload.items() if isinstance(v, str)),
+            key=lambda k: len(payload[k]), default=None)
+        if biggest is not None:
+            out = dict(payload)
+            original = len(out[biggest])
+            over = _size(payload) - limit
+            keep = max(0, len(out[biggest]) - over - 800)
+            out[biggest] = out[biggest][:keep]
+            out.update(_marker(keep, original, "field", field=biggest))
+            return out
+
+    return _marker(0, 0, "opaque")
+
+
+def _marker(returned: int, total: int, kind: str, field: str = "") -> dict[str, Any]:
+    """The record that says a result was cut. Loud on purpose."""
+    if kind == "list":
+        how = ("Re-run with a smaller max_results, or raise --max-bytes. "
+               "The records above are complete; the rest were not returned.")
+    elif kind == "field":
+        how = (f"The {field!r} field was cut. If this tool takes max_chars and "
+               f"offset, page through it; otherwise raise --max-bytes.")
+    else:
+        how = "Raise --max-bytes."
+    return {
+        "osp_truncated": True,
+        "osp_returned": returned,
+        "osp_total": total,
+        "osp_note": ("This result was cut to fit the output limit. It is NOT "
+                     "an empty result and NOT a complete one. Say so in "
+                     "Provenance rather than treating it as the whole corpus."),
+        "osp_how_to_get_the_rest": how,
+    }
 
 
 def _emit(payload: Any) -> None:
@@ -137,12 +258,16 @@ def _is_error(result: Any) -> bool:
 def cmd_list(as_json: bool) -> int:
     tools = _registered()
     if as_json:
+        # Name, first line, required. NOT the full schemas or descriptions.
+        # Measured: the full form is 37,463 bytes, of which descriptions are
+        # 21,536 (69.8%) and schemas 7,118 (23.1%) — so dropping schemas alone
+        # would not have been enough. This form is about 4 KB, and
+        # `schema <tool>` still gives everything for the one tool in hand.
         _emit([
             {
                 "name": name,
-                "description": (t.doc or "").strip(),
+                "summary": ((t.doc or "").strip().splitlines() or [""])[0],
                 "required": _required(t),
-                "input_schema": core.input_schema(t.fn),
             }
             for name, t in sorted(tools.items())
         ])
@@ -227,7 +352,7 @@ def _read_args(raw: str | None) -> tuple[dict[str, Any] | None, int]:
     return parsed, 0
 
 
-def cmd_call(name: str, raw_args: str | None) -> int:
+def cmd_call(name: str, raw_args: str | None, deadline: float) -> int:
     tools = _registered()
     if name not in tools:
         return _reject_unknown(name, tools)
@@ -248,24 +373,79 @@ def cmd_call(name: str, raw_args: str | None) -> int:
     fn = tools[name].fn
     import asyncio  # 37 ms, and `list` and `schema` never reach this line
 
+    core.CALL_TIMEOUT.set(float(deadline))
+    asyncio.run(_dispatch(name, fn, kwargs, float(deadline)))
+    raise AssertionError("unreachable: _dispatch always exits")  # pragma: no cover
+
+
+async def _dispatch(name: str, fn: Any, kwargs: dict[str, Any],
+                    deadline: float) -> None:
+    """Run the tool, write exactly one JSON document, and leave.
+
+    All of it inside the event loop, deliberately. `asyncio.wait_for` cancels
+    the *wait*, not the worker thread, and `asyncio.run()` then joins the
+    executor on the way out: measured, a 1 s timeout against a 6 s call raised
+    at 1.00 s and the process did not return until 6.01 s. Returning normally
+    would therefore hold the answer hostage to the thing that already timed out.
+    """
+    import asyncio
+
     try:
-        result = asyncio.run(fn(**kwargs))
+        # The backstop. Normally the inner _run timeout fires first and the
+        # tool returns its own envelope naming the provider; this catches the
+        # case where it does not.
+        result = await asyncio.wait_for(fn(**kwargs), timeout=deadline + _GRACE)
     except TypeError as exc:
         # Wrong argument names reach us as a TypeError from the call itself.
-        _emit(_envelope(
+        _emit_and_exit(_envelope(
             f"{name} rejected those arguments: {exc}. "
             f"Run `osp_cli.py schema {name}`.",
             "bad_request",
-        ))
-        return 2
+        ), code=2)
+    except (asyncio.TimeoutError, TimeoutError):
+        _emit_and_exit(core._err(name, TimeoutError(
+            f"{name} passed the {deadline}s limit set by --timeout and was "
+            f"abandoned. Nothing was searched — this is not an empty result.")))
+    except asyncio.CancelledError:
+        # CancelledError is a BaseException, so the tools' own `except
+        # Exception` does not swallow it and mislabel it as `failed`.
+        _emit_and_exit(core._err(name, TimeoutError(f"{name} was cancelled")))
     except Exception as exc:  # noqa: BLE001 — mirror the server's own catch-all
-        _emit(core._err(name, exc))
-        return 1
+        _emit_and_exit(core._err(name, exc))
 
-    _emit(result)
+    _emit_and_exit(_cap(result))
+
+
+def _emit_and_exit(result: Any, code: int | None = None) -> None:
+    """Write the one JSON document and end the process. Never returns.
+
+    os._exit skips every buffer Python owns, so stdout is flushed explicitly
+    first. Getting that order wrong loses the envelope exactly when it matters
+    most — on the timeout path, where there is a stuck thread and nothing else
+    to tell the agent what happened.
+
+    It also skips atexit and the executor join, which is the point. Nothing
+    here needs a polite shutdown: the CLI holds no file handles, and the arXiv
+    lock is an fcntl.flock the kernel releases when the process dies.
+    """
+    import os
+
     # The tools return their own envelope rather than raising, so the exit code
     # has to be read back off the result.
-    return 1 if _is_error(result) else 0
+    if code is None:
+        code = 1 if _is_error(result) else 0
+    try:
+        _emit(result)
+        sys.stdout.flush()
+    except BrokenPipeError:
+        os._exit(1)  # nobody is reading; there is nowhere to report to
+    except Exception:  # noqa: BLE001
+        code = 1
+    try:
+        sys.stderr.flush()
+    except Exception:  # noqa: BLE001
+        pass
+    os._exit(code)
 
 
 class _JsonArgumentParser(argparse.ArgumentParser):
@@ -286,16 +466,16 @@ class _JsonArgumentParser(argparse.ArgumentParser):
 
 
 def main() -> int:
-    global core
-    import core as _core  # inside the guard: an ImportError still prints JSON
-
-    core = _core
+    global core, MAX_BYTES
 
     parser = _JsonArgumentParser(
         prog="osp_cli.py",
         description="Open ScholarPeer search tools over the command line, "
                     "for agents without an MCP client.",
     )
+    parser.add_argument("--verbose", action="store_true",
+                        help="let the search layer log to stderr; off by "
+                             "default so `2>&1` still parses as JSON")
     sub = parser.add_subparsers(dest="command")
 
     p_list = sub.add_parser("list", help="show every enabled search tool")
@@ -309,15 +489,37 @@ def main() -> int:
     p_call.add_argument("tool")
     p_call.add_argument("arguments", nargs="?", default=None,
                         help="JSON object; omit or pass '-' to read stdin")
+    p_call.add_argument("--timeout", type=float, default=None,
+                        help="seconds to wait before abandoning the call "
+                             "(default: OSP_CALL_TIMEOUT, or 90)")
+    p_call.add_argument("--max-bytes", type=int, default=None, dest="max_bytes",
+                        help=f"cut the result to fit this many bytes "
+                             f"(default {MAX_BYTES}; 0 means no limit)")
 
     args = parser.parse_args()
+    _configure_io(getattr(args, "verbose", False))
+
+    # Imported here, not at module level: an ImportError above main() escapes
+    # before the guard at the bottom of this file exists, and the process then
+    # exits 1 with zero bytes of stdout.
+    import core as _core
+
+    core = _core
 
     if args.command == "list":
         return cmd_list(args.as_json)
     if args.command == "schema":
         return cmd_schema(args.tool)
     if args.command == "call":
-        return cmd_call(args.tool, args.arguments)
+        if args.max_bytes is not None:
+            MAX_BYTES = args.max_bytes
+        deadline = (args.timeout if args.timeout is not None
+                    else core.CALL_TIMEOUT.get())
+        if deadline <= 0:
+            _emit(_envelope("--timeout must be greater than zero.",
+                            "bad_request"))
+            return 2
+        return cmd_call(args.tool, args.arguments, deadline)
 
     _emit(_envelope(
         "no command given. Use `list`, `schema <tool>` or `call <tool> '<json>'`.",
@@ -328,6 +530,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     try:
+        _configure_io()
         sys.exit(main())
     except SystemExit:
         raise

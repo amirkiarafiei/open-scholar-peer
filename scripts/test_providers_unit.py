@@ -1255,6 +1255,59 @@ def test_independent_review_regressions() -> None:
           mod._SOURCE_ALIASES.get("open_alex"), "openalex")
 
 
+def test_cross_process_arxiv_guard() -> None:
+    """The arXiv rate limit must survive a fresh process.
+
+    In the MCP server one process holds the lock, the timestamp and the cache,
+    so arXiv's "one request at a time, three seconds apart" is enforced by
+    module state. The CLI gives every call its own process, and module state
+    resets with it: measured before this guard, a fresh process read
+    `_last_raw_request = 0.0`, computed a gap of about 1.79 billion seconds
+    against _MIN_GAP, and never slept. The rule was not degraded in CLI mode,
+    it was absent — and M18 promotes that path from one tool to twenty-one.
+    """
+    import time
+    from providers import arxiv as ax
+
+    lock = ax._lock_path()
+    check_true("the lock path is outside the install tree",
+               "osp-arxiv-" in lock.name)
+
+    real_gap = ax._MIN_GAP
+    try:
+        ax._MIN_GAP = 0.30  # keep the test quick; the mechanism is the same
+        ax._last_raw_request = 0.0
+        if lock.exists():
+            lock.unlink()
+
+        # First turn: nothing recorded anywhere, so it must not wait.
+        t0 = time.time()
+        with ax._arxiv_turn():
+            pass
+        first = time.time() - t0
+        check_true("a first request does not wait", first < 0.25)
+        check_true("the turn records a timestamp on disk", lock.exists())
+
+        # A fresh process is a fresh module: clear the in-process value only.
+        # The on-disk stamp is what has to make the gap survive.
+        ax._last_raw_request = 0.0
+        t0 = time.time()
+        with ax._arxiv_turn():
+            pass
+        second = time.time() - t0
+        check_true("a new process still waits for the gap "
+                   f"(waited {second:.2f}s, needed {ax._MIN_GAP}s)",
+                   second >= ax._MIN_GAP * 0.9)
+
+        # The stamp moves forward, or the gap would only ever apply once.
+        stamp = float(lock.read_text().strip())
+        check_true("the timestamp is rewritten after each turn",
+                   abs(stamp - time.time()) < 2.0)
+    finally:
+        ax._MIN_GAP = real_gap
+        ax._last_raw_request = 0.0
+
+
 TESTS = [
     ("google_scholar", test_google_scholar),
     ("arxiv query builder", test_arxiv_query),
@@ -1269,6 +1322,7 @@ TESTS = [
     ("source gating", test_source_gating),
     ("audit regressions", test_audit_regressions),
     ("independent review regressions", test_independent_review_regressions),
+    ("cross-process arxiv guard", test_cross_process_arxiv_guard),
 ]
 
 
