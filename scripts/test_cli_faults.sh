@@ -112,7 +112,7 @@ run_fault "UTF-8 reconfiguration is dropped" mcp-server/osp_cli.py \
 #     suite green, which is the point of having two.
 run_fault "a failure that does not fit exits 0" mcp-server/osp_cli.py \
   's/_emit_and_exit(_cap(result), code=1 if _is_error(result) else 0)/_emit_and_exit(_cap(result))/;
-   s/^        errors = \[i for i in payload$/        errors = [] or [i for i in []/' \
+   s/^            if _holds_failure(item):$/            if False:/' \
   "survives the cap"
 
 # 11. A shortened full-text window stops correcting its own paging contract,
@@ -123,7 +123,7 @@ run_fault "a cut document stops correcting next_offset" mcp-server/osp_cli.py \
 
 # 12. The cap stops protecting error envelopes from being dropped.
 run_fault "the cap drops error envelopes again" mcp-server/osp_cli.py \
-  's/^        errors = \[i for i in payload$/        errors = [] or [i for i in []/' \
+  's/^            if _holds_failure(item):$/            if False:/' \
   "survives the cap"
 
 # 13. The batch budget goes back to being divided, so the recommended path
@@ -137,6 +137,18 @@ run_fault "the batch budget is divided across items" mcp-server/osp_cli.py \
 run_fault "the cap only shrinks strings again" mcp-server/osp_cli.py \
   's/^            elif isinstance(value, (list, tuple)) and len(value) > 0:$/            elif False:/' \
   "actually caps"
+
+# 15. The failure test looks only at the top level again, so a batch item
+#     carrying an envelope under "result" stops counting as a failure and can
+#     be dropped to save space.
+# Two mechanisms keep a failure in a batch: the bound is set clear of the worst
+# nesting overhead, and a failure is never the item dropped. Either alone is
+# enough, so this disables both.
+run_fault "a batch item's failure stops being protected" mcp-server/osp_cli.py \
+  's/^    if item.get("ok") is False:$/    if False:/;
+   s/^        return _is_error(item.get("result")) if "result" in item else False$/        return False/;
+   s/whole = (MAX_BYTES \* len(plans) \* 2 + 8192) if MAX_BYTES > 0 else 0/whole = (MAX_BYTES * len(plans)) if MAX_BYTES > 0 else 0/' \
+  "never drops a failure"
 
 echo
 # The point of the copy: prove the tracked tree was never written to at all.

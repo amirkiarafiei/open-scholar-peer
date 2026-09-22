@@ -434,6 +434,33 @@ def test_batch_returns_what_separate_calls_would() -> None:
               worst, baseline)
 
 
+def test_a_batch_never_drops_a_failure() -> None:
+    """A failure must never be the item dropped to save space.
+
+    Nesting costs 4 bytes of indentation PER LINE, so as a fraction of an item
+    it is 4 / bytes-per-line — 4.9% on coarse arXiv records, 18.2% on the
+    fine-grained slim-paper shape. A flat headroom was therefore right for one
+    and wrong for the other, and at eighteen calls — the batch size the guide
+    names — two items overflowed the bound and were dropped from the tail.
+    The blocked provider was in the tail. The response came back as exit 1 with
+    a body of nothing but successes: something failed, and nothing said what.
+    """
+    for size in (6, 18):
+        calls = [{"tool": "search_arxiv", "arguments": {"query": f"q{i}"}}
+                 for i in range(size - 1)]
+        calls.append({"tool": "search_google_scholar", "arguments": {"query": "x"}})
+        r = run(["batch", json.dumps(calls)], mode="slim_batch", timeout=120)
+        items = [i for i in (r.json or []) if isinstance(i, dict) and "tool" in i]
+        check(f"a batch of {size}: every call comes back", len(items), size)
+        failed = [i for i in items if i.get("ok") is False]
+        check(f"a batch of {size}: the failing call is still there", len(failed), 1)
+        check(f"a batch of {size}: and still carries its reason",
+              (failed[0]["result"][0].get("reason") if failed else None), "blocked")
+        check(f"a batch of {size}: exit code says something failed", r.rc, 1)
+        check(f"a batch of {size}: the order is the order sent",
+              [i["tool"] for i in items], [c["tool"] for c in calls])
+
+
 def test_one_document_and_clean_streams() -> None:
     """Exactly one JSON document on stdout, and `2>&1` still parses."""
     for args, mode in ((["list", "--json"], ""),
@@ -557,6 +584,7 @@ TESTS = [
     ("a cut document says it is cut", test_a_cut_document_says_it_is_cut),
     ("the cap actually caps", test_the_cap_actually_caps),
     ("batch is not a worse deal", test_batch_returns_what_separate_calls_would),
+    ("a batch never drops a failure", test_a_batch_never_drops_a_failure),
     ("one document, clean streams", test_one_document_and_clean_streams),
     ("blocked imports", test_blocked_imports),
     ("batch", test_batch),

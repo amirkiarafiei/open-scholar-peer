@@ -146,6 +146,28 @@ if _MODE and _MCP_DIR:
 
         _ax.search = _ten
 
+    elif _MODE == "slim_batch":
+        # Fine-grained records — the `_slim_paper` shape, about 21 bytes a
+        # line. Nesting costs 4 bytes of indentation PER LINE, so the finer the
+        # record the larger the overhead as a fraction. This is the shape that
+        # overflowed the batch bound and dropped items at eighteen calls.
+        import providers.arxiv as _ax
+        import providers.google_scholar as _gs
+
+        def _slim(*a, **k):
+            return [{"paperId": f"{i:040x}", "title": "A paper about retrieval",
+                     "year": 2024, "citationCount": 7,
+                     "authors": ["A. One", "B. Two"],
+                     "externalIds": {"DOI": f"10.1000/{i}"},
+                     "isOpenAccess": True, "venue": "NeurIPS"}
+                    for i in range(100)]
+
+        def _blocked(*a, **k):
+            raise _gs.GoogleScholarBlocked("Google Scholar returned a CAPTCHA")
+
+        _ax.search = _slim
+        _gs.search = _blocked
+
     elif _MODE == "blocked_provider":
         import providers.google_scholar as _gs
 

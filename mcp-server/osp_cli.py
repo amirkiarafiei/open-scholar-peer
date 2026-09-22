@@ -160,30 +160,38 @@ def _cap(payload: Any, max_bytes: int = None) -> Any:
         return payload
 
     if isinstance(payload, list):
-        # Error envelopes are kept first and never dropped. A failure that does
-        # not fit is still the most important thing in the result, and deleting
-        # it to make room turns "the provider refused us" into "this was too
-        # big" — losing the distinction the whole layer exists to protect.
-        errors = [i for i in payload
-                  if isinstance(i, dict) and "error" in i and "reason" in i]
-        records = [i for i in payload if i not in errors]
-        kept: list[Any] = []
-        for env in errors:
-            env = dict(env)
-            room = limit - _size(kept + [_marker(0, len(payload), "list")])
-            if _size([env]) > max(room, 0):
-                # Shrink the message rather than the envelope. `reason` and the
-                # fact of failure survive at any size.
-                env["error"] = str(env.get("error", ""))[:800] + " […cut]"
-            kept.append(env)
-        for item in records:
-            probe = kept + [item, _marker(len(kept) + 1, len(payload), "list")]
+        # Failures are kept first and never dropped. A failure that does not
+        # fit is still the most important thing in the result, and deleting it
+        # to make room turns "the provider refused us" into "this was too big"
+        # — losing the distinction the whole layer exists to protect.
+        #
+        # `_holds_failure` looks one level down as well, because in a batch the
+        # envelope is nested under "result" and a top-level-only test missed
+        # it: at eighteen calls the dropped items were the tail, the blocked
+        # provider was in the tail, and the response came back as exit 1 with a
+        # body of nothing but successes.
+        #
+        # Indices throughout, so a failure that was SHRUNK to fit is the
+        # version that gets emitted, and so the caller's order is preserved —
+        # a batch promises results in the order the calls were sent.
+        chosen: dict[int, Any] = {}
+        for idx, item in enumerate(payload):
+            if _holds_failure(item):
+                chosen[idx] = _shrink_failure(
+                    item, limit - _size(list(chosen.values())) - 400)
+        for idx, item in enumerate(payload):
+            if idx in chosen:
+                continue
+            probe = list(chosen.values()) + [
+                item, _marker(len(chosen) + 1, len(payload), "list")]
             if _size(probe) > limit:
-                break
-            kept.append(item)
-        if len(kept) == len(payload):
-            return kept
-        return kept + [_marker(len(kept), len(payload), "list")]
+                continue
+            chosen[idx] = item
+        ordered = [chosen[i] for i in sorted(chosen)]
+        if len(ordered) == len(payload) and all(
+                chosen[i] is payload[i] for i in sorted(chosen)):
+            return ordered
+        return ordered + [_marker(len(ordered), len(payload), "list")]
 
     if isinstance(payload, dict):
         # A full-text record carries its OWN paging contract — offset,
@@ -196,7 +204,21 @@ def _cap(payload: Any, max_bytes: int = None) -> Any:
         # half it never saw. That is worse than an empty result — it is a
         # fabricated finding.
         if _is_paged_text(payload):
-            return _recut_paged_text(payload, limit)
+            out = _recut_paged_text(payload, limit)
+            if _size(out) <= limit:
+                return out
+            # The window is as short as it can usefully be and the record is
+            # still too big, so the weight is in a SIBLING field. Not reachable
+            # today — `read_arxiv_paper` and `get_europe_pmc_full_text` are the
+            # only paged records and their siblings are short — but it goes
+            # live the day one gains a heavy field, and it would land in the
+            # one shape the re-cut otherwise made safe. Fall through to the
+            # general loop, with the window's own contract fields protected so
+            # they cannot be shrunk into a lie.
+            payload = out
+            protected = _PAGED_KEYS | _MARKER_KEYS
+        else:
+            protected = _MARKER_KEYS
 
         # Any other record: shrink whatever is actually heavy, which is not
         # always a string. `get_openalex_work` carries `referencedWorks`, a
@@ -221,7 +243,7 @@ def _cap(payload: Any, max_bytes: int = None) -> Any:
         for _ in range(400):
             if _size(out) + reserve <= limit:
                 break
-            heavy = max((k for k in out if k not in _MARKER_KEYS),
+            heavy = max((k for k in out if k not in protected),
                         key=lambda k: _size(out[k]), default=None)
             if heavy is None:
                 break
@@ -253,6 +275,36 @@ def _cap(payload: Any, max_bytes: int = None) -> Any:
         return out
 
     return _marker(0, 0, "opaque")
+
+
+def _holds_failure(item: Any) -> bool:
+    """Is this an error envelope, or a batch item carrying one?"""
+    if not isinstance(item, dict):
+        return False
+    if "error" in item and "reason" in item:
+        return True
+    if item.get("ok") is False:
+        return True
+    return _is_error(item.get("result")) if "result" in item else False
+
+
+def _shrink_failure(item: dict[str, Any], room: int) -> dict[str, Any]:
+    """Make a failure fit by shortening its message, never by dropping it."""
+    if _size(item) <= max(room, 0):
+        return item
+    out = dict(item)
+    if isinstance(out.get("result"), list):
+        out["result"] = [
+            {**e, "error": str(e.get("error", ""))[:600] + " […cut]"}
+            if isinstance(e, dict) and "error" in e else e
+            for e in out["result"]
+        ]
+    elif isinstance(out.get("result"), dict) and "error" in out["result"]:
+        out["result"] = {**out["result"],
+                         "error": str(out["result"]["error"])[:600] + " […cut]"}
+    elif "error" in out:
+        out["error"] = str(out["error"])[:600] + " […cut]"
+    return out
 
 
 _PAGED_KEYS = {"text", "offset", "returned_chars", "total_chars",
@@ -762,7 +814,17 @@ def cmd_batch(raw: str | None, deadline: float) -> int:
         # caps — dropping a whole source to reclaim bytes that pass had already
         # accounted for. This is a backstop against a pathological case, not a
         # second budget.
-        whole = (int(MAX_BYTES * len(plans) * 1.1) + 4096) if MAX_BYTES > 0 else 0
+        # Nesting costs 4 bytes of indentation PER LINE, not a percentage of
+        # the item — so as a fraction it is 4 / bytes-per-line, and a flat 10%
+        # was right only for coarse records. Measured: 4.9% on arXiv search
+        # results at 81 bytes a line, but 18.2% on the slim-paper shape at 21.
+        # At eighteen calls that overflowed the bound and dropped two items.
+        #
+        # The real bound is the per-item caps, which already hold every item to
+        # MAX_BYTES on its own. This is a backstop against a pathological case,
+        # so it is set well clear of the worst nesting overhead rather than
+        # tuned to a shape someone measured once.
+        whole = (MAX_BYTES * len(plans) * 2 + 8192) if MAX_BYTES > 0 else 0
         _emit_and_exit(_cap(out, whole), code=1 if failed else 0)
 
     asyncio.run(run_all())
