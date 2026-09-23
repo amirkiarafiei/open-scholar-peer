@@ -59,10 +59,33 @@ fi
 # Copy server files (overwrite — server source is authoritative)
 mkdir -p "$TARGET_DIR"
 cp -r "$SOURCE_DIR/." "$TARGET_DIR/"
+# Do not ship this machine's bytecode. It is stale the moment it is copied, it
+# is not ours to put in someone's project, and it grows every time a file is
+# added to mcp-server/.
+#
+# -maxdepth 2 on purpose. The venv lives INSIDE $TARGET_DIR and is deliberately
+# preserved by the wipe above; an unbounded find walks straight into it and
+# deletes site-packages' bytecode too — measured at 348 directories and 2,945
+# .pyc files on a normal install, on every re-install, for nothing.
+find "$TARGET_DIR" -maxdepth 2 -name '__pycache__' -type d -not -path "$TARGET_DIR/.venv/*" \
+  -prune -exec rm -rf {} + 2>/dev/null || true
 echo -e "  ${GREEN}✅ MCP server copied → .open-scholar-peer/mcp/${NC}"
 
 # Set up venv
 VENV_DIR="$TARGET_DIR/.venv"
+
+# A venv is a set of symlinks to one interpreter. If the OS removed that
+# interpreter — a distro upgrade past the version it was built against — the
+# directory is still there and still looks valid, but nothing in it runs. The
+# install then failed at `pip install` with a log, which is legible but is not
+# the same as fixing itself. Rebuild instead: the venv holds nothing the user
+# owns.
+if [[ -d "$VENV_DIR" ]] && ! "$VENV_DIR/bin/python" -V &>/dev/null; then
+  echo -e "  ${YELLOW}⚠️  The existing virtualenv no longer runs — its Python is gone."
+  echo -e "      Rebuilding it.${NC}"
+  rm -rf "$VENV_DIR"
+fi
+
 if [[ ! -d "$VENV_DIR" ]]; then
   if ! command -v python3 &>/dev/null; then
     echo -e "  ${RED}✗ python3 not found in PATH; install Python 3.10+ and re-run${NC}"
@@ -118,8 +141,8 @@ else
   echo -e "  ${GREEN}✅ Created .gitignore with .open-scholar-peer/ entry${NC}"
 fi
 
-# Optional: prompt for Semantic Scholar API key
-if [[ -z "$SEMANTIC_SCHOLAR_API_KEY" ]]; then
+# Optional: mention the Semantic Scholar key, unless install.sh already took one
+if [[ -z "$SEMANTIC_SCHOLAR_API_KEY" && "$OSP_KEY_NAMES" != *SEMANTIC_SCHOLAR_API_KEY* ]]; then
   echo ""
   echo -e "  ${YELLOW}ℹ️  Semantic Scholar API key not set — anonymous rate limits will apply.${NC}"
   echo "     Get a free key at https://www.semanticscholar.org/product/api#api-key"
@@ -136,22 +159,105 @@ if [[ ! -f "$ENV_FILE" ]]; then
 
 # --- API keys ---------------------------------------------------------------
 
-# Semantic Scholar API key — free at https://www.semanticscholar.org/product/api
-# Without this, anonymous rate limits apply (~100 req / 5 min, bursty 429s).
+# Every database works without a key. A key only lifts a rate limit.
+
+# Semantic Scholar — free at https://www.semanticscholar.org/product/api
+# Anonymous access is one pool shared by every unauthenticated caller
+# everywhere, so it is throttled unpredictably and can refuse outright.
 # SEMANTIC_SCHOLAR_API_KEY=sk-...
+
+# OpenAlex — free at https://openalex.org. Keyless works but the daily
+# budget is small enough to run out during one heavy review.
+# OPENALEX_API_KEY=...
+
+# OpenAlex asks callers to identify themselves, and gives them a faster
+# lane for doing it.
+# OPENALEX_MAILTO=you@example.org
+
+# Zenodo — free at https://zenodo.org. Anonymous callers get roughly
+# 30-60 requests a minute and 2,000 an hour; a token raises that.
+# ZENODO_API_TOKEN=...
+
+# Google Scholar has no key. If it blocks your address, a proxy is the
+# only thing that helps — rotating the User-Agent was measured to do
+# nothing.
+# GOOGLE_SCHOLAR_PROXY_URL=http://user:pass@host:port
+
+# --- Databases --------------------------------------------------------------
+
+# Which paper databases the agent may search, as a comma-separated list.
+# Only the ones named here have their tools registered, which keeps the
+# agent's tool list short. Remove the line entirely to enable all of them.
+# Known: arxiv, semantic_scholar, google_scholar, europepmc, zenodo, openalex
+# OSP_SOURCES=arxiv,semantic_scholar,google_scholar,europepmc,zenodo,openalex
 
 # --- Tunables ---------------------------------------------------------------
 
-# Per-tool-call timeout in seconds. Applies uniformly to arXiv,
-# Semantic Scholar, and Google Scholar requests. Bump higher if you
-# routinely see TimeoutError on slow networks; lower if you'd rather
-# fail fast. Default: 90.
+# Per-tool-call timeout in seconds. Applies to every provider. Bump higher
+# if you routinely see TimeoutError on slow networks; lower if you would
+# rather fail fast. Default: 90.
 # OSP_CALL_TIMEOUT=90
 ENVEOF
   echo -e "  ${GREEN}✅ Created .env at project root — add your API keys there${NC}"
 else
   echo -e "  ${YELLOW}ℹ️  .env already exists at project root${NC}"
 fi
+
+# Write the choices install.sh collected into .env, touching only the lines
+# OSP owns. A re-install must not disturb anything the user put there, and
+# this runs once per selected tool, so it has to be idempotent.
+osp_env_set() {
+  local key=$1 value=$2
+  [[ -z "$value" ]] && return 0
+  if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
+    # Rewrite in place without sed -i, which differs on BSD and GNU.
+    local tmp
+    if ! tmp=$(mktemp "${ENV_FILE}.XXXXXX" 2>/dev/null); then
+      echo -e "  ${YELLOW}⚠️  Could not update ${key} in .env (cannot write"
+      echo -e "     a temporary file here). Set it by hand.${NC}"
+      return 0
+    fi
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      if [[ "$line" == "${key}="* ]]; then
+        printf '%s=%s\n' "$key" "$value"
+      else
+        printf '%s\n' "$line"
+      fi
+    done < "$ENV_FILE" > "$tmp"
+    if ! mv "$tmp" "$ENV_FILE" 2>/dev/null; then
+      rm -f "$tmp"
+      echo -e "  ${YELLOW}⚠️  Could not update ${key} in .env. Set it by hand.${NC}"
+      return 0
+    fi
+  else
+    # A file with no final newline would otherwise have our line glued onto
+    # the user's last setting: `LAST=value` + `OSP_SOURCES=...` on one line,
+    # corrupting their setting AND losing the database choice silently.
+    if [ -s "$ENV_FILE" ] && [ -n "$(tail -c1 "$ENV_FILE")" ]; then
+      printf '\n' >> "$ENV_FILE"
+    fi
+    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+  fi
+}
+
+if [[ -n "$OSP_SOURCES" ]]; then
+  osp_env_set "OSP_SOURCES" "$OSP_SOURCES"
+fi
+for _osp_var in $OSP_KEY_NAMES; do
+  # The name is spliced into an eval, so accept only real variable names.
+  # install.sh always passes safe ones, but a per-tool installer can be run
+  # directly with OSP_KEY_NAMES inherited from the environment.
+  if [[ ! "$_osp_var" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    echo -e "  ${YELLOW}⚠️  Ignoring malformed key name: ${_osp_var}${NC}"
+    continue
+  fi
+  eval "_osp_val=\${OSP_KEY_$_osp_var:-}"
+  osp_env_set "$_osp_var" "$_osp_val"
+done
+unset _osp_var _osp_val
+
+# .env holds API keys. Nobody else needs to read it.
+chmod 600 "$ENV_FILE" 2>/dev/null || true
 
 # Add .env to .gitignore if not already there
 if [[ -f "$GITIGNORE" ]]; then
@@ -161,6 +267,71 @@ if [[ -f "$GITIGNORE" ]]; then
   fi
 fi
 
+# Record which version is now installed here. Written near the end, after the
+# server is in place, so a run that failed earlier does not leave a stamp
+# claiming success. Read on the next install to report what changed.
+. "$SCRIPT_DIR/_version.sh"
+osp_stamp_version
+
 # Export paths so the calling installer can write them into MCP config
 export OSP_MCP_PYTHON="$VENV_DIR/bin/python"
 export OSP_MCP_SERVER="$TARGET_DIR/osp_mcp.py"
+# The same search tools over argv. Every tool gets this: it is the documented
+# fallback when MCP is unavailable, not a special case for one vendor.
+export OSP_SEARCH_CLI="$TARGET_DIR/osp_cli.py"
+
+# Prove the search layer actually runs in THIS project, by running it.
+#
+# This file is sourced by all 21 installers, so one check here serves all of
+# them, and it runs before each tool's MCP wiring — so a broken venv is
+# reported before the tool-specific output that would bury it. The guard makes
+# it run once even when the user installs for several tools in one pass.
+#
+# THREE probes, because one is not enough and it took a reviewer to notice:
+#
+#   1. `osp_cli.py list` — the CLI surface and the OSP_SOURCES gating. On its
+#      own this is a weak check: providers are imported lazily, so `list`
+#      answers "22 tools" happily on an interpreter where arxiv, requests, bs4
+#      and semanticscholar are all missing. It proves the registry, not the
+#      install.
+#   2. the real dependency imports — what `list` does not touch.
+#   3. `osp_mcp.py` — which needs the `mcp` package, and is the DEFAULT
+#      interface for 20 of the 21 tools. Checking only the fallback and calling
+#      the install verified was exactly backwards.
+#
+# Not fatal. A user with a working editor and a broken venv should still get
+# their prompts installed, and be told exactly what to run to see the error.
+if [ -z "${OSP_RUNTIME_VERIFIED:-}" ]; then
+  export OSP_RUNTIME_VERIFIED=1
+  _osp_why=""
+  if ! "$OSP_MCP_PYTHON" "$OSP_SEARCH_CLI" list >/dev/null 2>&1; then
+    _osp_why="the command-line search tools did not run"
+  elif ! "$OSP_MCP_PYTHON" -c "
+import sys
+sys.path.insert(0, '$TARGET_DIR')
+import core, sys as _s
+broken = core.warm_providers()          # actually import every enabled provider
+_s.exit(1 if broken else 0)
+" >/dev/null 2>&1; then
+    _osp_why="a search provider could not be imported — a dependency is missing"
+  elif ! "$OSP_MCP_PYTHON" -c "
+import sys
+sys.path.insert(0, '$TARGET_DIR')
+import osp_mcp                 # needs the mcp package; the default interface
+" >/dev/null 2>&1; then
+    _osp_why="the MCP server could not start — the 'mcp' package is missing"
+  fi
+
+  if [ -z "$_osp_why" ]; then
+    _osp_tools="$("$OSP_MCP_PYTHON" "$OSP_SEARCH_CLI" list --json 2>/dev/null \
+      | grep -c '"name"' || true)"
+    echo -e "  ${GREEN}✅ Search layer verified — ${_osp_tools:-?} tools, both interfaces${NC}"
+    unset _osp_tools
+  else
+    echo -e "  ${YELLOW}⚠️  Search layer problem: ${_osp_why}."
+    echo -e "      Your prompts are installed, but searches will fail. To see why:${NC}"
+    echo "         $OSP_MCP_PYTHON $OSP_SEARCH_CLI list"
+    echo "         $OSP_MCP_PYTHON $OSP_MCP_SERVER"
+  fi
+  unset _osp_why
+fi

@@ -34,33 +34,42 @@ fi
 # 4. MCP server runtime
 . "$SCRIPTS_DIR/init_mcp.sh"
 
-# 5. OpenCode MCP — opencode.json uses a non-standard `mcp` key with stdio block.
-#    Emit a snippet rather than auto-merging, since the schema differs from
-#    other tools' mcpServers format.
+# 5. OpenCode MCP — write ./.opencode/opencode.json (project-local).
+#    OpenCode merges project config into global per key, and the project wins,
+#    so the user's own servers survive and one paper folder cannot overwrite
+#    another's. `opencode mcp add` exists but writes to the GLOBAL config with
+#    no scope flag, which is why it is not used here.
+#    Schema: root key `mcp`, entries {"type":"local","command":[argv...]}.
+OPENCODE_CONFIG="./.opencode/opencode.json"
 SNIPPET_PATH="./.open-scholar-peer/opencode_mcp_snippet.json"
-cat > "$SNIPPET_PATH" << JSON
+mkdir -p "$(dirname "$OPENCODE_CONFIG")"
+
+if python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$OPENCODE_CONFIG" \
+     "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER" --key mcp --style opencode >/dev/null 2>&1; then
+  echo -e "  ${GREEN}✅ MCP servers configured → $OPENCODE_CONFIG${NC}"
+else
+  cat > "$SNIPPET_PATH" << JSON
 {
   "mcp": {
     "osp": {
       "type": "local",
-      "command": ["$OSP_MCP_PYTHON", "$OSP_MCP_SERVER"]
+      "command": ["$OSP_MCP_PYTHON", "$OSP_MCP_SERVER"],
+      "enabled": true
     },
     "markitdown": {
       "type": "local",
-      "command": ["uvx", "markitdown-mcp"]
+      "command": ["uvx", "markitdown-mcp"],
+      "enabled": true
     }
   }
 }
 JSON
-
-echo -e "\n  ${YELLOW}⚠️  Wire the OSP MCP server with one of:${NC}"
-echo ""
-echo "     (a) OpenCode CLI (recommended):"
-echo "         opencode mcp add osp -- $OSP_MCP_PYTHON $OSP_MCP_SERVER"
-echo ""
-echo "     (b) Or paste the snippet manually into opencode.json:"
-echo "         $SNIPPET_PATH"
+  echo -e "\n  ${YELLOW}⚠️  Could not merge into $OPENCODE_CONFIG — it was left untouched.${NC}"
+  echo "     Merge these entries yourself, or run:"
+  echo "         opencode mcp add osp -- $OSP_MCP_PYTHON $OSP_MCP_SERVER   (writes global config)"
+  echo "         $SNIPPET_PATH"
+fi
 
 # Closing message — shared wording lives in _post_install.sh
 . "$SCRIPTS_DIR/_post_install.sh"
-osp_post_install "OpenCode" "Wire the MCP server (opencode mcp add osp ... or paste snippet)"
+osp_post_install "OpenCode"

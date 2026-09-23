@@ -9,7 +9,7 @@ authority: map
 writes: agent, when files move
 status: active
 covers: the whole harness
-last_updated: "2026-09-12"
+last_updated: "2026-09-23"
 harness: kiacontext v0.2
 ---
 
@@ -38,7 +38,7 @@ disagree, the described file wins and this one is the bug.
 
 **Open ScholarPeer** is an open-source implementation of Google's published *ScholarPeer* peer-review
 protocol — a paper-to-code project. It installs into the directory holding a paper and lets a researcher
-run all seven review steps inside the AI coding tool they already pay for, across 14 supported tools.
+run all seven review steps inside the AI coding tool they already pay for, across 21 supported tools.
 There is no runtime: the product is prompt files, a small academic-search server, and the installers that
 put both in place. **The one thing that must stay true:** it runs on the user's own tools, and every
 conclusion it reaches can be checked in a file on their disk.
@@ -77,15 +77,16 @@ Four levels, split by **authority**, not by topic.
 | File | What it is |
 |---|---|
 | `MANIFESTO.md` | The product boundary. Nine numbered rules. **Rules 6, 7 and 9 were written by the agent from observed behaviour and are not yet confirmed by the owner** — the file says which. |
-| `ARCHITECTURE.md` | The technical blueprint: the seven-step protocol, the session state machine, the artifact contract, the one-source-fourteen-adapters pipeline, what the system refuses to do, and the search layer. |
+| `ARCHITECTURE.md` | The technical blueprint: the seven-step protocol, the session state machine, the artifact contract, the one-source-twenty-one-adapters pipeline, what the system refuses to do, and the search layer. |
 | ~~`DESIGN.md`~~ | **Deleted 2026-09-11.** The project has no visual interface. Its terminal output contract — orientation blocks, report blocks, native file references — is in `ARCHITECTURE.md` §10 instead. |
 
 ### `kia-context/logs/` — state · written every session
 
 | File | What it is |
 |---|---|
-| `PROGRESS.md` | Milestones M1–M10, all closed. M1–M7 reconstructed from git; M8 onward live. |
-| `BRAINSTORM.md` | Decisions D1–D18 and open questions O1–O11, all open. D1–D11 reconstructed; D12 onward live. |
+| `PROGRESS.md` | **Part one, closed.** Milestones M1–M13, through 2026-09-20. M1–M7 reconstructed from git; M8 onward live. Holds the things stated once for both parts: the loop, the circuit breakers, the releases and the full milestone table. Ends with a **Reference** section holding every API URL and measurement M11–M13 used. |
+| `PROGRESS_2.md` | **Part two, active — write new entries here.** M14 onward, from 2026-09-21: the prompt and protocol work, the outside review of three milestones at once, the seven new tools, and M18 — the search layer split into a transport-free core with two front ends. Continues the numbering; it does not restart it. |
+| `BRAINSTORM.md` | Decisions D1–D52 and open questions O1–O27. D1–D11 reconstructed; D12 onward live. Closed so far: O12 (by M13), O1, O2 and O3 (by M15), O24 (D39) and O23 (D40, completed 2026-09-22 — the first closure missed a second spelling). |
 
 ---
 
@@ -132,10 +133,20 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 | Where did this project come from? | `genesis/GENESIS.md` |
 | What did we originally ask for? | `genesis/SEED.md` — not recovered; it points at the closest surviving artifact |
 | What was the original build plan? | `logs/PROGRESS.md`. The old `docs/PHASES.md` is deleted — `git show 027645b:docs/PHASES.md` |
+| Which paper databases do we use, and why not the others? | `logs/BRAINSTORM.md` D19 |
+| How should the agent choose which databases to search? | `logs/BRAINSTORM.md` D26 |
+| Can the user skip a phase, and what happens if they do? | `logs/BRAINSTORM.md` D27 |
+| Why does every phase end with the same block? | `logs/BRAINSTORM.md` D28 |
+| Why do the commands hold values instead of the block itself? | `logs/BRAINSTORM.md` D30 |
+| May the user skip a step the paper says is required? | `specs/MANIFESTO.md` rule 2, amended — `logs/BRAINSTORM.md` D29 |
+| Is OpenAlex still free enough to ship on by default? | **Undecided** — `logs/BRAINSTORM.md` O22 |
+| Why can a project switch databases off, and what does that change? | `logs/BRAINSTORM.md` D21, `specs/ARCHITECTURE.md` §9 |
+| Where does full text come from, and why is there no PDF library? | `logs/BRAINSTORM.md` D20, D24 |
+| Where are the API docs for a provider? | `logs/PROGRESS.md`, the **Reference** section at the end |
 | What does step N of the review actually read and write? | `docs/ARTIFACT_CONTRACTS.md` |
 | Why does it not do X? | `docs/KNOWN_LIMITATIONS.md`, then `logs/BRAINSTORM.md` |
 | How do I add a command, skill, tool or provider? | `docs/CONTRIBUTING.md` |
-| How do I work on this repo without breaking the 14 adapters? | `AGENTS.md` |
+| How do I work on this repo without breaking the 21 adapters? | `AGENTS.md` |
 
 ---
 
@@ -143,9 +154,9 @@ carries the Golden Rule. Not part of this harness, but read it before editing an
 
 | Prefix | Means | Lives in | Currently |
 |---|---|---|---|
-| `M` | Milestone | `PROGRESS.md` | M1–M10, none currently active |
-| `D` | Decision | `BRAINSTORM.md` | D1–D18 |
-| `O` | Open question | `BRAINSTORM.md` | O1–O11, all open |
+| `M` | Milestone | `PROGRESS.md` (M1–M13), `PROGRESS_2.md` (M14 →) | M1–M18, all done |
+| `D` | Decision | `BRAINSTORM.md` | D1–D52 |
+| `O` | Open question | `BRAINSTORM.md` | O1–O27; O1, O2, O3 closed by M15, O12 by M13, O23 and O24 by M18; the rest open |
 | rule *n* | A manifesto rule | `MANIFESTO.md` | rules 1–9 |
 
 These are cited from other documents. **A renumber breaks every citation and nothing errors.** Append;

@@ -5,7 +5,7 @@
 
 ## What this project is
 
-Open ScholarPeer (OSP) implements the paper *"ScholarPeer: A Context-Aware Multi-Agent Framework for Automated Peer Review"* as a portable set of skills, slash commands, and an MCP server that install into a user's project across 14 AI tools (Claude Code, Cursor, Gemini CLI, Copilot CLI, Antigravity, Antigravity CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, Kimi Code, Mistral Vibe, OpenHands).
+Open ScholarPeer (OSP) implements the paper *"ScholarPeer: A Context-Aware Multi-Agent Framework for Automated Peer Review"* as a portable set of skills, slash commands, and an MCP server that install into a user's project across 21 AI tools (Claude Code, Cursor, Gemini CLI, Copilot CLI, Antigravity, Antigravity CLI, Codex CLI, Qwen Code, OpenCode, Junie, Kiro, Kimi Code, Mistral Vibe, OpenHands, Pi, Oh My Pi, Grok Build, Hermes, Cline, Kilo Code, OpenClaw).
 
 **There is no runtime code.** OSP is configuration-as-code. The library is the prompts and the sync infrastructure that keeps them consistent across tools.
 
@@ -18,26 +18,42 @@ python3 scripts/sync_adapters.py
 # Validate per-tool parity (must pass before any commit touching _shared/):
 python3 scripts/test_parity.py
 
-# Smoke-test all 14 installers in temp dirs (must pass before tagging release):
+# Smoke-test all 21 installers in temp dirs (must pass before tagging release):
 bash scripts/test_install.sh
 
 # Syntax-check shell scripts:
 for f in install.sh scripts/*.sh; do bash -n "$f" && echo "  ✓ $f" || echo "  ✗ $f"; done
 
-# AST-check Python files (no formal linter configured):
-python3 -c "import ast; [ast.parse(open(f).read()) for f in ['mcp-server/osp_mcp.py','scripts/sync_adapters.py','scripts/merge_mcp_config.py','scripts/test_parity.py']]"
+# Syntax-check Python files (no formal linter configured).
+# Globbed, not listed: the old fixed list left mcp-server/providers/ uncovered,
+# so a syntax error in a provider was caught by nothing at all.
+# compile(), not ast.parse(): ast.parse accepts things Python then refuses,
+# such as reading a module global before declaring `global` in the same
+# function. That exact mistake got past an ast.parse check on 2026-09-20.
+python3 -c "import glob; [compile(open(f).read(), f, 'exec') for f in glob.glob('mcp-server/**/*.py',recursive=True)+glob.glob('scripts/*.py')]"
+
+# Build the dev virtualenv at the REPO ROOT, never inside mcp-server/:
+# init_mcp.sh does `cp -r mcp-server/. .open-scholar-peer/mcp/`, so a venv
+# left in mcp-server/ is copied into every user's project.
+python3 -m venv .venv && .venv/bin/pip install -r mcp-server/requirements.txt
+
+# Provider checks. Nothing else in the repo loads mcp-server/providers/.
+# Both need the venv above — the providers import bs4, arxiv and
+# semanticscholar, so plain `python3` fails with ModuleNotFoundError.
+.venv/bin/python scripts/test_providers_unit.py   # offline, ~1s, every change
+.venv/bin/python scripts/test_providers.py        # live APIs, opt-in
 
 # Run the MCP server standalone (debug mode):
-cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python osp_mcp.py
+cd mcp-server && PYTHONPATH=. ../.venv/bin/python osp_mcp.py
 ```
 
 ## Architecture (one paragraph)
 
-`extensions/_shared/` is the canonical source: 8 commands + 8 skills + rules + defaults + a manifest. `scripts/sync_adapters.py` regenerates 14 per-tool adapter directories under `extensions/.{claude,cursor,gemini,agent,agents,github,junie,kiro,codex,kimi,qwen,vibe,opencode,openhands}/`. Per-tool installers (`scripts/install_*.sh`) copy the adapter into the user's project, run `init_brain.sh` to scaffold `.brain/`, run `init_mcp.sh` to set up a self-contained Python venv at `.open-scholar-peer/mcp/`, and either auto-merge the MCP server into the tool's config (`merge_mcp_config.py`) or emit a paste-ready snippet for tools with TOML / global / non-standard configs. State during a review lives at `<user-project>/.brain/` (gitignored).
+`extensions/_shared/` is the canonical source: 8 commands + 8 skills + rules + defaults + a manifest. `scripts/sync_adapters.py` regenerates 21 per-tool adapter directories under `extensions/.{claude,cursor,gemini,agent,agents,github,junie,kiro,codex,kimi,qwen,vibe,opencode,openhands,pi,omp,grok,hermes,cline,kilo,openclaw}/`. Per-tool installers (`scripts/install_*.sh`) copy the adapter into the user's project, run `init_brain.sh` to scaffold `.brain/`, run `init_mcp.sh` to set up a self-contained Python venv at `.open-scholar-peer/mcp/`, and wire the MCP server into the tool's config — `merge_mcp_config.py` for JSON, `merge_mcp_toml.py` for TOML, or the vendor's own `<tool> mcp add` where one exists. Every install also ships `osp_cli.py`, the same 22 search tools over argv. MCP is the default on all 21 tools; the CLI is the documented fallback, chosen by a mechanical rule at onboarding and recorded in `session.json` as `mcp.interface`. Pi is the one tool where it is the only path — it ships no MCP client at all. State during a review lives at `<user-project>/.brain/` (gitignored).
 
 ## The Golden Rule
 
-**Never edit `extensions/.{claude,cursor,gemini,agent,agents,github,junie,kiro,codex,kimi,qwen,vibe,opencode,openhands}/` directly.** They are generated. Edit `extensions/_shared/` and re-run sync.
+**Never edit any `extensions/.<tool>/` directory directly.** All 21 are generated and are wiped on each sync. Edit `extensions/_shared/` and re-run it.
 
 ## Code style
 
@@ -53,9 +69,9 @@ cd mcp-server && python3 -m venv .venv && .venv/bin/pip install -r requirements.
 - `/.agents/` at repo root is leftover unrelated tooling, gitignored. The OSP Antigravity adapter is at `extensions/.agent/`, and the Antigravity CLI adapter is at `extensions/.agents/`. Do not confuse them.
 - `reviewer-os/` at repo root is an external reference (gitignored), not part of OSP.
 - When adding or renaming a command/skill, update **both** `extensions/_shared/MANIFEST.md` and `docs/ARTIFACT_CONTRACTS.md`.
-- Q&A behavior differs per tool, and `sync_adapters.py::adapt_qa_body_for_tool()` has **three** modes, not two: `subagent` (11 tools), `prefer-subagent` (Antigravity — try delegation, fall back to self-reflection rather than fail), and `self-reflection` (Mistral Vibe, OpenHands). Antigravity moved out of the self-reflection group in 2026-09 — see `kia-context/logs/BRAINSTORM.md` D16 and D17.
-- Paper hyperparameters: `k=3` literature rounds is fixed (enforced via 3 round files); `N_QA` is **user-configurable** at `/5-osp-qa` start (default 2 pairs/criterion, persisted as `session.json.qa_pairs_per_criterion`). The Q&A template renders `### Q1`…`### QN` from that field.
-- Tools that share the project-root `AGENTS.md` surface (Copilot, Codex, Kimi, Vibe, OpenCode, OpenHands) all merge through `scripts/merge_agents_md.sh` using `<!-- OSP-BEGIN/OSP-END -->` markers. Do not roll your own merge logic.
+- Q&A behavior differs per tool, and `sync_adapters.py::adapt_qa_body_for_tool()` has **three** modes, not two: `subagent`, `prefer-subagent` (try delegation, fall back to self-reflection rather than fail), and `self-reflection`. Measured 2026-09-21: **14 / 3 / 4** of 21. Read the split off the matrix rather than trusting this line — see `kia-context/logs/BRAINSTORM.md` D16, D17 and D36.
+- Paper hyperparameters: `k=3` literature rounds is **recommended, not fixed** — the user may stop at 1, 2 or 3, enforced by one file per round actually run and recorded in `session.json.phases.literature.rounds_completed` (D29); `N_QA` is **user-configurable** at `/5-osp-qa` start (default 2 pairs/criterion, persisted as `session.json.qa_pairs_per_criterion`). The Q&A template renders `### Q1`…`### QN` from that field.
+- Tools that write to a shared markdown file the user may also own — the project-root `AGENTS.md` for Copilot, Codex, Kimi, Vibe, OpenCode, OpenHands, Pi, Hermes, Kilo Code and OpenClaw, and `.omp/RULES.md` for Oh My Pi — all merge through `scripts/merge_agents_md.sh` using `<!-- OSP-BEGIN/OSP-END -->` markers. Do not roll your own merge logic, and do not plain-copy onto one of these.
 - The MCP server runs as a subprocess of the host tool over stdio. To debug, run `python3 mcp-server/osp_mcp.py` standalone — it'll wait for MCP protocol messages and surface any startup errors.
 - `init_mcp.sh` copies `mcp-server/` into `<user-project>/.open-scholar-peer/mcp/` and builds a venv there. The dev repo's `mcp-server/` is the source; the per-project copy is the runtime.
 
@@ -69,12 +85,12 @@ extensions/_shared/             ← Edit here. Single source of truth.
   ├── defaults/                  Templates that enforce structure
   └── MANIFEST.md                Sync-script catalog
 
-extensions/.{claude,cursor,gemini,agent,agents,github,
-            junie,kiro,codex,kimi,qwen,vibe,opencode,openhands}/   ← Generated. Don't edit.
+extensions/.<tool>/            21 generated adapter dirs. Don't edit.
 
 mcp-server/
   ├── osp_mcp.py                 FastMCP server entrypoint
-  └── providers/                 arxiv / semantic_scholar / google_scholar
+  └── providers/                 arxiv / semantic_scholar / google_scholar /
+                                 europe_pmc / zenodo / openalex
                                  (drop a new module here to add a provider)
 
 scripts/
@@ -84,7 +100,7 @@ scripts/
   ├── clean_adapter.sh           Wipes OSP-managed files before re-copy (per tool)
   ├── init_brain.sh              .brain/ scaffolding (called by installers)
   ├── init_mcp.sh                .open-scholar-peer/mcp/ setup (called by installers)
-  ├── install_*.sh               One per tool (14 total)
+  ├── install_*.sh               One per tool (21 total)
   └── test_*.{py,sh}             Parity validator + installer smoke
 
 docs/
@@ -103,7 +119,8 @@ docs/
 2. `python3 scripts/test_parity.py` (must pass)
 3. `bash scripts/test_install.sh` (must pass)
 4. **Manual:** run `bash install.sh` in a fresh temp dir, drive `/0-osp-onboarding` and `/1-osp-summary` on `docs/paper/scholar_peer_arxiv.pdf` in your tool of choice. Verify `.brain/raw/01_structured_summary.md` has Method/Output/Provenance sections.
-5. Update the active milestone in `kia-context/logs/PROGRESS.md` (deliverables + Report).
+5. Update the active milestone in the progress log — the **highest-numbered part**, currently
+   `kia-context/logs/PROGRESS_2.md` (deliverables + Report). Earlier parts are closed.
 6. `git tag` + `git push --tags`.
 
 ## Out of scope
@@ -112,7 +129,7 @@ docs/
 - `src/frontend` (Deep Agents UI fork) — deferred.
 - Plugin marketplace integrations — explicitly avoided (vendor lock-in).
 - PyPI publishing of `osp-mcp` — deferred; current model is self-contained venv per project.
-- CI drift checks — manual today; future GH Actions running `test_parity.py`.
+- CI — `.github/workflows/ci.yml` runs `scripts/test_all.sh` on every push. That script is also the one command to run locally; it holds the suite list so CI and a developer cannot drift.
 - Multi-paper sessions — currently one paper per `.brain/`.
 
 ## Pointers
@@ -134,9 +151,21 @@ These rules apply automatically in any project where Open ScholarPeer is install
 ## Brain protocol (apply on every invocation)
 
 1. **Read `.brain/session.json` first** to understand current state.
-2. **Load only the artifacts in the active step's `reads:` contract** (see `docs/ARTIFACT_CONTRACTS.md`). Do not load the full `.brain/` directory.
-3. **After completing a step, update `session.json`:** set the matching `phases.<name>` block to `completed`, set `completed_at`, and update `resume_from`.
-4. **Re-runs overwrite with a warning.** If a step is already `completed`, print one warning, then proceed.
+2. **Load only the artifacts in the active step's `reads:` contract.** Do not load the full `.brain/`
+   directory. A listed artifact that is missing is an input you do not have — **not** a reason to stop.
+3. **Update `session.json` around every step.** Set `started_at` when you begin. On finishing, set the
+   matching `phases.<name>` block to `completed`, set `completed_at`, and update `resume_from`.
+4. **When the user moves past a step without running it, record that.** Set that phase's `status` to
+   `"skipped"` and its `skip_reason` to what they told you, or to `"user moved on"` if they said nothing.
+   Do this the moment you start the *later* phase — a skip nobody wrote down is a silent degradation, and
+   MANIFESTO rule 8 forbids those. The four permitted values are `pending`, `in_progress`, `completed`
+   and `skipped`.
+5. **Carry every skip forward.** Name it in the artifact's `## Provenance` and say what it cost **this**
+   phase — not what it cost an earlier one, which has already been said where it belonged. Each phase
+   reports its own consequence, once. `/6-osp-review` collects them all under
+   `## What this review did not have`, so whoever reads the review can tell a thin corpus from a
+   thorough one. State it; do not repeat it, and never dress it as a warning.
+6. **Re-runs overwrite with a warning.** If a step is already `completed`, print one warning, then proceed.
 
 ## Persona discipline
 
@@ -146,24 +175,45 @@ These rules apply automatically in any project where Open ScholarPeer is install
 
 ## Subagent vs self-reflection
 
-- **Prefer subagents** for the Q&A engine on tools that support them — every supported tool except the two named below.
-- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) on tools without (or with only partial) subagent support: Mistral Vibe, OpenHands.
+- **Prefer subagents** for the Q&A engine wherever they are available. The `/5-osp-qa` command opens with a banner saying which mode this tool uses; that banner is generated from the tool's measured capability, so it is the authority, not any list.
+- **Fall back to self-reflection** with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) where subagents are unavailable, and on any tool where the delegation call does not work. Finishing the phase in the weaker mode beats stopping it; note which mode was used in the artifact.
 - Self-reflection is a documented weaker substitute. See `KNOWN_LIMITATIONS.md`.
 
-## User orientation (required on every phase invocation)
+## Phase blocks (required on every phase invocation)
 
-Before doing any work in a phase, print a short orientation block so the user always knows where they are:
+Every phase prints two blocks: an opening one before it does any work, and a closing one when it
+ends. **`.agents/defaults/phase_block_template.md` is the only definition of their format** — the rail, the
+rules, the labels, the widths and the ASCII fallback all live there and nowhere else. Do not restate
+them, here or in a command.
 
-```
-── <Phase name> ──────────────────────────────────────────
-What this phase does: <one sentence — the agent's role and why this step exists>
-Reads:  <list the key input files>
-Writes: <list the key output files>
-Effort: <rough estimate — "~2 min, ~N tool calls", etc.>
-──────────────────────────────────────────────────────────
-```
+Each phase's command supplies only the values. The closing block must say **what was done** —
+findings, counts, highlights — not merely which command comes next. The user is learning the system
+as they go, so orient them every time, including on a re-run.
 
-After the phase completes, the closing report block must say **what was done** (findings, counts, highlights), not just which command to run next. The user is learning the system as they go — orient them every time, even on repeat runs.
+## Reaching the search tools
+
+OSP ships the search tools two ways: as MCP tools, and as a program you run
+through `bash`. **MCP is the default. The shell program is the fallback and is
+second class** — it costs a process per call, and an approval on hosts that ask
+for one.
+
+`/0-osp-onboarding` decides which one this project uses and records it in
+`session.json` as `mcp.interface`. Follow what is recorded. If the field is
+missing — the project was set up before this existed — decide it yourself, the
+same way, and write it.
+
+**One `.env` governs both surfaces**, so the shell program never has a database
+MCP lacks. A missing tool is never a reason to change interface.
+
+**If a search fails while the recorded interface is `mcp`, re-probe once and
+rewrite the field before you report a gap.** A server that died mid-session
+leaves `mcp` recorded, and a server nobody can reach looks exactly like a
+database with nothing in it. That is the one confusion this whole layer exists
+to prevent.
+
+`.agents/defaults/search_via_cli.md` holds the commands, the `batch` form to prefer, and
+what each failure reason means. Read it when the interface is `cli`, or when you
+fall back.
 
 ## Output discipline
 
@@ -171,13 +221,29 @@ After the phase completes, the closing report block must say **what was done** (
 - Reports describe what was done — they are not raw transcripts of tool calls.
 - Citations must trace back to retrieved literature; do not invent them.
 
+**Write in plain academic English.** Clarity is not a stylistic preference in research; a reviewer's
+comment has to mean one thing to an author anywhere in the world. Prefer the shorter word and the
+direct sentence. Define a term the first time a file uses it. Keep the field's vocabulary — it carries
+meaning — and drop everything that does not: no buzzwords, no marketing register, no hedging that
+conceals what you actually found. This applies to the artifacts and to what you say on screen.
+
+**Assume the user has not read what you wrote.** They see your messages; they have almost never opened
+the files in `.brain/`. So whenever you name an artifact, a phase or a finding, say in the same breath
+what it is and why it matters. "The historian placed the paper in era 3" tells them nothing. "Your
+paper sits in the current era, alongside the three 2025 works it competes with" tells them something.
+Give the background, once, and then get to the point.
+
+**Retrieval is what makes this a grounded review, so be transparent about it.** Searching live sources
+is what separates this from a model answering out of memory. Native web search and at least one
+literature database should be available, and you should say so plainly when they are not — name what
+is missing and what it costs this phase. **Then carry on if the user wants to.** Retrieval is required
+for a strong review, not required to proceed: the user decides, and the artifact records what they
+decided.
+
 ## File references in user-facing output
 
-- When mentioning a `.brain/` artifact in a report or reply, use the vendor-provided native file reference format for your tool:
-  - Claude Code / Cursor / Gemini CLI / Codex CLI / Qwen Code / OpenCode / Junie / Kiro: `@.brain/raw/01_summary.md`
-  - Copilot CLI: `#file:.brain/raw/01_summary.md`
-  - Kimi Code / Mistral Vibe / OpenHands / Antigravity: plain path (no native shorthand)
-- Always pair the native reference with the `↳ .brain/…` path in the terminal report block so users can locate files regardless of tool.
+- When mentioning a `.brain/` artifact in a report or reply, use whatever file-reference syntax your own tool provides — `@.brain/raw/01_summary.md` on most, `#file:.brain/raw/01_summary.md` on Copilot CLI. Where a tool has none, write the plain path.
+- Always pair the native reference with the plain `.brain/…` path on the continuation line under `DONE`, so users can locate the file whatever their tool does with markdown.
 
 ## File ownership
 

@@ -14,10 +14,23 @@ For each criterion in `session.json.qa_criteria[]`, generate N probing Q&A pairs
 
 Invoke the `osp-query-agent` skill (main thread). The Query Agent will spawn `osp-answer-generator-agent` per question.
 
-## Prerequisites
+## Inputs — none of these is a gate
 
-- `phases.summary.status`, `phases.literature.status`, `phases.historian.status`, `phases.baseline_scout.status` all `"completed"`.
-- `qa_criteria[]` is non-empty in `session.json`.
+- `phases.summary.status`, `phases.literature.status`, `phases.historian.status` and
+  `phases.baseline_scout.status`. Each one that is missing removes a source of evidence, not the phase:
+  no summary means you question the paper directly; no literature or narrative means novelty claims
+  cannot be checked against prior work; no baseline scout means no missing-baseline questions. Run with
+  what exists, name each gap in the artifact's Provenance, and let the answers say "could not be
+  verified" rather than guessing.
+- `qa_criteria[]` in `session.json`. If it is empty, onboarding never ran — use the generic criteria from
+  `.github/defaults/generic_review_guidelines.md` and record that you did.
+
+**Record any skip before you start.** The orchestrator is not in the loop when the user runs this
+command directly, so it falls to you: for every earlier phase still `pending`, set
+`phases.<name>.status = "skipped"` and `phases.<name>.skip_reason` to their reason, or
+`"user ran /5-osp-qa first"`. A phase left `pending` reads as "not reached yet", and the final review
+cannot tell the difference.
+
 
 ## Step 0 — Resource check and pair count (run BEFORE any Q&A work)
 
@@ -47,17 +60,28 @@ Invoke the `osp-query-agent` skill (main thread). The Query Agent will spawn `os
 The banner at the top of this command says which mode your tool is in.
 
 - **Subagent mode (default):** the Query Agent delegates each question to the Answer Generator as a subagent with a fresh, minimal context bundle.
-- **Prefer-subagent mode (Antigravity):** try delegation first; if it is unavailable in your session, fall back to self-reflection and keep going rather than stopping the phase.
-- **Self-reflection mode (Mistral Vibe, OpenHands):** the Query Agent uses strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) within the main context window.
+- **Prefer-subagent mode:** try delegation first; if it is unavailable in your session, fall back to self-reflection and keep going rather than stopping the phase.
+- **Self-reflection mode:** the Query Agent uses strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) within the main context window.
 
 Whichever you end up using, record it as `Mode:` in each file's `## Method` section.
+
+## Opening block (print before step 1)
+
+Render the **opening block** exactly as `.github/defaults/phase_block_template.md` defines it — that
+file holds the rail, the rules and the widths, and it is the only place they are written down.
+This is phase **6 of 7** (`qa`); read the rail's state from `session.json`. Values:
+
+      DOING    probe each criterion, and verify the answers
+      READS    .brain/raw/ summary, narrative, baselines
+      WRITES   .brain/raw/05_qa_<slug>.md   (one per criterion)
+      COST     <C>x<N> subagent calls, ~45 s each
 
 ## Steps
 
 1. Read all input artifacts listed in the frontmatter.
 2. Activate the `osp-query-agent` skill.
 3. For each criterion in `qa_criteria[]`:
-   - Open or initialize `.brain/raw/05_qa_<criterion_slug>.md` from `defaults/qa_pair_template.md`.
+   - Open or initialize `.brain/raw/05_qa_<criterion_slug>.md` from `.github/defaults/qa_pair_template.md`.
    - Generate exactly `qa_pairs_per_criterion` Q&A pairs:
      - For each, the Query Agent formulates a probing question grounded in the structured summary, narrative, and missing baselines.
      - The Query Agent delegates to the Answer Generator (subagent or self-reflection per mode).
@@ -69,19 +93,23 @@ Whichever you end up using, record it as `Mode:` in each file's `## Method` sect
    - `phases.qa.notes = "<C> criteria × <N> pairs each; <M> discrepancies flagged"`
    - `resume_from = "review"`
 
-## User-facing report (print after all criteria complete)
+## Closing block (print when the phase ends)
 
-```
-── Q&A Engine complete ──────────────────────────────────────
-Ran <N> pairs across <C> criteria — <M> discrepancies flagged.
-↳ .brain/raw/05_qa_<slug>.md  (one file per criterion)
-Next: /6-osp-review
-─────────────────────────────────────────────────────────────
-```
+Render the **closing block** from `.github/defaults/phase_block_template.md`. **Build the rail from
+`session.json`** — `●` only where `status == "completed"`, `○` for `pending` *and* `skipped`. A
+phase the user skipped must not show as done.
+Drop `BLOCKED` and `NOTE` when there is nothing to put on them. Values:
+
+      DONE     <N> pairs, <C> criteria, <M> discrepancies
+               .brain/raw/05_qa_<slug>.md
+      NEXT     /6-osp-review   write the review
+
 
 ## Re-run behavior
 
-Re-running overwrites `05_qa_<slug>.md` per criterion. To re-run only one criterion, pass its slug as an argument; the rest are skipped.
+Re-running overwrites `05_qa_<slug>.md` for every criterion it covers, and these files cost the most
+of anything here — one subagent call per pair. **Say what will be lost and wait for an answer before
+overwriting.** To redo a single criterion, pass its slug as an argument; the rest are left alone.
 
 ## Pitfalls
 

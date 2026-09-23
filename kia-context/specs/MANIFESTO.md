@@ -10,7 +10,7 @@ authority: law
 writes: agent, from what the human decided
 status: active
 covers: the whole product
-last_updated: "2026-09-12"
+last_updated: "2026-09-21"
 ---
 
 # 📜 MANIFESTO — What we are building, and why
@@ -48,7 +48,7 @@ people's work with no way to tell whether they are sound — which, in peer revi
 1. Installs into the directory holding the paper, for whichever AI tool the reviewer uses.
 2. Asks which venue the review is for, and fetches that venue's real reviewing criteria.
 3. Reads the paper and extracts its claims, its method, and the evidence offered for them.
-4. Searches the live literature in three passes, then builds a history of the sub-field from what it found.
+4. Searches the live literature in up to three passes — three is recommended, the user chooses how many — then builds a history of the sub-field from what it found.
 5. Hunts, adversarially, for baselines and datasets the authors should have compared against and did not.
 6. Interrogates the paper criterion by criterion, verifying each answer against what it retrieved.
 7. Writes one review in the venue's own format, drawn only from the evidence gathered in the steps above.
@@ -78,10 +78,13 @@ These may not be traded away for speed, cost, or output quality.
    plain files copied into the user's project. If a feature only works through one vendor's storefront,
    it does not ship.
 
-2. **The published method is the specification.** The seven steps, their order, and their separation are
-   what the protocol's results rest on. Steps are not silently merged, skipped, reordered, or "optimised"
-   into one pass. Where the implementation must depart from the paper, it is written down as a known
-   limitation rather than quietly absorbed.
+2. **The published method is the specification.** The seven steps, their order and their separation are
+   what the protocol's results rest on. **The system never merges, skips, reorders or "optimises" them on
+   its own.** The *user* may skip any step — it is their time and their tokens — and that choice is
+   recorded in `session.json` and in the artifact's Provenance, so the final review can state what it did
+   not have. A thin review that says it is thin is honest; a thin review that reads like a complete one is
+   not. Where the implementation must depart from the paper, it is written down as a known limitation
+   rather than quietly absorbed. *(Amended 2026-09-21 — see `logs/BRAINSTORM.md` D29.)*
 
 3. **Every claim is auditable on the user's disk.** Each step writes plain markdown recording what it
    did, what it produced, and where that came from. A reviewer must always be able to ask "why does it

@@ -115,11 +115,12 @@ def _looks_like_osp_entry(entry: dict | None) -> bool:
     if not isinstance(entry, dict):
         return False
     needle = ".open-scholar-peer/mcp"
+    # `command` is a string in the common shape and an argv list in OpenCode's,
+    # so flatten both before looking.
     cmd = entry.get("command", "")
-    args = entry.get("args", []) or []
-    if needle in str(cmd):
-        return True
-    return any(needle in str(a) for a in args)
+    parts = list(cmd) if isinstance(cmd, list) else [cmd]
+    parts += entry.get("args", []) or []
+    return any(needle in str(part) for part in parts)
 
 
 # ---------- Merge logic -----------------------------------------------------
@@ -153,6 +154,15 @@ def main() -> int:
     parser.add_argument("python_path", help="absolute path to .open-scholar-peer/mcp/.venv/bin/python")
     parser.add_argument("server_path", help="absolute path to .open-scholar-peer/mcp/osp_mcp.py")
     parser.add_argument("--key", default="mcpServers", help="root key under which servers live")
+    parser.add_argument(
+        "--style",
+        default="command-args",
+        choices=("command-args", "opencode"),
+        help=(
+            "entry shape. 'command-args' is the common {command, args} form; "
+            "'opencode' is OpenCode's {type: local, command: [argv...]}"
+        ),
+    )
     args = parser.parse_args()
 
     cfg_path = Path(args.config_path)
@@ -178,14 +188,27 @@ def main() -> int:
 
     # Clean entries — no extra keys that strict JSON validators (e.g. Gemini) reject.
     # Both entries are kept structurally consistent (no dangling empty `env`).
-    osp_entry = {
-        "command": args.python_path,
-        "args": [args.server_path],
-    }
-    markitdown_entry = {
-        "command": "uvx",
-        "args": ["markitdown-mcp"],
-    }
+    if args.style == "opencode":
+        # OpenCode takes one argv list and a transport tag, not command+args.
+        osp_entry = {
+            "type": "local",
+            "command": [args.python_path, args.server_path],
+            "enabled": True,
+        }
+        markitdown_entry = {
+            "type": "local",
+            "command": ["uvx", "markitdown-mcp"],
+            "enabled": True,
+        }
+    else:
+        osp_entry = {
+            "command": args.python_path,
+            "args": [args.server_path],
+        }
+        markitdown_entry = {
+            "command": "uvx",
+            "args": ["markitdown-mcp"],
+        }
 
     actions = {
         "osp": merge_entry(cfg[args.key], "osp", osp_entry, cfg_path, args.key),

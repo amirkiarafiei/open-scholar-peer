@@ -6,21 +6,24 @@ writes: [".brain/raw/02a_literature_round1.md", ".brain/raw/02b_literature_round
 
 # /2-osp-literature — Literature Review & Expansion
 
-Runs ONE round of external retrieval per invocation. Invoke up to 3 times to complete all rounds.
-After each round it shows a progress banner and asks whether to continue.
+Runs ONE round of external retrieval per invocation. Three rounds are recommended; the user decides how
+many to run. After each round it reports what it found and offers both routes: another round, or move on.
 
 ## Activation
 
 Invoke the `osp-literature-review-agent` skill.
 
-## Prerequisites
+## Inputs — none of these is a gate
 
-- `phases.summary.status == "completed"` and `01_structured_summary.md` exists.
-- Rounds must be run in order (1 → 2 → 3).
+- `phases.summary.status == "completed"` and `01_structured_summary.md` exists. Without it, read
+  `.brain/input/paper.md` and derive the query terms yourself; say in Provenance that you did.
+- Rounds run in order (1 → 2 → 3) because each strategy builds on the last. **How many you run is the
+  user's choice** — one round is a valid, thinner corpus, not an error.
 
 ## Resource notice
 
-⚠️ Each invocation makes ~8-12 API calls across 3 databases (arXiv, Semantic Scholar, Google Scholar). Expect 1-3 minutes per round.
+⚠️ Each invocation makes ~8-12 API calls across whichever databases this project
+installed, plus native web search. Expect 1-3 minutes per round.
 
 ## Round definitions
 
@@ -30,41 +33,68 @@ Invoke the `osp-literature-review-agent` skill.
 | 2 | `method-anchor` | Search using the method's name and key technical terms |
 | 3 | `temporal-expansion` | Filter to last 12 months; include arXiv pre-prints, concurrent submissions |
 
+## Opening block (print before the round starts)
+
+Render the **opening block** exactly as `.agent/defaults/phase_block_template.md` defines it — that file
+holds the rail, the rules and the widths, and is the only place they are written down. This is phase
+**3 of 7** (`literature`); the rail carries `◐` while rounds remain. Values:
+
+      DOING    <the anchor for this round, in one line>
+      READS    .brain/raw/01_structured_summary.md
+      WRITES   .brain/raw/02<a|b|c>_literature_round<N>.md
+      COST     ~1-3 min, ~8-12 searches
+
 ## Steps
 
 1. Read `.brain/session.json`.
    - Determine `next_round = phases.literature.rounds_completed + 1` (default 0 → next = 1).
-   - If `next_round > 3`, print: "All 3 rounds complete. Next: `/3-osp-historian`." and stop.
+   - If `next_round > 3`, all three recommended rounds are done: consolidate if that has not happened
+     yet, and point at `/3-osp-historian`.
    - If any earlier round file is missing, resume from that round instead.
 
 2. Read `.brain/raw/01_structured_summary.md`.
 
 3. Run the **next pending round only**:
    - Activate the `osp-literature-review-agent` skill for that round.
-   - The skill searches using **all available retrieval tools** (`search_arxiv`, `search_semantic_scholar`,
-     `search_google_scholar`, native Web Search) with **different query formulations**.
-   - Write the round file (`02a`, `02b`, or `02c`) using the template at `defaults/round_strategy_template.md`.
+   - The skill lists the retrieval tools this project installed, picks the ones that suit the paper's
+     field (its `## Sources` section is the rule), and dispatches them together with **different
+     query formulations**.
+   - Write the round file (`02a`, `02b`, or `02c`) using the template at `.agent/defaults/round_strategy_template.md`.
 
 4. Update `session.json`:
    - Increment `phases.literature.rounds_completed`.
-   - If `rounds_completed == 1`: set `phases.literature.status = "in_progress"`.
-   - If `rounds_completed == 3`: set `phases.literature.status = "completed"`,
-     `phases.literature.notes = "3 rounds; <N> unique papers retained"`, `resume_from = "historian"`.
-     Write the consolidated `02_retrieved_literature.md` (deduplicated table of all retained papers).
+   - Set `phases.literature.status = "in_progress"`.
+   - **Then offer the choice, and act on the answer.** Another round, or move on. Whenever the user
+     moves on — after 1, 2 or 3 rounds — set `phases.literature.status = "completed"`,
+     `phases.literature.notes = "<N> of 3 rounds; <M> unique papers retained"`,
+     `resume_from = "historian"`, and write the consolidated `02_retrieved_literature.md`
+     (deduplicated table of everything retained so far). Stopping at 1 or 2 rounds is a completed
+     phase with a smaller corpus, **not** an incomplete one.
+   - If they stopped early, set `phases.literature.skip_reason` to their reason, or
+     `"user moved on after round <N>"` if they gave none.
 
-5. Print a progress banner and brief findings summary:
-   ```
-   ── Literature Review ────────────────────────────────────
-   Round N/3 complete  (anchor: <anchor-name>)
-   Papers retained this round: <n>
-   Top finds: <2-3 bullet highlights>
-   ↳ .brain/raw/02N_literature_round<N>.md
-   ─────────────────────────────────────────────────────────
-   ```
-   - If `rounds_completed < 3`: "Run `/2-osp-literature` again to continue to round N+1."
-   - If `rounds_completed == 3`: "Next: /3-osp-historian"
+5. Print the **closing block** from `.agent/defaults/phase_block_template.md`, labelled
+   `LITERATURE  round N of 3`. Values:
+
+       DONE     <n> retained, <m> excluded  ·  <anchor-name>
+                top finds: <2-3 short phrases>
+                .brain/raw/02<a|b|c>_literature_round<N>.md
+       BLOCKED  <source> — <reason>, nothing was searched
+       NEXT     /2-osp-literature   round N+1  (recommended)
+                /3-osp-historian    move on with <N> rounds
+
+   One `BLOCKED` line per provider that failed — an error is not an empty result; drop the label
+   when nothing failed. After round 3 the literature marker becomes `●` and the label reads
+   `LITERATURE  3 rounds`; after a deliberate stop it stays `◐` and reads `LITERATURE  <N> rounds`.
+   Under `NEXT`, say once what stopping here would cost: after **round 1** the method-anchor search
+   has not run, so work using the same technique may be missing; after **round 2** the temporal
+   expansion has not run, so concurrent work from the last 12 months may be missing. Do not repeat it
+   on the next invocation. Once round 3 is done, `NEXT` carries `/3-osp-historian` alone.
 
 ## Re-run behavior
 
-Calling `/2-osp-literature` when a round is already complete will re-run that same round.
+Each invocation runs the **next** round that has not run — step 1 computes it from
+`rounds_completed`. Calling it again after round 2 gives you round 3, and never overwrites a round you
+already have. To redo a particular round, delete its file (`02a`, `02b` or `02c`) first; step 1 then
+resumes from there.
 Warn once before overwriting its file, then proceed.

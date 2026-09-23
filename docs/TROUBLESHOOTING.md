@@ -39,9 +39,36 @@ If commands still don't appear, verify the adapter directory is in the right loc
 ls .claude/commands/      # Claude
 ls .cursor/commands/      # Cursor
 ls .gemini/commands/      # Gemini (TOML)
-ls .agents/workflows/     # Antigravity
+ls .agent/workflows/      # Antigravity
+ls .agents/skills/        # Antigravity CLI (commands are skills here)
 ls .github/prompts/       # Copilot CLI
+ls .pi/prompts/           # Pi
+ls .omp/commands/         # Oh My Pi
+ls .grok/commands/        # Grok Build
+ls .kilo/commands/        # Kilo Code
+ls .hermes/skills/        # Hermes    (skills are the commands)
+ls .cline/skills/         # Cline     (skills are the commands)
+ls .agents/skills/        # OpenClaw  (skills are the commands)
 ```
+
+### The files are there, but the tool still shows no commands
+
+Four tools ignore what you just installed until something else is true. This is the most common
+"it didn't work" on those tools, and in every case the install itself was fine.
+
+| Tool | Why | Fix |
+|---|---|---|
+| **Pi** | Everything under `.pi/` waits for project trust, and `/trust` does not reload the running session | Start `pi` here, accept the trust prompt, then restart it |
+| **Hermes** | Project skills are ignored until the folder is trusted | Run `hermes skills trust` in this folder |
+| **Grok Build** | Project rules load only for a trusted folder | Accept the trust prompt, or start it with `grok --trust` |
+| **OpenClaw** | It has one workspace per agent and does not look into a nested folder | Run it from here with `openclaw agent exec --cwd .`, or set that agent's `workspace` to this folder |
+
+Two tools also skip anything git ignores, so a `.gitignore` line can hide OSP completely:
+
+- **Grok Build** skips gitignored files when discovering rules and skills — do not ignore `.grok/`.
+- **Oh My Pi** skips gitignored files when discovering commands — do not ignore `.omp/`.
+
+Both installers warn you if they spot that line, but a rule added later will not be caught.
 
 ### Re-running the installer didn't pick up `_shared/` changes
 
@@ -63,12 +90,80 @@ Try running it manually to surface errors:
 ```
 The server runs on stdio and stays open waiting for MCP protocol messages. If it exits immediately with a Python traceback, that's the bug.
 
+### The agent says it has no search tools
+
+First find out which interface it should be using. Run the search layer yourself:
+
+```bash
+.open-scholar-peer/mcp/.venv/bin/python .open-scholar-peer/mcp/osp_cli.py list
+```
+
+- **It prints the tools** → the search layer is healthy. The agent can always reach it this way.
+  Check `.brain/session.json` — if `mcp.interface` says `mcp` but MCP is not answering, delete the
+  value and re-run `/0-osp-onboarding`, which decides it again.
+- **It prints a JSON error** → read the `reason`. If the message mentions a missing dependency, the
+  venv is incomplete: re-run the installer.
+- **It prints nothing at all** → the file or the interpreter is missing. Re-run the installer.
+
+On **Pi** this is expected and not a fault: Pi ships no MCP client, so the program is the only path.
+The instructions are in the OSP block of your `AGENTS.md`, which Pi loads whether or not the project
+is trusted.
+
+### A search command seems to hang
+
+It is waiting on a provider, not on you. Every call is bounded, but the ceiling is 90 seconds by
+default and a slow full-text read can use most of it. To see what it is doing:
+
+```bash
+.open-scholar-peer/mcp/.venv/bin/python .open-scholar-peer/mcp/osp_cli.py \
+  call read_arxiv_paper '{"arxiv_id": "1706.03762"}' --timeout 20 --verbose
+```
+
+`--verbose` puts the search layer's own logging on stderr, including the `arxiv` package's retries.
+`--timeout` lowers the ceiling; the call then returns an envelope with `"reason": "timeout"` rather
+than waiting. **A timeout is never an empty result** — nothing was searched, and it should be
+recorded as a gap in the corpus.
+
+### Searches are slow, or arXiv keeps saying `busy`
+
+arXiv's terms allow one request at a time with three seconds between them, and OSP enforces both.
+In the shell that enforcement is a lock file shared by every OSP process on the machine, so two
+reviews running side by side will wait for each other. That is correct behaviour, not a fault.
+
+If you see `"reason": "busy"`, another call held the connection for longer than 15 seconds. Retry it
+after the other providers rather than immediately.
+
+**Use `batch` for a round of searches.** One process instead of one per call, and the rate limit,
+the parsed-text cache and the de-duplication all work inside it:
+
+```bash
+.open-scholar-peer/mcp/.venv/bin/python .open-scholar-peer/mcp/osp_cli.py batch '[
+  {"tool": "search_arxiv",    "arguments": {"query": "...", "max_results": 10}},
+  {"tool": "search_openalex", "arguments": {"query": "...", "limit": 10}}
+]'
+```
+
+### A result says `osp_truncated`
+
+The result was larger than the output limit and was cut here, deliberately, so that it could say so
+— an uncut result gets truncated further downstream without telling anyone.
+
+What you are holding depends on the shape. For a **list**, the marker is an extra last element and
+the records above it are complete. For a **single record** — a long abstract, or a work with
+thousands of references — the marker is merged into the record and `osp_how_to_get_the_rest` names
+which fields were shortened; that record is not complete. For a **full-text window**, the marker is
+merged in and `next_offset` has been corrected, so keep paging until it is null.
+
+Ask for fewer results, page with `offset`/`max_chars` where the tool supports it, or raise
+`--max-bytes`. Do not treat a cut result as the whole corpus.
+
 ### `markitdown` MCP not converting PDFs
 
 `markitdown-mcp` is registered as `{"command": "uvx", "args": ["markitdown-mcp"]}`. Verify `uvx` works:
 ```bash
 uvx --version          # uv 0.4+ required
-uvx markitdown-mcp     # should fetch and start the package
+uvx markitdown-mcp --help   # should print usage. Without --help it starts the MCP
+                            # server and waits silently — that is not a hang, Ctrl-C it.
 ```
 If `uvx` is not installed:
 ```bash
@@ -79,54 +174,99 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ### Semantic Scholar returns 429 Too Many Requests
 
-Anonymous rate limits are tight. Get a free API key (https://www.semanticscholar.org/product/api#api-key) and export it:
+Anonymous access is one pool shared by every unauthenticated caller everywhere, so it is throttled unpredictably. Get a free API key (https://www.semanticscholar.org/product/api#api-key) and put it in `.env` at your project root:
 ```bash
-export SEMANTIC_SCHOLAR_API_KEY=sk-...
+SEMANTIC_SCHOLAR_API_KEY=sk-...
 ```
-Add to your shell profile (`~/.zshrc`, `~/.bashrc`) so it persists across sessions. Restart your AI tool to pick up the new env var.
+The MCP server reads `.env` on startup, so restart your AI tool to pick it up. The tool reports this failure with `reason: rate_limited` — it is not an empty result, and should not be recorded as "no papers found".
 
 ### `osp` server starts but tools return errors
 
-Each tool has consistent error envelopes. Look for entries like `[{"error": "..."}]` in the AI tool's output and check:
-- Network connectivity (`curl https://api.semanticscholar.org/graph/v1/paper/search?query=test`)
-- For Google Scholar tools: HTML scraping may have hit a rate limit; wait 5-10 minutes.
+Each tool has a consistent error envelope carrying a `reason`, which tells you what to do:
+
+| `reason` | What it means | What to do |
+|---|---|---|
+| `blocked` | Google refused — 429, 403 or a captcha page | Set `GOOGLE_SCHOLAR_PROXY_URL`, or drop Google Scholar. Waiting rarely helps; the block is on your address. |
+| `rate_limited` | Semantic Scholar answered 429 | Set `SEMANTIC_SCHOLAR_API_KEY` in `.env`. |
+| `busy` | another arXiv call held the one connection its terms allow | Transient. Retry. |
+| `timeout` | the call ran past `OSP_CALL_TIMEOUT` | Raise it in `.env`, or check the network. |
+| `not_found` | no such paper or article | Check the identifier. The provider is fine. |
+| `bad_request` | the arguments were wrong | Read the tool's docstring. |
+
+An empty list `[]` is not an error. It means the search ran and matched nothing.
+
+Also check network connectivity: `curl https://api.semanticscholar.org/graph/v1/paper/search?query=test`
+
+### A tool I expected is missing
+
+Tools are registered per database, and the installer asked which you wanted. Check `OSP_SOURCES` in `.env` at your project root — remove the line to enable all six databases, or add the one you want:
+
+```bash
+OSP_SOURCES=arxiv,semantic_scholar,google_scholar,europepmc,zenodo,openalex
+```
+
+Restart your AI tool afterwards. The server logs which databases are on at startup.
 
 ---
 
 ## Workflow issues
 
-### `/0-osp-onboarding` says it can't find the paper
+### `/0-osp-onboarding` cannot find the paper
 
-Run `/open-scholar-peer` — the orchestrator will detect you're at the onboarding step and ask you for the paper's path. You can provide any path; it will copy the file into `.brain/input/` for you.
+Tell it where the paper is — any path will do, and it copies the file into `.brain/input/` for you. It
+also looks in the project root on its own, so putting the paper beside `.brain/` is enough.
 
-### `/1-osp-summary` refuses with "binary format and markitdown unavailable"
+### `/1-osp-summary` stops with "binary format and markitdown unavailable"
 
-This is the hard input guard working correctly. Either:
-1. Install markitdown (see above).
-2. Provide a markdown version manually:
-   ```bash
-   markitdown paper.pdf > .brain/input/paper.md   # if you have it CLI-locally
-   ```
+Working as intended. A readable paper is the one input the protocol cannot work around, and this is one
+of only two places in OSP that stop. Either install markitdown (see above), or convert the paper
+yourself and save it as `.brain/input/paper.md`.
 
-### `/2-osp-literature` produces only 1-2 round files instead of 3
+### Fewer than three literature rounds
 
-The agent stopped early. Re-run `/2-osp-literature` — the structural file requirement (`02a/02b/02c_literature_round*.md`) is enforced, so missing files block consolidation. Check `.brain/raw/` to see how far it got.
+Normal, and probably your own choice. `/2-osp-literature` runs one round per invocation and asks after
+each whether to continue. Stopping at one or two completes the phase with a smaller corpus — the
+consolidated `02_retrieved_literature.md` is still written. Run `/2-osp-literature` again for the next
+round; it never repeats one you already have. Check `phases.literature.rounds_completed` in
+`.brain/session.json` to see where you stopped.
 
-### Q&A phase produces fewer than 10 pairs per criterion
+### Fewer than ten Q&A pairs per criterion
 
-The file template at `defaults/qa_pair_template.md` declares 10 placeholder slots. If the agent stopped early, re-run `/5-osp-qa`. On Mistral Vibe and OpenHands (self-reflection mode), pair generation is sequential and slower — be patient.
+Also normal. The default is **two**, and `/5-osp-qa` asks before it starts. The paper this implements
+used ten probing questions in total across a whole review, not ten per criterion. Your answer is stored
+in `session.json` as `qa_pairs_per_criterion`.
+
+On Mistral Vibe and OpenHands, pair generation runs in self-reflection mode — sequential and slower.
+
+### A phase ran but the result looks thin
+
+Check the closing block for a `BLOCKED` line: that means a search provider failed and nothing was
+searched, which is not the same as finding nothing. Check `NOTE` for phases you skipped. Both also
+appear in the artifact's `## Provenance`, and `/6-osp-review` collects them under
+`## What this review did not have`.
 
 ### `/open-scholar-peer` says "No `.brain/session.json`"
 
-Run the brain initializer:
+OSP is not initialised in this directory. Re-run the installer from here — it merges with your existing
+config rather than replacing it:
+
 ```bash
-bash scripts/init_brain.sh
+curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main/install.sh | bash
 ```
-This creates the v2 schema. Then re-run `/0-osp-onboarding`.
 
-### Re-ran `/1-osp-summary` and now my final review feels stale
+If `.brain/` exists but `session.json` does not, ask your agent to recreate it from the v2 schema in
+`docs/BRAIN_LAYOUT.md` and carry on.
 
-OSP does not auto-invalidate downstream artifacts (see `KNOWN_LIMITATIONS.md` §8). Re-run `/2-osp-literature` … `/6-osp-review` in order, or use `/open-scholar-peer` and follow its dispatcher.
+### Re-ran an early phase and the final review feels stale
+
+OSP does not invalidate downstream artifacts (`KNOWN_LIMITATIONS.md` §8). Re-run the phases after it in
+order, or run `/open-scholar-peer` and follow what it recommends.
+
+### I want to change which databases are searched
+
+Edit `OSP_SOURCES` in `.env` at your project root, then restart your agent. Remove the line entirely to
+enable every installed source. Pick by your paper's field, not by speed: Europe PMC for life sciences,
+arXiv for CS, physics and maths.
 
 ---
 

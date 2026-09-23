@@ -53,6 +53,18 @@ Write **exactly one file**: `.brain/raw/03_domain_narrative.md`.
 - **Closest precedents in the corpus:** <2-3 papers, with one-line "how this differs" each>
 - **Is this a paradigm shift, an incremental tweak, or a re-application?** <one paragraph judgment grounded in the corpus>
 
+### Open problems in this sub-field
+<3-5 bullets, each drawn from the limitations or future-work sections of the most recent papers in the
+corpus, with the reference number. These are what the field itself says is unsolved. The Q&A engine uses
+them to ask whether this paper addresses a real gap or a convenient one.>
+
+### What counts as a significant contribution here, right now
+<2-4 bullets. Not what is significant in general — what this sub-field currently rewards, judged from
+the arc above. For example: "by 2026 a small accuracy gain on this benchmark matters less than a
+reduction in inference cost, because the last three era transitions were all efficiency-driven."
+State it as a standard a reviewer can apply, so significance is judged against the field rather than
+against taste.>
+
 ## Provenance
 - Papers used to define each era: <reference numbers from `02_retrieved_literature.md`>
 - Confidence flags: <e.g. "Era 3 boundary is fuzzy because corpus lacks 2023 coverage">

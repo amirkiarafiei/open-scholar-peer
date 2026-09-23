@@ -37,9 +37,18 @@ fi
 # 4. MCP server runtime
 . "$SCRIPTS_DIR/init_mcp.sh"
 
-# 5. OpenHands MCP — configured via UI Settings → MCP, or per-skill YAML.
-#    Emit a snippet showing both options.
+# 5. OpenHands MCP — ~/.openhands/mcp.json, read by the OpenHands CLI.
+#    The schema is the same {"mcpServers": {...}} shape every other tool uses,
+#    so merge_mcp_config.py handles it with its sidecar tracking and stale-path
+#    recognizer. Home-scoped, not project-scoped: OpenHands has no project-local
+#    MCP file, so the last install wins — the same accepted behaviour as Kimi
+#    and Copilot. The web UI keeps its MCP config in a database behind
+#    Settings → MCP and cannot be reached from a file; the snippet is for those
+#    users only.
+OH_CONFIG="$HOME/.openhands/mcp.json"
 SNIPPET_PATH="./.open-scholar-peer/openhands_mcp_snippet.json"
+mkdir -p "$(dirname "$OH_CONFIG")"
+
 cat > "$SNIPPET_PATH" << JSON
 {
   "mcpServers": {
@@ -55,13 +64,21 @@ cat > "$SNIPPET_PATH" << JSON
 }
 JSON
 
-echo -e "\n  ${YELLOW}⚠️  Add the MCP servers via OpenHands → Settings → MCP:${NC}"
-echo "     A ready-to-paste snippet has been saved to:"
-echo "         $SNIPPET_PATH"
+if python3 "$SCRIPTS_DIR/merge_mcp_config.py" "$OH_CONFIG" \
+     "$OSP_MCP_PYTHON" "$OSP_MCP_SERVER" >/dev/null 2>&1; then
+  echo -e "  ${GREEN}✅ MCP servers configured → ~/.openhands/mcp.json (CLI)${NC}"
+else
+  echo -e "\n  ${YELLOW}⚠️  Could not write ~/.openhands/mcp.json — it was left untouched.${NC}"
+  echo "     Paste this into OpenHands → Settings → MCP:"
+  echo "         $SNIPPET_PATH"
+fi
+
+echo -e "  ${CYAN}ℹ️  Using the OpenHands web UI instead of the CLI? Its MCP settings live${NC}"
+echo "     in the app, not a file — paste $SNIPPET_PATH into Settings → MCP."
 
 echo -e "\n  ${YELLOW}ℹ️  OpenHands subagent support is partial — /5-osp-qa falls back${NC}"
 echo "     to self-reflection mode (see docs/KNOWN_LIMITATIONS.md)."
 
 # Closing message — shared wording lives in _post_install.sh
 . "$SCRIPTS_DIR/_post_install.sh"
-osp_post_install "OpenHands" "Register the MCP servers in OpenHands → Settings → MCP"
+osp_post_install "OpenHands"

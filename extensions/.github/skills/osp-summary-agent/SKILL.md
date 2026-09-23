@@ -24,7 +24,7 @@ By decoupling comprehension from critique here, downstream agents can operate on
 - `.brain/session.json` (read for venue, paper path)
 - `.brain/input/paper.{pdf,md,...}` — the actual manuscript
 
-If the paper is a PDF and your environment has the `markitdown` MCP available, prefer the parsed `.md` version when present (`.brain/input/paper.md`). If only PDF is present, parse it with `markitdown` and save to `.brain/input/paper.md` as a side effect.
+`.brain/input/paper.md` must exist before you begin. If only a PDF or DOCX is present, convert it with the `markitdown` MCP tool (`convert_to_markdown`) and save the result there first. **If markitdown is unavailable and no `.brain/input/paper.md` exists, stop** — with no readable text there is nothing to summarise, and this is the only hard refusal in Open ScholarPeer.
 
 ## Output
 

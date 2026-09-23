@@ -26,8 +26,6 @@ curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main
 /open-scholar-peer
 ```
 
-The orchestrator reads your session state and tells you which step to run next.
-
 ## How it works
 
 
@@ -60,29 +58,56 @@ Every artifact is saved as auditable markdown in `.brain/raw/` and `.brain/revie
 
 ## 🛠️ Installation
 
-From your project directory (the directory containing the paper you want to review):
+### Option 1: Interactive Installer
+
+From the directory containing the paper you want to review:
 
 ```bash
-# One-liner installer
-
 curl -sSL https://raw.githubusercontent.com/amirkiarafiei/open-scholar-peer/main/install.sh | bash
 ```
 
-Or clone and run locally:
+### Option 2: Clone and Run Locally
 
 ```bash
 git clone https://github.com/amirkiarafiei/open-scholar-peer
-cd open-scholar-peer
-bash install.sh   # interactive — pick your AI tool
+bash open-scholar-peer/install.sh --dir /path/to/the/paper/you/are/reviewing
 ```
 
-Prefer no prompts? `bash install.sh --tool claude,cursor` installs directly, and
-`bash install.sh --help` lists every option and tool slug.
+Without `--dir` the installer offers the directory you are standing in — which, after `cd`, is the
+clone rather than your paper.
 
-Then open your code agent in that directory, and in its interactive chat run:
+Skip the prompts with `--dir <path>`, `--tool claude,cursor` and `--sources arxiv,openalex`. `bash install.sh --help` lists every option.
+
+### What is installed on your machine?
+
+Everything lands in the directory you ran the installer from. Four things:
+
+| What | Where | Why |
+| --- | --- | --- |
+| **`.brain/`** — `session.json`, `raw/`, `review/`, `input/` | your project | To manage session state and write intermediary results and artifacts. Everything is saved as Markdown/JSON |
+| **Agent config** — Slash Commands, Skills, MCP config | your tool's own directory (`.claude/`, `.cursor/`, `.gemini/`, …), plus a root file for some tools: `.mcp.json`, `AGENTS.md` or `CLAUDE.md` | To teach the review protocol to your agent and prepare the environment it |
+| **`.open-scholar-peer/mcp/`** — search server, CLI and a `.venv` | your project | The paper-search tools, in Python. The virtualenv keeps their dependencies out of your system Python. The same tools ship as a command-line program too, used as a fallback when MCP is unavailable |
+| **`.env`** | your project | Your optional API keys for paper search |
+
+Installer adds `.brain/`, `.open-scholar-peer/` and `.env` to
+your `.gitignore`, so a manuscript under embargo is never committed by accident. Nothing is written
+outside this directory except the MCP config that a few agents insist on keeping in your home folder.
+Nothing leaves the machine except the searches you ask for.
+
+Your agent reaches the search tools over MCP by default. If MCP is not available on your tool — or
+stops answering mid-session — it falls back to the same tools as a command-line program, and records
+which one it used in `.brain/session.json`. You do not have to configure anything for that.
+
+To remove it all: delete `.brain/`, `.open-scholar-peer/` and `.env`, plus the agent's MCP config. 
+
+---
+
+## Usage
+
+Open your code agent in that directory, and in its interactive chat run the commands one-by-one:
 
 ```text
-/open-scholar-peer        ← guides towards steps
+/open-scholar-peer        ← tells you which step comes next
 /0-osp-onboarding         ← venue + paper detection
 /1-osp-summary
 /2-osp-literature
@@ -92,64 +117,88 @@ Then open your code agent in that directory, and in its interactive chat run:
 /6-osp-review
 ```
 
-Or just run `/open-scholar-peer` at any point — it reads your session state and tells you which command comes next.
+Run `/open-scholar-peer` at any point — it reads your session state and tells you where you are.
+
+**The output is a draft for you to edit, not a review to submit.** Every claim traces to a file in
+`.brain/` so you can check it. You are the reviewer of record.
 
 ---
 
-## Literature Databases
+## Literature Databases for Paper Search
 
-OSP currently connects to arXiv and Semantic Scholar for paper discovery and evidence gathering.
+Supports six open databases and **None needs a paid subscription, and none needs an API Key to work**. An API Key is optional and increases the rate limits: 
 
-| Database | Support | API Key |
-| --- | --- | --- |
-| arXiv | ✅ | Not Required |
-| Semantic Scholar | ✅ | Optional |
-| PubMed | 🚧 Soon | Not Required |
-| bioRxiv | 🚧 Soon | Not Required |
-| medRxiv | 🚧 Soon | Not Required |
-| DBLP | 🚧 Soon | Not Required |
-| ACM | 🚧 Soon | Required |
-| IEEE | 🚧 Soon | Required |
-| WoS | 🚧 Soon | Required |
-| Scopus | 🚧 Soon | Required |
-| Springer | 🚧 Soon | Required |
-| ScienceDirect | 🚧 Soon | Required |
+| Database | What it covers | Free | Rate limit |
+| --- | --- | --- | --- |
+| **arXiv** | Preprints in CS, physics and maths | Yes | 1 request / 3 s, one connection at a time |
+| **Semantic Scholar** | Broad Coverage. Includes citation graphs and recommendations | Yes (Optional API Key) | Keyless: Unpredictable. With a key: 1 request / s of your own |
+| **Google Scholar** | Broadest coverage (Best-effot Scraping) | Yes | None published. Its bot detection may block you. |
+| **Europe PMC** | Biomedical and life sciences | Yes | 10 requests / s, 500 / min, per IP address |
+| **Zenodo** | Code, datasets and software releases | Yes (Optional API Key) | Search API 30 requests / min (60 / min general, 100 / min with a token) |
+| **OpenAlex** | 327 million works, with retraction flags | Free and Paid Tiers | Daily budget without API Key: $0.10/day ≈ 100 calls**, **$1/day with an optional free API Key ≈ 1,000 calls. Hard ceiling 100 requests / s |
 
-The literature search layers is implemented in [mcp-server/](mcp-server/), so you can extend it with additional scholarly sources when you have valid access credentials.
+**Deliberately not included:** ACM DL, IEEE Xplore, Web of Science, Scopus, Springer and ScienceDirect all
+need a subscription or a paid key, which is the one thing this project will not require of you.
+
+Three free ones are also absent, for a different reason. **PubMed** is already covered: Europe PMC indexes
+the same corpus and adds full text. **bioRxiv** and **medRxiv** publish a feed rather than a search API —
+you can ask for a date range or a DOI, but not a keyword — and Semantic Scholar indexes both, with search.
+This governs only what OSP searches on your behalf; a paper you supply yourself is read whatever its source.
+
+**Extending Databases:** The search layer lives in [mcp-server/](mcp-server/), and
+[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) has the info for adding and extending MCP Servers for Paper Search.
 
 ### 🔑 API keys
 
-The installer creates a `.env` file at your project root. Add your keys there:
+You can input your keys during installations, or add them manually in `.env`:
 
 ```bash
 # .env  (gitignored — never committed)
-SEMANTIC_SCHOLAR_API_KEY=sk-...
+SEMANTIC_SCHOLAR_API_KEY=...       # a rate limit of your own
+OPENALEX_API_KEY=...               # 10× the keyless daily budget
+ZENODO_API_TOKEN=...               # 100 requests/min instead of 60
+GOOGLE_SCHOLAR_PROXY_URL=...       # the only thing that helps once Google blocks your address
+
+# which databases the agent may search; remove the line for all of them
+OSP_SOURCES=arxiv,semantic_scholar,google_scholar,europepmc,zenodo,openalex
 ```
 
-Anonymous Semantic Scholar limits are tight. Get a free key at https://www.semanticscholar.org/product/api#api-key — the MCP server loads `.env` automatically on startup.
+The MCP server loads `.env` automatically on startup.
 
 ---
 
 ## 🔌 Supported AI tools
 
-| Tool | Subagent isolation | MCP auto-config |
-| --- | --- | --- |
-| [Claude Code](https://claude.com/claude-code) | ✓ | ✓ (`.mcp.json`) |
-| [Cursor](https://cursor.com) | ✓ | ✓ (`.cursor/mcp.json`) |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ | ✓ (`.gemini/settings.json`) |
-| [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ | ✓ (`~/.copilot/mcp-config.json`) |
-| [Codex CLI](https://github.com/openai/codex) | ✓ | via `codex mcp add` (TOML) |
-| [Qwen Code](https://github.com/QwenLM/qwen-code) | ✓ | ✓ (`.qwen/settings.json`) |
-| [OpenCode](https://opencode.ai) | ✓ | via `opencode mcp add` (or `opencode.json`) |
-| [Junie](https://www.jetbrains.com/junie/) | ✓ | ✓ (`.junie/mcp/mcp.json`) |
-| [Kiro](https://kiro.dev) | ✓ | ✓ (`.kiro/settings/mcp.json`) |
-| [Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✓ | ✓ (`~/.kimi/mcp.json`) |
-| [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✗ (self-reflection fallback) | manual snippet (TOML) |
-| [OpenHands](https://docs.openhands.dev) | ✗ (self-reflection fallback) | via OpenHands UI / `config.toml` |
-| [Antigravity](https://antigravity.google/) | ✓ (falls back if unavailable) | ✓ (`~/.gemini/antigravity/` + `~/.gemini/config/`) |
-| [Antigravity CLI](https://antigravity.google/cli/) | ✓ | ✓ (`.agents/mcp_config.json` + `~/.gemini/antigravity-cli/`) |
+| Tool | MCP auto-config |
+| --- | --- |
+| [Claude Code](https://claude.com/claude-code) | ✓ (`.mcp.json`) |
+| [Cursor](https://cursor.com) | ✓ (`.cursor/mcp.json`) |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ (`.gemini/settings.json`) |
+| [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ (`~/.copilot/mcp-config.json`) |
+| [Codex CLI](https://github.com/openai/codex) | ✓ (`~/.codex/config.toml`) |
+| [Qwen Code](https://github.com/QwenLM/qwen-code) | ✓ (`.qwen/settings.json`) |
+| [OpenCode](https://opencode.ai) | ✓ (`.opencode/opencode.json`) |
+| [Junie](https://www.jetbrains.com/junie/) | ✓ (`.junie/mcp/mcp.json`) |
+| [Kiro](https://kiro.dev) | ✓ (`.kiro/settings/mcp.json`) |
+| [Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✓ (`~/.kimi/mcp.json`) |
+| [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✓ (`.vibe/config.toml`) |
+| [OpenHands](https://docs.openhands.dev) | ✓ CLI (`~/.openhands/mcp.json`); web UI needs a paste |
+| [Antigravity](https://antigravity.google/) | ✓ (`~/.gemini/antigravity/` + `~/.gemini/config/`) |
+| [Antigravity CLI](https://antigravity.google/cli/) | ✓ (`.agents/mcp_config.json` + `~/.gemini/antigravity-cli/`) |
+| [Pi](https://pi.dev) | n/a — Pi ships no MCP client; searches run through the bundled CLI, which every install carries |
+| [Oh My Pi](https://omp.sh) | ✓ (`.omp/mcp.json`) |
+| [Grok Build](https://docs.x.ai/build/overview) | ✓ (`.grok/config.toml`) |
+| [Hermes](https://hermes-agent.nousresearch.com/docs/) | ✓ (`~/.hermes/config.yaml`) |
+| [Cline](https://docs.cline.bot) | ✓ (`~/.cline/data/settings/cline_mcp_settings.json`, per machine) |
+| [Kilo Code](https://kilo.ai/docs) | ✓ (`.kilo/kilo.json`) |
+| [OpenClaw](https://docs.openclaw.ai) | ✓ (global, via `openclaw mcp add`) |
 
-See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for self-reflection caveats and per-tool MCP wiring details.
+Two notes, because they change what you get. The Q&A step (`/5-osp-qa`) normally runs the Answer
+Generator as a separate subagent with its own context. On **Mistral Vibe**, **OpenHands**, **Pi** and
+**Cline** it cannot, so both roles run in one context window with turn markers — a documented weaker
+substitute, described in [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md). And **OpenClaw** is
+one assistant per machine rather than a per-project tool, so after installing you tell it which folder
+to work in; its installer prints how.
 
 ---
 
@@ -168,9 +217,10 @@ See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for self-reflection
 stay true. Start at [`kia-context/INDEX.md`](kia-context/INDEX.md).
 
 - **[`kia-context/specs/MANIFESTO.md`](kia-context/specs/MANIFESTO.md)** — The product boundary and the rules that do not move.
-- **[`kia-context/specs/ARCHITECTURE.md`](kia-context/specs/ARCHITECTURE.md)** — How the protocol, the state machine and the 14-tool sync pipeline actually work.
+- **[`kia-context/specs/ARCHITECTURE.md`](kia-context/specs/ARCHITECTURE.md)** — How the protocol, the state machine and the 21-tool sync pipeline actually work.
 - **[`kia-context/logs/BRAINSTORM.md`](kia-context/logs/BRAINSTORM.md)** — Decisions and the alternatives they beat.
-- **[`kia-context/logs/PROGRESS.md`](kia-context/logs/PROGRESS.md)** — Milestones, and what is being built now.
+- **[`kia-context/logs/PROGRESS.md`](kia-context/logs/PROGRESS.md)** — Milestones M1–M13, and the loop the project runs on.
+- **[`kia-context/logs/PROGRESS_2.md`](kia-context/logs/PROGRESS_2.md)** — M14 onward, and what is being built now.
 - **[`kia-context/genesis/`](kia-context/genesis/)** — Why the project exists, and the original design document.
 
 ---

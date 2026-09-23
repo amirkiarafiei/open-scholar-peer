@@ -1,9 +1,26 @@
-mcp>=1.2.0
-fastmcp>=0.2.0
-semanticscholar>=0.7.0
-scholarly>=1.7.11
-requests>=2.31.0
-beautifulsoup4>=4.12.0
-arxiv>=2.1.0
-python-dateutil>=2.8.0
-python-dotenv>=1.0.0
+# Upper bounds are deliberate. Without them a fresh install pulls whatever is
+# newest: on 2026-09-19 `arxiv>=2.1.0` resolved to 4.0.1, two major versions
+# up, and arxiv 4.x had already removed Search.results, Result.download_pdf
+# and the arxiv.arxiv shim. Our calls survived by luck. Raise a ceiling only
+# after testing against the new major.
+#
+# `mcp<2.0` is load-bearing, not cautious. mcp 2.x renamed FastMCP to
+# MCPServer and deleted the `mcp.server.fastmcp` module. osp_mcp.py does
+# `from mcp.server.fastmcp import FastMCP`, so with `mcp>=1.2.0` unbounded a
+# fresh install resolved to mcp 2.2.0 and the server would not start at all.
+# Verified broken, then fixed, on 2026-09-20. Lifting this ceiling means
+# migrating the server to MCPServer first.
+
+mcp>=1.2.0,<2.0
+semanticscholar>=0.12.0,<0.13   # 0.x: the MINOR bump is the breaking one
+scholarly>=1.7.11,<2.0
+requests>=2.31.0,<3.0
+beautifulsoup4>=4.12.0,<5.0
+arxiv>=3.0,<5.0
+python-dateutil>=2.8.0,<3.0
+python-dotenv>=1.0.0,<2.0
+
+# Removed 2026-09-20: `fastmcp`. Nothing imports it. osp_mcp.py uses
+# `from mcp.server.fastmcp import FastMCP`, which ships inside `mcp`. The
+# standalone package was pulling its own dependency tree into every install
+# for nothing.

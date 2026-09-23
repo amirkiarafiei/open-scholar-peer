@@ -1,0 +1,117 @@
+---
+name: 5-osp-qa
+description: "OSP Phase 5: Multi-Aspect Q&A — configurable pairs per criterion (default 2)"
+---
+> **Tool capability:** This tool supports subagents. The Query Agent MUST delegate each question to `osp-answer-generator-agent` as a subagent with a fresh, minimal context bundle. Do NOT use self-reflection.
+
+
+# /5-osp-qa — Multi-Aspect Q&A Engine
+
+For each criterion in `session.json.qa_criteria[]`, generate N probing Q&A pairs (N = `qa_pairs_per_criterion`, default 2). The Query Agent runs in the main thread; the Answer Generator runs as a subagent (or self-reflects on the few tools that lack them).
+
+## Activation
+
+Invoke the `osp-query-agent` skill (main thread). The Query Agent will spawn `osp-answer-generator-agent` per question.
+
+## Inputs — none of these is a gate
+
+- `phases.summary.status`, `phases.literature.status`, `phases.historian.status` and
+  `phases.baseline_scout.status`. Each one that is missing removes a source of evidence, not the phase:
+  no summary means you question the paper directly; no literature or narrative means novelty claims
+  cannot be checked against prior work; no baseline scout means no missing-baseline questions. Run with
+  what exists, name each gap in the artifact's Provenance, and let the answers say "could not be
+  verified" rather than guessing.
+- `qa_criteria[]` in `session.json`. If it is empty, onboarding never ran — use the generic criteria from
+  `.agents/defaults/generic_review_guidelines.md` and record that you did.
+
+**Record any skip before you start.** The orchestrator is not in the loop when the user runs this
+command directly, so it falls to you: for every earlier phase still `pending`, set
+`phases.<name>.status = "skipped"` and `phases.<name>.skip_reason` to their reason, or
+`"user ran /5-osp-qa first"`. A phase left `pending` reads as "not reached yet", and the final review
+cannot tell the difference.
+
+
+## Step 0 — Resource check and pair count (run BEFORE any Q&A work)
+
+1. Read `session.json`. Count `qa_criteria[]` items (call it C).
+2. Read `qa_pairs_per_criterion` from `session.json` (default 2 if absent).
+3. Print the resource estimate:
+
+   ```
+   ⚠️  Q&A Engine — resource estimate
+      Criteria:  C
+      Pairs/criterion: N  (currently set in session.json)
+      Total subagent calls: C × N = <total>
+      Estimated time: ~<total × 45s> at typical API latency
+
+      Pair count guide:
+        2  — quick scan, catches the most obvious issues         (default)
+        5  — thorough coverage, good for most reviews
+        10 — exhaustive, suitable for high-stakes decisions
+   ```
+
+4. Ask the user: "How many Q&A pairs per criterion? Press Enter for [N] or type a number (2–10):"
+5. If the user enters a number, update `session.json.qa_pairs_per_criterion` to that value and use it.
+   If the user presses Enter, use the existing value.
+
+## Mode selection
+
+The banner at the top of this command says which mode your tool is in.
+
+- **Subagent mode (default):** the Query Agent delegates each question to the Answer Generator as a subagent with a fresh, minimal context bundle.
+- **Prefer-subagent mode:** try delegation first; if it is unavailable in your session, fall back to self-reflection and keep going rather than stopping the phase.
+- **Self-reflection mode:** the Query Agent uses strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) within the main context window.
+
+Whichever you end up using, record it as `Mode:` in each file's `## Method` section.
+
+## Opening block (print before step 1)
+
+Render the **opening block** exactly as `.agents/defaults/phase_block_template.md` defines it — that
+file holds the rail, the rules and the widths, and it is the only place they are written down.
+This is phase **6 of 7** (`qa`); read the rail's state from `session.json`. Values:
+
+      DOING    probe each criterion, and verify the answers
+      READS    .brain/raw/ summary, narrative, baselines
+      WRITES   .brain/raw/05_qa_<slug>.md   (one per criterion)
+      COST     <C>x<N> subagent calls, ~45 s each
+
+## Steps
+
+1. Read all input artifacts listed in the frontmatter.
+2. Activate the `osp-query-agent` skill.
+3. For each criterion in `qa_criteria[]`:
+   - Open or initialize `.brain/raw/05_qa_<criterion_slug>.md` from `.agents/defaults/qa_pair_template.md`.
+   - Generate exactly `qa_pairs_per_criterion` Q&A pairs:
+     - For each, the Query Agent formulates a probing question grounded in the structured summary, narrative, and missing baselines.
+     - The Query Agent delegates to the Answer Generator (subagent or self-reflection per mode).
+     - The Answer Generator returns `(answer, citations, discrepancy_flag)`.
+     - The pair is appended to the file.
+   - Update `phases.qa.criteria_progress[<slug>] = "completed"`.
+4. After all criteria are done:
+   - `phases.qa.status = "completed"`
+   - `phases.qa.notes = "<C> criteria × <N> pairs each; <M> discrepancies flagged"`
+   - `resume_from = "review"`
+
+## Closing block (print when the phase ends)
+
+Render the **closing block** from `.agents/defaults/phase_block_template.md`. **Build the rail from
+`session.json`** — `●` only where `status == "completed"`, `○` for `pending` *and* `skipped`. A
+phase the user skipped must not show as done.
+Drop `BLOCKED` and `NOTE` when there is nothing to put on them. Values:
+
+      DONE     <N> pairs, <C> criteria, <M> discrepancies
+               .brain/raw/05_qa_<slug>.md
+      NEXT     /6-osp-review   write the review
+
+
+## Re-run behavior
+
+Re-running overwrites `05_qa_<slug>.md` for every criterion it covers, and these files cost the most
+of anything here — one subagent call per pair. **Say what will be lost and wait for an answer before
+overwriting.** To redo a single criterion, pass its slug as an argument; the rest are left alone.
+
+## Pitfalls
+
+- The Answer Generator must NOT see prior questions in subagent mode. Each invocation is stateless.
+- The Query Agent must NOT answer its own questions.
+- Do not generate fewer pairs than `qa_pairs_per_criterion`. The count must match exactly.
