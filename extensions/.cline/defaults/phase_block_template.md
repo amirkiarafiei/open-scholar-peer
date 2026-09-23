@@ -11,7 +11,8 @@ Seven markers, one per phase, always in this order:
 `onboarding · summary · literature · historian · baseline_scout · qa · review`
 
 It prints on a line of its own, directly under the top rule, labelled `PROGRESS`.
-The top rule carries the phase label and nothing else.
+The top rule carries the phase label and nothing else, **centred** — rule, label,
+rule, with the padding split evenly and any odd column going to the right.
 
 | Marker | Means |
 |---|---|
@@ -52,14 +53,15 @@ use the box-drawing form. Decide once at the start of a session and do not switc
 
 The ASCII rail is 27 columns against the Unicode rail's 19. On its own line that
 costs the label nothing: the `PROGRESS` line is 38 columns in ASCII against 30 in
-Unicode, and both sit well inside 60. The top rule holds the label alone — up to
-55 columns before it runs out of rule to pad with. The longest label in use,
-`LITERATURE  round 2 of 3`, is 24.
+Unicode, and both sit well inside 60. The top rule holds the label alone and
+centres it, so it takes a label up to 54 columns before there is less than two
+rule characters a side left to frame it with. The longest label in use,
+`LITERATURE  round 2 of 3`, is 24 — it leaves 17 a side.
 
 ## Opening block
 
 ```
-── LITERATURE  round 2 of 3 ────────────────────────────────
+───────────────── LITERATURE  round 2 of 3 ─────────────────
   PROGRESS ●──●──◐──○──○──○──○
   DOING    retrieve the live reference frame C_dynamic
   READS    .brain/raw/01_structured_summary.md
@@ -71,7 +73,7 @@ Unicode, and both sit well inside 60. The top rule holds the label alone — up 
 ## Closing block
 
 ```
-── LITERATURE  2 rounds ────────────────────────────────────
+─────────────────── LITERATURE  2 rounds ───────────────────
   PROGRESS ●──●──◐──○──○──○──○
   DONE     41 papers retained, 12 excluded
            .brain/raw/02_retrieved_literature.md
@@ -111,8 +113,10 @@ label is noise, and most blocks will have no `BLOCKED` or `NOTE` line at all.
    twice in the same block, and never as a warning banner.
 4. **Legible raw.** Not every tool renders markdown. No bold, no links, no nested
    tables inside the block.
-5. **Width.** Pad both rules to 60 columns. Keep the phase label short: the top
-   rule must not pass 72 columns, and neither may any content line.
+5. **Width.** Both rules are 60 columns. The top rule centres its label — split
+   the padding evenly and give an odd column to the right — and the bottom rule
+   is 60 unbroken rule characters. Keep the phase label short: no line may pass
+   72 columns.
 6. **Alignment.** Two spaces, the label, then spaces to column 12 for the value.
    Continuation lines start at column 12 with no label. The rail is a value like
    any other: `PROGRESS` is eight characters, so one space puts it at column 12.

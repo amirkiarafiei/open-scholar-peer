@@ -341,13 +341,25 @@ def check_phase_blocks() -> list[str]:
                 top, bottom = block[0], block[-1]
                 if _display_width(top) != 60:
                     issues.append(f"phase_block_template.md:{start}: top rule is {_display_width(top)} columns, not 60")
-                # It must also still carry a phase label. While the rail lived on
-                # this line the 7-marker check proved it was not empty; moving the
-                # rail off took that with it, and 60 bare rule characters passed.
-                if not re.match(r"── \S.*─$", top):
+                # It must also still carry a phase label, CENTRED. While the rail
+                # lived on this line the 7-marker check proved it was not empty;
+                # moving the rail off took that with it, and 60 bare rule
+                # characters passed. Centring is checked too, because the first
+                # version of this change left the label anchored where the rail
+                # used to hold it and dumped all 33 columns of padding on one
+                # side — the rule looked broken and nothing said so.
+                m = re.match(r"^(─+) (.+?) (─+)$", top)
+                if not m:
                     issues.append(
                         f"phase_block_template.md:{start}: top rule carries no phase label — "
-                        f"it must read `── LABEL ───…`, which is the whole point of the line"
+                        f"it must read `───… LABEL ───…`, which is the whole point of the line"
+                    )
+                elif abs(_display_width(m.group(1)) - _display_width(m.group(3))) > 1:
+                    issues.append(
+                        f"phase_block_template.md:{start}: label is not centred — "
+                        f"{_display_width(m.group(1))} rule columns to its left and "
+                        f"{_display_width(m.group(3))} to its right. Split the padding "
+                        f"evenly; an odd column goes to the right."
                     )
                 if _display_width(bottom) != 60:
                     issues.append(f"phase_block_template.md:{start}: bottom rule is {_display_width(bottom)} columns, not 60")
