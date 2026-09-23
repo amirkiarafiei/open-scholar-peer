@@ -84,9 +84,9 @@ Everything lands in the directory you ran the installer from. Four things:
 
 | What | Where | Why |
 | --- | --- | --- |
-| **`.brain/`** — `session.json`, `raw/`, `review/`, `input/` | your project | To manage session state and write intermediary results and artifacts. Everything is saved as Markdown/JSON |
+| **`.brain/`** | your project | To manage session state and write intermediary results and artifacts. Everything is saved as Markdown/JSON |
 | **Agent config** — Slash Commands, Skills, MCP config | your tool's own directory (`.claude/`, `.cursor/`, `.gemini/`, …), plus a root file for some tools: `.mcp.json`, `AGENTS.md` or `CLAUDE.md` | To teach the review protocol to your agent and prepare the environment it |
-| **`.open-scholar-peer/mcp/`** — search server, CLI and a `.venv` | your project | The paper-search tools, in Python. The virtualenv keeps their dependencies out of your system Python. The same tools ship as a command-line program too, used as a fallback when MCP is unavailable |
+| **`.open-scholar-peer/mcp/`** and `.venv` | your project | The paper-search tools, in Python. The virtualenv keeps their dependencies out of your system Python. The same tools ship as a command-line program too, used as a fallback when MCP is unavailable |
 | **`.env`** | your project | Your optional API keys for paper search |
 
 Installer adds `.brain/`, `.open-scholar-peer/` and `.env` to
@@ -95,7 +95,7 @@ outside this directory except the MCP config that a few agents insist on keeping
 Nothing leaves the machine except the searches you ask for.
 
 Your agent reaches the search tools over MCP by default. If MCP is not available on your tool — or
-stops answering mid-session — it falls back to the same tools as a command-line program, and records
+stops answering mid-session — it falls back to the same tools as a command-line program (CLI tools), and records
 which one it used in `.brain/session.json`. You do not have to configure anything for that.
 
 To remove it all: delete `.brain/`, `.open-scholar-peer/` and `.env`, plus the agent's MCP config. 
@@ -139,11 +139,6 @@ Supports six open databases and **None needs a paid subscription, and none needs
 
 **Deliberately not included:** ACM DL, IEEE Xplore, Web of Science, Scopus, Springer and ScienceDirect all
 need a subscription or a paid key, which is the one thing this project will not require of you.
-
-Three free ones are also absent, for a different reason. **PubMed** is already covered: Europe PMC indexes
-the same corpus and adds full text. **bioRxiv** and **medRxiv** publish a feed rather than a search API —
-you can ask for a date range or a DOI, but not a keyword — and Semantic Scholar indexes both, with search.
-This governs only what OSP searches on your behalf; a paper you supply yourself is read whatever its source.
 
 **Extending Databases:** The search layer lives in [mcp-server/](mcp-server/), and
 [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) has the info for adding and extending MCP Servers for Paper Search.
