@@ -140,11 +140,6 @@ Supports six open databases and **None needs a paid subscription, and none needs
 **Deliberately not included:** ACM DL, IEEE Xplore, Web of Science, Scopus, Springer and ScienceDirect all
 need a subscription or a paid key, which is the one thing this project will not require of you.
 
-Three free ones are also absent, for a different reason. **PubMed** is already covered: Europe PMC indexes
-the same corpus and adds full text. **bioRxiv** and **medRxiv** publish a feed rather than a search API —
-you can ask for a date range or a DOI, but not a keyword — and Semantic Scholar indexes both, with search.
-This governs only what OSP searches on your behalf; a paper you supply yourself is read whatever its source.
-
 **Extending Databases:** The search layer lives in [mcp-server/](mcp-server/), and
 [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) has the info for adding and extending MCP Servers for Paper Search.
 
