@@ -267,6 +267,12 @@ if [[ -f "$GITIGNORE" ]]; then
   fi
 fi
 
+# Record which version is now installed here. Written near the end, after the
+# server is in place, so a run that failed earlier does not leave a stamp
+# claiming success. Read on the next install to report what changed.
+. "$SCRIPT_DIR/_version.sh"
+osp_stamp_version
+
 # Export paths so the calling installer can write them into MCP config
 export OSP_MCP_PYTHON="$VENV_DIR/bin/python"
 export OSP_MCP_SERVER="$TARGET_DIR/osp_mcp.py"

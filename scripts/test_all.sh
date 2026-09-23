@@ -60,6 +60,7 @@ step "MCP/CLI schema parity"        "$PY" scripts/test_schema_parity.py
 step "TOML config merging"          "$PY" scripts/test_merge_toml.py
 step "command-line interface"       "$PY" scripts/test_cli.py
 step "the CLI tests can fail"       bash scripts/test_cli_faults.sh
+step "upgrading an older project"    "$PY" scripts/test_upgrade.py
 step "session template is valid"    "$PY" -c \
   "import json;json.load(open('.brain-template/session.json'))"
 step "shell syntax"                 bash -c \

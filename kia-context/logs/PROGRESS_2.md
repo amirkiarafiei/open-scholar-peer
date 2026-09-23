@@ -16,6 +16,39 @@ last_updated: "2026-09-23"
 
 # 📈 PROGRESS, part two — What we are building
 
+---
+
+## 🔧 Follow-up — 2026-09-23: the installer could not say what it was replacing
+
+Raised by the owner before cutting v2: *"assume someone wants to update on an
+existing project that its session is ongoing. Does the installer show the proper
+behaviour of updating?"*
+
+**Tested rather than read.** Installed v1 from `main` into a project, set a
+venue, completed onboarding, added a criterion and wrote an artifact, then ran
+the v2 installer over it. Nothing was destroyed — the work, the artifact, the
+venv and `.env` all survived, and the prompts genuinely updated. But three gaps:
+
+1. **No version existed anywhere to report.** Releases were git tags only; no
+   `VERSION` file, and nothing on the user's disk recorded what they had.
+   `session.json`'s `"version": "2.0"` is the *protocol* version and reads the
+   same on `main`.
+2. **The session silently went stale** — 13 fields the v2 prompts describe were
+   absent, because `.brain/` is skipped wholesale.
+3. **The output never said it had updated**, reading identically to a first
+   install apart from three "already exists" notices.
+
+Safe, but not graceful. Now: a `VERSION` file stamped to
+`.open-scholar-peer/osp.json`, four announcements (first install, reinstall,
+upgrade, downgrade), and a migration the installer **offers** rather than
+performs — additive, backed up, and refused outright when there is no terminal
+to ask on, with the command printed instead (D51).
+
+All six paths verified end to end on real installs: fresh, upgrade from an
+unstamped version, same-version reinstall, downgrade, the TTY prompt, and the
+non-TTY refusal. `scripts/test_upgrade.py` adds 23 checks, the load-bearing one
+being that every pre-existing value is byte-identical after a migration.
+
 > **← Previous:** [`PROGRESS.md`](PROGRESS.md) — M1–M13, closed. Everything before 2026-09-21.
 > **Next →** none yet. When this file is split, the pointer goes here and in the new part.
 

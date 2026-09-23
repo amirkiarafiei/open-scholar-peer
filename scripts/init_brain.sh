@@ -7,8 +7,50 @@ BRAIN_DIR="./.brain"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE="$SCRIPT_DIR/../.brain-template/session.json"
 
+# Say which version this is, and what it is replacing, before anything is written.
+. "$SCRIPT_DIR/_version.sh"
+osp_announce_version
+
 if [[ -d "$BRAIN_DIR" ]]; then
   echo -e "  ${YELLOW}ℹ️  .brain/ already exists — skipping init (your data is safe)${NC}"
+
+  # The session file's shape grows between releases, and .brain/ is never
+  # overwritten, so an older review lacks fields the newer prompts describe.
+  # Offer to add them — additive, backed up, and never without being told.
+  _osp_py="$(command -v python3 || true)"
+  if [[ -n "$_osp_py" && -f "$BRAIN_DIR/session.json" ]]; then
+    _osp_n="$("$_osp_py" "$SCRIPT_DIR/migrate_session.py" --check 2>/dev/null | grep -c . || true)"
+    if [[ "${_osp_n:-0}" -gt 0 ]]; then
+      echo -e "  ${YELLOW}ℹ️  This review is from an older version — $_osp_n field(s) the new"
+      echo -e "      prompts use are missing. Adding them changes nothing you wrote.${NC}"
+
+      _osp_do=""
+      if [[ -n "${OSP_MIGRATE:-}" ]]; then
+        # Scripted installs decide up front; never prompt.
+        [[ "$OSP_MIGRATE" == "1" ]] && _osp_do=yes
+      elif [[ -t 0 ]]; then
+        read -r -p "      Add them? [Y/n] " _osp_ans
+        [[ "$_osp_ans" =~ ^([Nn]) ]] || _osp_do=yes
+      else
+        # No terminal to answer on — curl | bash, or a scripted --tool run.
+        # Never write to someone's review unasked, and never wait for an answer
+        # that cannot arrive.
+        echo -e "      ${YELLOW}Not a terminal, so nothing changed. To add them, re-run with"
+        echo -e "      OSP_MIGRATE=1 in front of the same command.${NC}"
+      fi
+
+      if [[ -n "$_osp_do" ]]; then
+        if "$_osp_py" "$SCRIPT_DIR/migrate_session.py" --apply >/dev/null 2>&1; then
+          echo -e "  ${GREEN}✅ session.json updated — $_osp_n field(s) added, previous file kept"
+          echo -e "      as session.json.before-upgrade${NC}"
+        else
+          echo -e "  ${YELLOW}⚠️  Could not update session.json; it was left alone.${NC}"
+        fi
+      fi
+      unset _osp_n _osp_do _osp_ans
+    fi
+  fi
+  unset _osp_py
 else
   mkdir -p "$BRAIN_DIR/raw" "$BRAIN_DIR/review"
   TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")

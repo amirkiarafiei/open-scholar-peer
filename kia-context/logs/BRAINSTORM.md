@@ -532,6 +532,20 @@ behind it** — rule 7 applies to a grep, not only to a count.
 **Shipped wrong once, and the correction is the point.** The first version left the label where the rail used to hold it — hard against the left, with all 33 columns of padding dumped on the right. The owner saw it immediately: *"the text is not in the middle… did you just blindly copied?"* Fair. Nobody re-examined the anchoring when the thing that justified it moved: the label was left-aligned **because the rail occupied the left**, and once the rail left there was no reason for it. The label is now centred, padding split evenly with an odd column to the right. **A layout rule outlives the reason for it unless someone asks what the reason was.** The guard now checks centring, so the same mistake fails the build rather than reaching him.
 **What it cost to check.** The guard counted seven markers *on the top rule*, so moving the rail took that assertion with it — and with it the incidental proof that the top rule carried a label at all. A reviewer found 60 bare rule characters passing. The guard now checks the rail's line, its position, its label and its marker count separately, and that the top rule still names a phase. **A check that proves a second thing by accident stops proving it the moment the first thing moves.**
 
+### D51 · The product gets a version of its own, and a migration it has to ask for — 2026-09-23
+
+**Considered, for where the version lives:** reuse `session.json`'s `version` field / a `VERSION` file at the repo root, stamped into the project at install time / git tags alone
+**Chose:** the `VERSION` file, stamped to `.open-scholar-peer/osp.json`.
+**Why not `session.json`.** It already has `"version": "2.0"`, and that is the **protocol** version from the paper — the shape of the artifacts. It has read 2.0 since before this work and is unrelated to which release is installed. Overloading it would leave neither number meaning anything, and the one that matters for reproducing a review is the protocol.
+**Why not tags alone.** Releases were `v1.0.0`–`v1.2.0` as git tags, and nothing on the user's disk recorded which one they had. The installer therefore could not say what it was replacing — which was the whole request.
+**Why `.open-scholar-peer/` and not `.brain/`.** `.brain/` is the user's review. Version metadata is ours, and it belongs with the runtime we own. It sits one level above `mcp/` because `init_mcp.sh` wipes everything inside that on every run.
+
+**Considered, for the session file:** leave it and let the prompts cope with absent keys / migrate it automatically / report and ask
+**Chose:** report and ask, on the owner's call. **Measured on a real v1 project with a review in progress: 13 fields missing**, including `mcp.interface`, every phase's `skip_reason`, and `rounds_completed`.
+**Why asking, rather than doing it.** The file is a review in progress. The migration is provably additive — a test asserts every pre-existing value is byte-identical afterwards — but "provably safe" and "mine to do unasked" are different claims, and the second is the user's to make.
+**The trap in asking, which is why this is written down.** A prompt in an installer that is also run as `curl | bash` and with `--tool` in scripts will hang on a stdin that can never answer. This repo has already paid for that once: a TTY refusal bound to `--tool` broke scripted installs. So: `OSP_MIGRATE` decides without asking when set, a terminal is asked, and **anything else reports what is missing, writes nothing, and prints the command to run** — a scripted install is never blocked and never silently modified.
+**What it does not claim.** v1 → v2 is best-effort and says so. The search layer and the session shape both moved, and a review written before either existed may read oddly. The honest advice — finish it on v1, or start the paper again — is in the README rather than hidden behind a migration that pretends the gap is smaller than it is.
+
 ---
 
 ## Open questions
