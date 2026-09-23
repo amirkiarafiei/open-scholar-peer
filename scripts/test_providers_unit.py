@@ -1289,21 +1289,29 @@ def test_cross_process_arxiv_guard() -> None:
         check_true("a first request does not wait", first < 0.25)
         check_true("the turn records a timestamp on disk", lock.exists())
 
+        first_stamp = float(lock.read_text().strip())
+
         # A fresh process is a fresh module: clear the in-process value only.
         # The on-disk stamp is what has to make the gap survive.
         ax._last_raw_request = 0.0
-        t0 = time.time()
         with ax._arxiv_turn():
             pass
-        second = time.time() - t0
-        check_true("a new process still waits for the gap "
-                   f"(waited {second:.2f}s, needed {ax._MIN_GAP}s)",
-                   second >= ax._MIN_GAP * 0.9)
+        second_stamp = float(lock.read_text().strip())
 
-        # The stamp moves forward, or the gap would only ever apply once.
-        stamp = float(lock.read_text().strip())
+        # Compare the two RECORDED REQUEST TIMES, not the wall clock around the
+        # second call. The sleep is `_MIN_GAP - (now - last)`, so measuring from
+        # just before the second turn always comes out short by however long the
+        # test itself took in between — about a millisecond here, 30 ms on a
+        # loaded CI runner, which is what made this flake at a 90% threshold.
+        # The property arXiv's terms actually ask for is the one below: two
+        # consecutive requests are at least _MIN_GAP apart.
+        apart = second_stamp - first_stamp
+        check_true(f"consecutive requests are {ax._MIN_GAP}s apart even across "
+                   f"processes (measured {apart:.3f}s)", apart >= ax._MIN_GAP)
+
+        # And the stamp tracks real time, or the gap would only ever apply once.
         check_true("the timestamp is rewritten after each turn",
-                   abs(stamp - time.time()) < 2.0)
+                   abs(second_stamp - time.time()) < 2.0)
     finally:
         ax._MIN_GAP = real_gap
         ax._last_raw_request = 0.0
