@@ -447,7 +447,8 @@ There is no GUI, so the terminal block *is* the product surface, and its shape i
 `extensions/_shared/rules/osp-rules.md` as an always-on rule rather than left to the model.
 
 Every phase opens and closes with a block whose format is defined **once**, in
-`extensions/_shared/defaults/phase_block_template.md`: a progress rail welded into a 60-column rule, then
+`extensions/_shared/defaults/phase_block_template.md`: a 60-column rule carrying the phase label alone,
+then the progress rail on its own `PROGRESS` line directly under it, then
 left-hand labels — `DOING` / `READS` / `WRITES` / `COST` opening, `DONE` / `BLOCKED` / `NOTE` / `NEXT`
 closing — with values in a column at 12. No other file may render a rail; `scripts/test_parity.py`
 fails if one does. The block runs *every* time, including re-runs: the user is learning the system as

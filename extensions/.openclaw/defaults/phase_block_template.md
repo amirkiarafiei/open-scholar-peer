@@ -10,6 +10,9 @@ Seven markers, one per phase, always in this order:
 
 `onboarding · summary · literature · historian · baseline_scout · qa · review`
 
+It prints on a line of its own, directly under the top rule, labelled `PROGRESS`.
+The top rule carries the phase label and nothing else.
+
 | Marker | Means |
 |---|---|
 | `●` | done |
@@ -47,13 +50,17 @@ use the box-drawing form. Decide once at the start of a session and do not switc
 | `—` (em dash) | `--` |
 | `·` (middle dot) | `\|` |
 
-The ASCII rail is 27 columns against the Unicode rail's 19, so the label has eight
-fewer columns to play with. Every label in use still fits inside 60.
+The ASCII rail is 27 columns against the Unicode rail's 19. On its own line that
+costs the label nothing: the `PROGRESS` line is 38 columns in ASCII against 30 in
+Unicode, and both sit well inside 60. The top rule holds the label alone — up to
+55 columns before it runs out of rule to pad with. The longest label in use,
+`LITERATURE  round 2 of 3`, is 24.
 
 ## Opening block
 
 ```
-── ●──●──◐──○──○──○──○ ── LITERATURE  round 2 of 3 ─────────
+── LITERATURE  round 2 of 3 ────────────────────────────────
+  PROGRESS ●──●──◐──○──○──○──○
   DOING    retrieve the live reference frame C_dynamic
   READS    .brain/raw/01_structured_summary.md
   WRITES   .brain/raw/02b_literature_round2.md
@@ -64,7 +71,8 @@ fewer columns to play with. Every label in use still fits inside 60.
 ## Closing block
 
 ```
-── ●──●──◐──○──○──○──○ ── LITERATURE  2 rounds ─────────────
+── LITERATURE  2 rounds ────────────────────────────────────
+  PROGRESS ●──●──◐──○──○──○──○
   DONE     41 papers retained, 12 excluded
            .brain/raw/02_retrieved_literature.md
   BLOCKED  google_scholar — blocked (429), nothing was searched
@@ -81,6 +89,7 @@ label is noise, and most blocks will have no `BLOCKED` or `NOTE` line at all.
 
 | Label | Block | What goes on it |
 |---|---|---|
+| `PROGRESS` | both | the rail. The one label that is never omitted |
 | `DOING` | opening | one line: what this phase is for |
 | `READS` | opening | the inputs you actually have. `— none` when there are none |
 | `WRITES` | opening | the file this phase will write |
@@ -105,4 +114,5 @@ label is noise, and most blocks will have no `BLOCKED` or `NOTE` line at all.
 5. **Width.** Pad both rules to 60 columns. Keep the phase label short: the top
    rule must not pass 72 columns, and neither may any content line.
 6. **Alignment.** Two spaces, the label, then spaces to column 12 for the value.
-   Continuation lines start at column 12 with no label.
+   Continuation lines start at column 12 with no label. The rail is a value like
+   any other: `PROGRESS` is eight characters, so one space puts it at column 12.

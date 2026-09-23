@@ -341,16 +341,50 @@ def check_phase_blocks() -> list[str]:
                 top, bottom = block[0], block[-1]
                 if _display_width(top) != 60:
                     issues.append(f"phase_block_template.md:{start}: top rule is {_display_width(top)} columns, not 60")
+                # It must also still carry a phase label. While the rail lived on
+                # this line the 7-marker check proved it was not empty; moving the
+                # rail off took that with it, and 60 bare rule characters passed.
+                if not re.match(r"── \S.*─$", top):
+                    issues.append(
+                        f"phase_block_template.md:{start}: top rule carries no phase label — "
+                        f"it must read `── LABEL ───…`, which is the whole point of the line"
+                    )
                 if _display_width(bottom) != 60:
                     issues.append(f"phase_block_template.md:{start}: bottom rule is {_display_width(bottom)} columns, not 60")
-                marks = [c for c in top if c in "●◐○"]
-                if len(marks) != 7:
-                    issues.append(f"phase_block_template.md:{start}: rail has {len(marks)} markers, not 7 (one per phase)")
+                # The rail is a value on its own PROGRESS line, not part of the top rule.
+                # Exactly one line in a block may carry markers, and it must be that one.
+                marked = [(k, b) for k, b in enumerate(block) if any(c in "●◐○" for c in b)]
+                if len(marked) != 1:
+                    issues.append(
+                        f"phase_block_template.md:{start}: {len(marked)} lines carry rail markers; "
+                        f"a block has exactly one, the PROGRESS line under the top rule"
+                    )
+                for k, rail in marked:
+                    if k != 1:
+                        issues.append(
+                            f"phase_block_template.md:{start + k}: the rail is content line "
+                            f"{k + 1}, not the first. The template says it prints directly "
+                            f"under the top rule, and a reader looks there."
+                        )
+                    if not rail.startswith("  PROGRESS "):
+                        issues.append(
+                            f"phase_block_template.md:{start + k}: the rail is not on a `  PROGRESS ` "
+                            f"line. The top rule carries the phase label and nothing else."
+                        )
+                    marks = [c for c in rail if c in "●◐○"]
+                    if len(marks) != 7:
+                        issues.append(f"phase_block_template.md:{start + k}: rail has {len(marks)} markers, not 7 (one per phase)")
                 for k, b in enumerate(block):
                     if _display_width(b) > 72:
                         issues.append(f"phase_block_template.md:{start + k}: {_display_width(b)} columns, over the 72 cap")
-                    if b.startswith("  ") and not b.startswith("   ") and len(b) > 11 and b[10] != " ":
-                        issues.append(f"phase_block_template.md:{start + k}: value column is not at 12")
+                    if b.startswith("  ") and not b.startswith("   ") and len(b) > 11:
+                        # Both directions. The old test asked only whether index 10
+                        # was a space, which catches a label running PAST the column
+                        # and misses a value starting after it — `  PROGRESS  ●` sat
+                        # one column late and passed.
+                        if b[10] != " " or b[11] == " ":
+                            issues.append(
+                                f"phase_block_template.md:{start + k}: value column is not at 12")
             block, inside, start = [], not inside, n + 1
             continue
         if inside:
@@ -388,7 +422,7 @@ def main() -> int:
     if block_issues:
         all_issues.extend(block_issues)
     else:
-        print("  ✓ phase block: one definition, 60-column rules, 7 markers")
+        print("  ✓ phase block: one definition, 60-column rules, 7 markers on PROGRESS")
 
     ref_issues = check_defaults_refs()
     if ref_issues:

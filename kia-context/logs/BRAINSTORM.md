@@ -295,7 +295,7 @@ because it was true on 2026-05-08; read D16 for the current shape.
 ### D28 · One phase block, chosen by looking at five of them — 2026-09-21
 
 **Considered:** five candidate designs, shown rendered rather than described — a phase rail, an icon column, a two-line minimum, a mini card, and a file tree. Then three variations of the winner.
-**Chose:** the rail, welded into the top rule, with `DONE` / `BLOCKED` / `NEXT` labels and an aligned value column, bounded above and below by rules.
+**Chose:** the rail, welded into the top rule, with `DONE` / `BLOCKED` / `NEXT` labels and an aligned value column, bounded above and below by rules. *(The welding was undone on 2026-09-23 — see D50. Everything else here stands.)*
 **Because the current block answers the wrong question.** Seven hand-written blocks, one per command, each drifted from the others. They list what happened in prose and never say *where you are* — which across a seven-phase protocol is the thing a user most wants. A rail answers it with no words at all.
 **Why the rail beat the alternatives:** the tree is better when a phase's value is its files, but most phases produce one; the two-line version is the shortest but loses the blocked-provider warning, which must never be buried; the card is the prettiest and the most fragile, since fixed-width boxes break below about 78 columns (O19).
 **Why `BLOCKED` gets its own label:** a provider failure reported as prose gets skimmed. Recording a block as "no papers found" is exactly the bug M11 spent a milestone removing, and it would be a poor joke to reintroduce it in the reporting layer.
@@ -520,6 +520,16 @@ behind it** — rule 7 applies to a grep, not only to a count.
 **What it does.** `check_truncation_shapes` reads the shapes out of `osp_cli.MARKER_KINDS` and fails when an agent-facing file does not say where that shape puts its marker. A fourth shape fails the build until the guidance has been told about it, and the failure says so in those words.
 **It earned its place immediately:** on its first run it found `KNOWN_LIMITATIONS.md` describing the shapes conceptually while never saying where to look — a reader could not tell an extra last element from a marker merged into the record.
 **The same pattern now guards two contracts,** and it is the shape to reach for again: the `reason` vocabulary is read out of `core._REASON_BY_EXCEPTION`, and the truncation shapes out of `osp_cli.MARKER_KINDS`. Both fail when the code gains something the prompts were not told about. **Deriving the check from the code is what makes it impossible to satisfy by editing the test.**
+
+### D50 · The rail comes off the top rule — 2026-09-23
+
+**Considered:** leave the rail welded into the top rule as D28 chose / move it to its own labelled line under the rule
+**Chose:** its own line, labelled `PROGRESS`. Reverses that one detail of **D28**; the rest of D28 stands.
+**Why, in the owner's words.** *"Currently we show the progress dots in the same line as header… I want the header be like `── LITERATURE round 2 of 3 ───` and in the next line see `PROGRESS ●──●──◐──○──○──○──○`. That would be cleaner."*
+**What the welding cost.** One line carried two unrelated things — where you are in the protocol, and which phase is speaking — so neither read cleanly, and the phase label competed for columns with a rail that never changes width. D28 chose it when the rail was the new idea and deserved the most prominent line; a milestone later the rail is furniture, and furniture does not belong in the headline.
+**The detail that made it easy.** `PROGRESS` is exactly eight characters, so `  PROGRESS ` puts the rail at column 12 — the same column as every other value in the block. The rail became a value like any other rather than a special case: one straight left edge, and the existing value-column assertion covers it for free.
+**Rejected: the owner's sketch had it flush left.** Two columns saved, at the cost of one line of the block sitting outside the block's own grid. Told them the reasoning rather than following the sketch literally.
+**What it cost to check.** The guard counted seven markers *on the top rule*, so moving the rail took that assertion with it — and with it the incidental proof that the top rule carried a label at all. A reviewer found 60 bare rule characters passing. The guard now checks the rail's line, its position, its label and its marker count separately, and that the top rule still names a phase. **A check that proves a second thing by accident stops proving it the moment the first thing moves.**
 
 ---
 
