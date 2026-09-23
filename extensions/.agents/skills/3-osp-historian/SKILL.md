@@ -1,7 +1,6 @@
 ---
+name: 3-osp-historian
 description: "OSP Phase 3: Compress retrieved literature into a chronological domain narrative"
-reads: [".brain/session.json", ".brain/raw/01_structured_summary.md", ".brain/raw/02_retrieved_literature.md"]
-writes: [".brain/raw/03_domain_narrative.md", ".brain/session.json"]
 ---
 
 # /3-osp-historian — Sub-Domain Historian

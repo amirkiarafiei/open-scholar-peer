@@ -244,7 +244,6 @@ refuse to start — taking your chat channels and scheduled jobs with it. MCP is
 **Workaround:** If sandboxing is enabled, check that `workspaceAccess` is `"rw"`; otherwise the agent
 writes into a sandbox copy under `~/.openclaw/sandboxes` and `.brain/` never appears in your folder.
 
-**If you also installed for Antigravity CLI**, both tools read `./.agents/skills/`, so Antigravity CLI
-will list sixteen OSP skills rather than eight — its own persona skills plus the eight commands OpenClaw
-needs as skills. Nothing is broken and nothing is overwritten; the extra eight are the same commands it
-already has as workflows. Installing in either order gives the same result.
+**If you also installed for Antigravity CLI**, the two agree exactly: both read `./.agents/skills/`,
+and both need the eight commands expressed as skills, so they write the same sixteen directories.
+Nothing is duplicated, nothing is overwritten, and installing in either order gives the same result.

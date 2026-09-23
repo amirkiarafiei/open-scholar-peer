@@ -1,7 +1,6 @@
 ---
+name: 1-osp-summary
 description: "OSP Phase 1: Internal Compression — extract claims, method, evidence"
-reads: [".brain/session.json", ".brain/input/paper.{pdf,md}"]
-writes: [".brain/raw/01_structured_summary.md", ".brain/session.json"]
 ---
 
 # /1-osp-summary — Internal Compression

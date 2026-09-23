@@ -1,7 +1,6 @@
 ---
+name: 6-osp-review
 description: "OSP Phase 6: Synthesize verified findings into a single venue-formatted review"
-reads: [".brain/session.json", ".brain/raw/00_review_guidelines.md", ".brain/raw/01_structured_summary.md", ".brain/raw/02_retrieved_literature.md", ".brain/raw/03_domain_narrative.md", ".brain/raw/04_missing_baselines.md", ".brain/raw/05_qa_*.md"]
-writes: [".brain/review/final_review.md", ".brain/session.json"]
 ---
 
 # /6-osp-review — Final Review Generation

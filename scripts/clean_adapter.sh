@@ -40,14 +40,22 @@ cmd_ext="md"
 skill_subdir="skills"
 agent_subdir=""          # only tools with separate subagent definitions
 commands_are_skills=0    # the 8 commands live in skill_subdir as directories
+legacy_cmd_subdir=""     # a command layout a previous OSP wrote and we no longer use
 
 case "$TOOL" in
   claude|cursor|kimi|vibe|openhands)
     : ;;
   gemini)
     cmd_ext="toml" ;;
-  antigravity|antigravity-cli)
+  antigravity)
     cmd_subdir="workflows" ;;
+  antigravity-cli)
+    # Commands are skills here now. `legacy_cmd_subdir` still sweeps the
+    # workflows an older OSP wrote: the tool stopped reading them, so leaving
+    # them behind is dead litter in someone's project that nothing would ever
+    # remove.
+    commands_are_skills=1
+    legacy_cmd_subdir="workflows" ;;
   copilot)
     cmd_subdir="prompts" ;;
   junie)
@@ -80,6 +88,15 @@ if [[ $commands_are_skills -eq 0 && -d "$DEST/$cmd_subdir" ]]; then
   find "$DEST/$cmd_subdir" -maxdepth 1 -type f \
     \( -name "[0-9]-osp-*.$cmd_ext" -o -name "open-scholar-peer.$cmd_ext" \) \
     -delete 2>/dev/null || true
+fi
+
+# A command layout we used to write and no longer do. Swept so an upgrade does
+# not leave files the tool has stopped reading.
+if [[ -n "$legacy_cmd_subdir" && -d "$DEST/$legacy_cmd_subdir" ]]; then
+  find "$DEST/$legacy_cmd_subdir" -maxdepth 1 -type f \
+    \( -name "[0-9]-osp-*.md" -o -name "open-scholar-peer.md" \) \
+    -delete 2>/dev/null || true
+  rmdir "$DEST/$legacy_cmd_subdir" 2>/dev/null || true
 fi
 
 # Skills / agents. Always the osp-*/ personas; plus the command directories on

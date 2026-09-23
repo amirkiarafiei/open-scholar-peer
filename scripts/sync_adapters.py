@@ -124,6 +124,15 @@ TOOLS: dict[str, ToolCaps] = {
     "antigravity-cli": ToolCaps(
         name="antigravity-cli",
         install_dir=".agents",
+        # Workflows are DEPRECATED and are no longer indexed as slash commands.
+        # Verified against agy 1.2.9: eight files in `.agents/workflows/` gave a
+        # `/skills` catalog of 8 — the personas only — and typing the command
+        # name fell through to raw text, with the agent trying to run a shell
+        # command by that name. The same eight emitted as skill directories give
+        # a catalog of 16 and `/open-scholar-peer` activates. The binary's own
+        # bundled `migrate-workflows` skill says so: skills provide everything
+        # workflows did "plus first-class slash command support".
+        commands_as_skills=True,
         root=REPO_ROOT / "extensions" / ".agents",
         supports_subagent=True,
         qa_mode="subagent",

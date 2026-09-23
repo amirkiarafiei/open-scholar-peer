@@ -1,7 +1,6 @@
 ---
+name: 5-osp-qa
 description: "OSP Phase 5: Multi-Aspect Q&A — configurable pairs per criterion (default 2)"
-reads: [".brain/session.json", ".brain/raw/00_review_guidelines.md", ".brain/raw/01_structured_summary.md", ".brain/raw/03_domain_narrative.md", ".brain/raw/04_missing_baselines.md"]
-writes: [".brain/raw/05_qa_<criterion_slug>.md (per criterion)", ".brain/session.json"]
 ---
 > **Tool capability:** This tool supports subagents. The Query Agent MUST delegate each question to `osp-answer-generator-agent` as a subagent with a fresh, minimal context bundle. Do NOT use self-reflection.
 

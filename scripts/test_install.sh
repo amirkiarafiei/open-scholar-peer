@@ -273,7 +273,8 @@ run_install_smoke "openclaw" "install_openclaw.sh" \
 
 run_install_smoke "antigravity-cli" "install_antigravity_cli.sh" \
   "${COMMON[@]}" \
-  ".agents/workflows/0-osp-onboarding.md" \
+  ".agents/skills/0-osp-onboarding/SKILL.md" \
+  ".agents/skills/open-scholar-peer/SKILL.md" \
   ".agents/skills/osp-orchestrator/SKILL.md" \
   ".agents/rules/osp-rules.md" \
   "AGENTS.md" \

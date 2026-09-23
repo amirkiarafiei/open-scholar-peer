@@ -1,7 +1,6 @@
 ---
+name: 4-osp-baseline-scout
 description: "OSP Phase 4: Identify missing baselines and datasets the authors failed to compare against"
-reads: [".brain/session.json", ".brain/raw/01_structured_summary.md", ".brain/raw/02_retrieved_literature.md"]
-writes: [".brain/raw/04_missing_baselines.md", ".brain/session.json"]
 ---
 
 # /4-osp-baseline-scout — Adversarial Baseline Audit

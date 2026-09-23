@@ -1,7 +1,6 @@
 ---
+name: open-scholar-peer
 description: "Open ScholarPeer dispatcher — show review status and route to the next command"
-reads: [".brain/session.json"]
-writes: []
 ---
 
 # /open-scholar-peer — Stateless Dispatcher

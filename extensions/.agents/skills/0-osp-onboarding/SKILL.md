@@ -1,7 +1,6 @@
 ---
+name: 0-osp-onboarding
 description: "OSP Phase 0: Venue lookup, paper detection, criteria scaffolding"
-reads: [".brain/session.json"]
-writes: [".brain/raw/00_review_guidelines.md", ".brain/raw/05_qa_<slug>.md (per criterion)", ".brain/session.json (incl. mcp.interface)"]
 ---
 
 # /0-osp-onboarding — Stage 0: Onboarding

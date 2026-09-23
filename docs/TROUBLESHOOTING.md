@@ -40,7 +40,7 @@ ls .claude/commands/      # Claude
 ls .cursor/commands/      # Cursor
 ls .gemini/commands/      # Gemini (TOML)
 ls .agent/workflows/      # Antigravity
-ls .agents/workflows/     # Antigravity CLI
+ls .agents/skills/        # Antigravity CLI (commands are skills here)
 ls .github/prompts/       # Copilot CLI
 ls .pi/prompts/           # Pi
 ls .omp/commands/         # Oh My Pi

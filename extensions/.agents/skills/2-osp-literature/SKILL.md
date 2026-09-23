@@ -1,7 +1,6 @@
 ---
+name: 2-osp-literature
 description: "OSP Phase 2: External retrieval — one round per invocation (sub-domain, method, temporal)"
-reads: [".brain/session.json", ".brain/raw/01_structured_summary.md"]
-writes: [".brain/raw/02a_literature_round1.md", ".brain/raw/02b_literature_round2.md", ".brain/raw/02c_literature_round3.md", ".brain/raw/02_retrieved_literature.md", ".brain/session.json"]
 ---
 
 # /2-osp-literature — Literature Review & Expansion
