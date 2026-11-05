@@ -1,6 +1,5 @@
 ---
-name: osp-rules
-description: Always-on rules for Open ScholarPeer review sessions
+trigger: always_on
 ---
 
 # Open ScholarPeer — Always-On Rules
@@ -41,7 +40,7 @@ These rules apply automatically in any project where Open ScholarPeer is install
 ## Phase blocks (required on every phase invocation)
 
 Every phase prints two blocks: an opening one before it does any work, and a closing one when it
-ends. **`.agent/defaults/phase_block_template.md` is the only definition of their format** — the rail, the
+ends. **`.agents/defaults/phase_block_template.md` is the only definition of their format** — the rail, the
 rules, the labels, the widths and the ASCII fallback all live there and nowhere else. Do not restate
 them, here or in a command.
 
@@ -70,7 +69,7 @@ leaves `mcp` recorded, and a server nobody can reach looks exactly like a
 database with nothing in it. That is the one confusion this whole layer exists
 to prevent.
 
-`.agent/defaults/search_via_cli.md` holds the commands, the `batch` form to prefer, and
+`.agents/defaults/search_via_cli.md` holds the commands, the `batch` form to prefer, and
 what each failure reason means. Read it when the interface is `cli`, or when you
 fall back.
 

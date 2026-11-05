@@ -13,7 +13,7 @@ You are the **Literature Review & Expansion Agent**. Standard LLMs hallucinate n
 
 ## Opening orientation (print before starting any retrieval)
 
-Print the **opening block** defined in `.codex/defaults/phase_block_template.md`, labelled
+Print the **opening block** defined in `.agents/defaults/phase_block_template.md`, labelled
 `LITERATURE  round N of 3`. `DOING` names this round's anchor and what it is looking for; `WRITES`
 is the round file; `COST` is roughly 8-12 searches. Read the rail's state from `session.json`.
 
@@ -64,7 +64,7 @@ biases the corpus: a paper that ranks low in one index tops another.
 - **Scraped general search** — theses, workshops, blogs. The least reliable of all: **being blocked is the normal case**, never evidence that no papers exist.
 
 Record in the round file which you called, which you skipped and why, and which
-failed. The template at `.codex/defaults/round_strategy_template.md` has a line for each.
+failed. The template at `.agents/defaults/round_strategy_template.md` has a line for each.
 
 **Simultaneously** means: fire everything you chose in the same dispatch batch, not one after the other. Each tool gets a query formulation tailored to its index — a preprint query stresses category + keywords, a citation-graph query stresses field-of-study, a web query adds the venue name for recency. Do not wait for one result before starting the next.
 
@@ -95,7 +95,7 @@ Relying on only one source biases the corpus. A paper that ranks low in one inde
 
 ## File templates
 
-Use `.codex/defaults/round_strategy_template.md` as the skeleton for each round. Fill in:
+Use `.agents/defaults/round_strategy_template.md` as the skeleton for each round. Fill in:
 - `Strategy:` field at top of `## Method`
 - Queries you ran (verbatim) in `## Provenance`
 - Retained papers in the table inside `## Output`

@@ -187,7 +187,7 @@ The MCP server loads `.env` automatically on startup.
 | [<img src="assets/tools/openhands.svg" alt="" width="18" height="18" align="texttop" /> OpenHands](https://docs.openhands.dev) | ✓ CLI (`~/.openhands/mcp.json`); web UI needs a paste                                           |
 | [<img src="assets/tools/antigravity.svg" alt="" width="18" height="18" align="texttop" /> Antigravity](https://antigravity.google/) | ✓ (`~/.gemini/antigravity/` + `~/.gemini/config/`)                                              |
 | [<img src="assets/tools/antigravity.svg" alt="" width="18" height="18" align="texttop" /> Antigravity CLI](https://antigravity.google/cli/) | ✓ (`.agents/mcp_config.json` + `~/.gemini/antigravity-cli/`)                                    |
-| [<picture><source media="(prefers-color-scheme: dark)" srcset="assets/tools/pi-dark.svg"><img src="assets/tools/pi.svg" alt="" width="18" height="18" align="texttop" /></picture> Pi](https://pi.dev) | n/a — Pi ships no MCP client; searches run through the bundled CLI, which every install carries |
+| [<picture><source media="(prefers-color-scheme: dark)" srcset="assets/tools/pi-dark.svg"><img src="assets/tools/pi.svg" alt="" width="18" height="18" align="texttop" /></picture> Pi](https://pi.dev) | n/a — searches run through the bundled CLI, which needs no project trust; Pi's own MCP does |
 | [<img src="assets/tools/oh-my-pi.svg" alt="" width="18" height="18" align="texttop" /> Oh My Pi](https://omp.sh) | ✓ (`.omp/mcp.json`)                                                                             |
 | [<img src="assets/tools/grok-build.svg" alt="" width="18" height="18" align="texttop" /> Grok Build](https://docs.x.ai/build/overview) | ✓ (`.grok/config.toml`)                                                                         |
 | [<img src="assets/tools/hermes.svg" alt="" width="18" height="18" align="texttop" /> Hermes](https://hermes-agent.nousresearch.com/docs/) | ✓ (`~/.hermes/config.yaml`)                                                                     |
@@ -195,7 +195,11 @@ The MCP server loads `.env` automatically on startup.
 | [<img src="assets/tools/kilo-code.svg" alt="" width="18" height="18" align="texttop" /> Kilo Code](https://kilo.ai/docs) | ✓ (`.kilo/kilo.json`)                                                                           |
 | [<img src="assets/tools/openclaw.svg" alt="" width="18" height="18" align="texttop" /> OpenClaw](https://docs.openclaw.ai) | ✓ (global, via`openclaw mcp add`)                                                               |
 
-Two notes, because they change what you get. The Q&A step (`/5-osp-qa`) normally runs the Answer
+Three tools start a command differently, because there OSP's commands are skills: on **Kimi Code**
+type `/skill:open-scholar-peer`, on **Codex CLI** type `$open-scholar-peer`, and on **OpenHands** type
+`open-scholar-peer` in your message. Every other tool uses `/open-scholar-peer`.
+
+Two more notes, because they change what you get. The Q&A step (`/5-osp-qa`) normally runs the Answer
 Generator as a separate subagent with its own context. On **Mistral Vibe**, **OpenHands**, **Pi** and
 **Cline** it cannot, so both roles run in one context window with turn markers — a documented weaker
 substitute, described in [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md). And **OpenClaw** is

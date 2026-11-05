@@ -41,14 +41,26 @@ skill_subdir="skills"
 agent_subdir=""          # only tools with separate subagent definitions
 commands_are_skills=0    # the 8 commands live in skill_subdir as directories
 legacy_cmd_subdir=""     # a command layout a previous OSP wrote and we no longer use
+legacy_skill_subdir=""   # a skill folder a previous OSP wrote and the tool never read
 
 case "$TOOL" in
-  claude|cursor|kimi|vibe|openhands)
+  claude|cursor)
     : ;;
+  kimi|vibe|openhands|kiro|copilot|codex)
+    # Commands are skills on these since 2.1.0: each tool stopped reading, or
+    # never read, the command folder an older OSP wrote. Sweep it on upgrade.
+    commands_are_skills=1
+    case "$TOOL" in
+      kimi|vibe|openhands) legacy_cmd_subdir="commands" ;;
+      kiro)                legacy_cmd_subdir="hooks" ;;
+      copilot|codex)       legacy_cmd_subdir="prompts" ;;
+    esac ;;
   gemini)
     cmd_ext="toml" ;;
   antigravity)
-    cmd_subdir="workflows" ;;
+    # Workflows stopped working on 2026-10-19; commands are skills now.
+    commands_are_skills=1
+    legacy_cmd_subdir="workflows" ;;
   antigravity-cli)
     # Commands are skills here now. `legacy_cmd_subdir` still sweeps the
     # workflows an older OSP wrote: the tool stopped reading them, so leaving
@@ -56,18 +68,12 @@ case "$TOOL" in
     # remove.
     commands_are_skills=1
     legacy_cmd_subdir="workflows" ;;
-  copilot)
-    cmd_subdir="prompts" ;;
   junie)
     : ;;
-  kiro)
-    cmd_subdir="hooks" ;;
-  codex)
-    cmd_subdir="prompts" ;;
-  qwen)
-    skill_subdir="agents" ;;
-  opencode)
-    skill_subdir="agents" ;;
+  qwen|opencode)
+    # Skills load from skills/; an older OSP put them in agents/, which holds
+    # flat subagent files on both tools and so never loaded them.
+    legacy_skill_subdir="agents" ;;
   pi)
     cmd_subdir="prompts" ;;
   ohmypi)
@@ -111,6 +117,11 @@ if [[ -d "$DEST/$skill_subdir" ]]; then
   fi
 fi
 
+if [[ -n "$legacy_skill_subdir" && -d "$DEST/$legacy_skill_subdir" ]]; then
+  find "$DEST/$legacy_skill_subdir" -maxdepth 1 -type d -name 'osp-*' \
+    -exec rm -rf {} + 2>/dev/null || true
+fi
+
 # Subagent definitions — flat markdown files, one per persona
 if [[ -n "$agent_subdir" && -d "$DEST/$agent_subdir" ]]; then
   find "$DEST/$agent_subdir" -maxdepth 1 -type f -name 'osp-*.md' \
@@ -126,7 +137,10 @@ case "$TOOL" in
   gemini)
     rm -f "$DEST/GEMINI.md" ;;
   copilot)
-    rm -f "$DEST/instructions/osp-rules.md" ;;
+    # Not written since 2.1.0: AGENTS.md carries the rules, and this name was
+    # never read by Copilot anyway (it reads only *.instructions.md).
+    rm -f "$DEST/instructions/osp-rules.md"
+    rmdir "$DEST/instructions" 2>/dev/null || true ;;
   junie)
     rm -f "$DEST/guidelines.md" ;;
   kiro)
@@ -146,11 +160,34 @@ case "$TOOL" in
     rm -f "$DEST/rules/osp-rules.md" ;;
   antigravity-cli)
     rm -f "$DEST/AGENTS.md"
-    rm -f "$DEST/rules/osp-rules.md" ;;
+    # An older OSP wrote this with no `trigger`, so Antigravity discarded it.
+    # The IDE now writes a valid one to the same path; only the dead one goes.
+    if [[ -f "$DEST/rules/osp-rules.md" ]] && ! grep -q '^trigger:' "$DEST/rules/osp-rules.md"; then
+      rm -f "$DEST/rules/osp-rules.md"
+    fi ;;
   *)
     echo "clean_adapter.sh: no rules rule for '$TOOL'" >&2
     exit 1 ;;
 esac
 
-# Defaults (entirely OSP-managed in every tool)
-rm -rf "$DEST/defaults"
+# Defaults. Only the files OSP ships, by name: ./.agents/ is shared with the
+# user and other tools, so a defaults/ folder there is not necessarily all ours.
+SHARED_DEFAULTS="$(cd "$(dirname "${BASH_SOURCE[0]}")/../extensions/_shared/defaults" 2>/dev/null && pwd)"
+case "$(basename "$DEST")" in
+  .agents|.agent)
+    if [[ -d "$DEST/defaults" && -n "$SHARED_DEFAULTS" ]]; then
+      for f in "$SHARED_DEFAULTS"/*; do
+        rm -f "$DEST/defaults/$(basename "$f")"
+      done
+    fi ;;
+  *)
+    # A tool's own folder: defaults/ is entirely ours, including any file a
+    # past version shipped under a name it no longer uses.
+    rm -rf "$DEST/defaults" ;;
+esac
+
+# Folders an upgrade emptied. rmdir refuses a non-empty one, so nothing of the
+# user's can go here.
+for d in defaults rules instructions skills agents "$legacy_cmd_subdir" "$legacy_skill_subdir"; do
+  [[ -n "$d" ]] && rmdir "$DEST/$d" 2>/dev/null || true
+done

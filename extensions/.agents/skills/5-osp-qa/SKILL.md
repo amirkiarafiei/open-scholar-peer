@@ -2,7 +2,11 @@
 name: 5-osp-qa
 description: "OSP Phase 5: Multi-Aspect Q&A — configurable pairs per criterion (default 2)"
 ---
-> **Tool capability:** This tool supports subagents. The Query Agent MUST delegate each question to `osp-answer-generator-agent` as a subagent with a fresh, minimal context bundle. Do NOT use self-reflection.
+> **Tool capability:** This tool documents a subagent framework, and subagent isolation is preferred here. Try it first: delegate each question to `osp-answer-generator-agent` as a subagent with a fresh, minimal context bundle.
+>
+> If delegation is unavailable in your session — the persona is not reachable as a subagent, the call errors, or the capability is simply absent — fall back to self-reflection with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) in the main context window, and carry on. Do not stop the phase over it.
+>
+> Either way, record which one you used in the `## Method` section of each `05_qa_<slug>.md` (`Mode: subagent` or `Mode: self-reflection`), so the artifact says how the answers were actually produced.
 
 
 # /5-osp-qa — Multi-Aspect Q&A Engine

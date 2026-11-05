@@ -55,28 +55,31 @@ TOOLS = [
     ToolSpec("gemini", REPO_ROOT / "extensions" / ".gemini",
              "commands", "toml", "skills", ["GEMINI.md"]),
     ToolSpec("antigravity", REPO_ROOT / "extensions" / ".agent",
-             "workflows", "md", "skills", ["rules/osp-rules.md"]),
+             "skills", "md", "skills", ["rules/osp-rules.md"],
+             commands_as_skills=True),
     ToolSpec("antigravity-cli", REPO_ROOT / "extensions" / ".agents",
-             "skills", "md", "skills", ["rules/osp-rules.md", "AGENTS.md"],
+             "skills", "md", "skills", ["AGENTS.md"],
              commands_as_skills=True),
     ToolSpec("copilot", REPO_ROOT / "extensions" / ".github",
-             "prompts", "md", "skills", ["instructions/osp-rules.md", "AGENTS.md"]),
+             "skills", "md", "skills", ["AGENTS.md"],
+             commands_as_skills=True),
     ToolSpec("junie", REPO_ROOT / "extensions" / ".junie",
              "commands", "md", "skills", ["guidelines.md"]),
     ToolSpec("kiro", REPO_ROOT / "extensions" / ".kiro",
-             "hooks", "md", "skills", ["steering/osp-rules.md"]),
+             "skills", "md", "skills", ["steering/osp-rules.md"],
+             commands_as_skills=True),
     ToolSpec("codex", REPO_ROOT / "extensions" / ".codex",
-             "prompts", "md", "skills", ["AGENTS.md"]),
+             "skills", "md", "skills", ["AGENTS.md"], commands_as_skills=True),
     ToolSpec("kimi", REPO_ROOT / "extensions" / ".kimi",
-             "commands", "md", "skills", ["AGENTS.md"]),
+             "skills", "md", "skills", ["AGENTS.md"], commands_as_skills=True),
     ToolSpec("qwen", REPO_ROOT / "extensions" / ".qwen",
-             "commands", "md", "agents", ["QWEN.md"]),
+             "commands", "md", "skills", ["QWEN.md"]),
     ToolSpec("vibe", REPO_ROOT / "extensions" / ".vibe",
-             "commands", "md", "skills", ["AGENTS.md"]),
+             "skills", "md", "skills", ["AGENTS.md"], commands_as_skills=True),
     ToolSpec("opencode", REPO_ROOT / "extensions" / ".opencode",
-             "commands", "md", "agents", ["AGENTS.md"]),
-    ToolSpec("openhands", REPO_ROOT / "extensions" / ".openhands",
              "commands", "md", "skills", ["AGENTS.md"]),
+    ToolSpec("openhands", REPO_ROOT / "extensions" / ".openhands",
+             "skills", "md", "skills", ["AGENTS.md"], commands_as_skills=True),
     ToolSpec("pi", REPO_ROOT / "extensions" / ".pi",
              "prompts", "md", "skills", ["AGENTS.md"]),
     ToolSpec("ohmypi", REPO_ROOT / "extensions" / ".omp",
@@ -408,6 +411,32 @@ def check_phase_blocks() -> list[str]:
     return issues
 
 
+def check_shared_agents_folder() -> list[str]:
+    """Every tool that installs into the shared ./.agents/ must ship the same bytes.
+
+    Antigravity, Antigravity CLI, Codex and OpenClaw all write skills/ and
+    defaults/ into one folder. If their copies differ — the Q&A command is
+    written per tool — the last install silently replaces the others', and a
+    tool can end up told to use a subagent it does not have. Written out by
+    hand, like TOOLS, so a tool moved into .agents/ has to be added here.
+    """
+    writers = [".agent", ".agents", ".codex", ".openclaw"]
+    base = REPO_ROOT / "extensions" / writers[1]
+    issues = []
+    for w in writers:
+        if w == writers[1]:
+            continue
+        for sub in ("skills", "defaults"):
+            a, b = base / sub, REPO_ROOT / "extensions" / w / sub
+            fa = {x.relative_to(a): x.read_bytes() for x in a.rglob("*") if x.is_file()}
+            fb = {x.relative_to(b): x.read_bytes() for x in b.rglob("*") if x.is_file()}
+            for rel in sorted(set(fa) | set(fb)):
+                if fa.get(rel) != fb.get(rel):
+                    issues.append(f"shared .agents/: extensions/{w}/{sub}/{rel} differs from "
+                                  f"extensions/.agents/{sub}/{rel} — the last install would win")
+    return issues
+
+
 def main() -> int:
     if not SHARED.exists():
         print(f"ERROR: {SHARED} does not exist.", file=sys.stderr)
@@ -430,6 +459,12 @@ def main() -> int:
             all_issues.extend(issues)
         else:
             print(f"  ✓ {tool.name}: parity OK")
+
+    shared_issues = check_shared_agents_folder()
+    if shared_issues:
+        all_issues.extend(shared_issues)
+    else:
+        print("  \u2713 the four tools that share .agents/ ship identical skills and defaults")
 
     block_issues = check_phase_blocks()
     if block_issues:

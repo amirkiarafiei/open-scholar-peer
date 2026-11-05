@@ -37,7 +37,7 @@ This file enumerates every canonical asset under `extensions/_shared/`. It is do
 | Path | Notes |
 |---|---|
 | `rules/osp-rules.md` | Brain protocol summary — read session.json, load prior artifacts, update session.json, prefer subagent over self-reflection |
-| `rules/search_via_cli.md` | Appended to the always-on file **only** for a tool whose `search_mode` is `cli` — one with no MCP client, which is Pi alone. Eight lines saying the interface is always `cli` and pointing at the full guide. Not synced on its own; merged into the rules content at sync time, and the `defaults/` pointer inside it is resolved **after** the merge. |
+| `rules/search_via_cli.md` | Appended to the always-on file **only** for a tool whose `search_mode` is `cli` — one whose search always runs as a program, which is Pi alone. Eight lines saying the interface is always `cli` and pointing at the full guide. Not synced on its own; merged into the rules content at sync time, and the `defaults/` pointer inside it is resolved **after** the merge. |
 
 ### Defaults (templates and fallback content)
 

@@ -11,7 +11,7 @@ authority: state
 writes: agent, every session
 status: active
 covers: "Extensions phase, 2026-09-21 onward — M14 onward"
-last_updated: "2026-09-23"
+last_updated: "2026-11-05"
 ---
 
 # 📈 PROGRESS, part two — What we are building
@@ -1167,6 +1167,49 @@ prose. It does now (D49), and it found a real gap on its first run.
   behaviour change", which was true and misleading: the returned records are identical, but cost,
   caching and rate-limit posture change materially in CLI mode, and that is the whole point of C5 and
   C12.
+
+---
+
+## 🔧 Fix — 2026-11-05: commands had stopped loading on seven tools (v2.1.0)
+
+Asked by the owner: audit every adapter against the vendors' current docs and DeepWiki. Three Haiku
+subagents, seven tools each; every "silent failure" re-checked against the vendor page before a
+change (D53).
+
+**What was broken, and is fixed.**
+
+| Tool | Was | Now |
+|---|---|---|
+| Antigravity IDE | 8 commands as `.agent/workflows/` (retired 2026-10-19); rule with no `trigger`, silently dropped | commands are skills; `trigger: always_on` |
+| Codex CLI | `.codex/prompts/` and `.codex/skills/` — neither is read | all 16 skills in `.agents/skills/` |
+| Copilot CLI | `.github/prompts/` (VS Code only); `instructions/osp-rules.md` (wrong name, never read) | commands are skills; rules via `AGENTS.md` only |
+| Kiro | commands in `.kiro/hooks/` (JSON hooks) | commands are skills (`/<name>`) |
+| Kimi Code, Mistral Vibe, OpenHands | `commands/`, which none of them reads | commands are skills; Kimi `/skill:<name>`, OpenHands by `triggers` keyword |
+| Qwen Code, OpenCode | personas in `agents/` (flat subagent files) | personas in `skills/` |
+| Antigravity CLI | `rules/osp-rules.md` plus `AGENTS.md` | `AGENTS.md` only (the rules file would now load as a duplicate) |
+| Pi | docs said "no MCP client" | corrected: it has one, trust-gated; the program stays the path because it needs no trust |
+
+**Upgrades.** Every layout no longer written is swept by `clean_adapter.sh`. `test_install.sh` gained
+`+path` (plant an old file before installing) and `!path` (it must be gone after), and uses them on
+all ten changed tools. New helper `scripts/mirror_skills.sh`: the shared `.agents/skills/` gets only
+the persona skills, except on Codex, which reads nothing else.
+
+**Not changed, recorded.** Hermes v0.18.2 on this machine cannot read project skills; the docs say a
+newer build can, after `hermes skills trust` — an upgrade on the user's side, not ours. OpenClaw's
+installer runs `openclaw mcp remove`, which its docs page does not list; not installed here, so
+unverified. OpenHands' CLI docs call it "no longer actively maintained" while its repo is active.
+
+**Review (Sonnet, PR #34): 0 HIGH, 3 MEDIUM, 3 LOW — all fixed.** Four tools that share `./.agents/`
+shipped different Q&A texts, so install order decided the result; they now ship identical trees and
+`test_parity.py` checks it. The IDE no longer writes the legacy `.agent/` copy (it read both, so
+commands showed twice). `clean_adapter.sh` deleted any file in `./.agents/defaults/`, a user's too;
+it now deletes only OSP's file names there, and removes folders an upgrade emptied. A docs sentence
+was false and is rewritten. `test_install.sh` gained `=path` (a user's file must survive) and runs
+four two-tool installs into one project.
+
+**Verified.** `sync_adapters.py --check` in sync; `test_parity.py` 21/21 plus the shared-folder
+check, shown to fail on an injected difference; `test_install.sh` 21 tools + 4 pairs, including the
+upgrade sweeps. Still untested by hand: the new layouts inside each real tool.
 
 ---
 

@@ -18,10 +18,11 @@ echo -e "  ${GREEN}✅ Adapter copied → ./.vibe/${NC}"
 
 # Mirror skills to .agents/skills/ (Vibe's universal skill discovery path)
 mkdir -p "./.agents/skills"
+# Personas only: the eight command skills stay in this tool's own folder, because
+# other tools share .agents/skills/ and their Q&A command is written differently.
 if [[ -d "$SRC/skills" ]]; then
-  find "./.agents/skills" -maxdepth 1 -type d -name 'osp-*' -exec rm -rf {} + 2>/dev/null || true
-  cp -r "$SRC/skills/." "./.agents/skills/"
-  echo -e "  ${GREEN}✅ Skills mirrored → ./.agents/skills/${NC}"
+  bash "$SCRIPTS_DIR/mirror_skills.sh" "$SRC/skills" "./.agents/skills" personas
+  echo -e "  ${GREEN}✅ Persona skills mirrored → ./.agents/skills/${NC}"
 fi
 
 # 2. AGENTS.md — merge into project root
