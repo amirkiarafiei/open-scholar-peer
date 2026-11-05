@@ -173,27 +173,27 @@ The MCP server loads `.env` automatically on startup.
 
 | Tool                                                                   | MCP auto-config                                                                                  |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| [Claude Code](https://claude.com/claude-code)                          | ✓ (`.mcp.json`)                                                                                 |
-| [Cursor](https://cursor.com)                                           | ✓ (`.cursor/mcp.json`)                                                                          |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli)              | ✓ (`.gemini/settings.json`)                                                                     |
-| [Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ (`~/.copilot/mcp-config.json`)                                                                |
-| [Codex CLI](https://github.com/openai/codex)                           | ✓ (`~/.codex/config.toml`)                                                                      |
-| [Qwen Code](https://github.com/QwenLM/qwen-code)                       | ✓ (`.qwen/settings.json`)                                                                       |
-| [OpenCode](https://opencode.ai)                                        | ✓ (`.opencode/opencode.json`)                                                                   |
-| [Junie](https://www.jetbrains.com/junie/)                              | ✓ (`.junie/mcp/mcp.json`)                                                                       |
-| [Kiro](https://kiro.dev)                                               | ✓ (`.kiro/settings/mcp.json`)                                                                   |
-| [Kimi Code](https://moonshotai.github.io/kimi-cli/)                    | ✓ (`~/.kimi/mcp.json`)                                                                          |
-| [Mistral Vibe](https://docs.mistral.ai/mistral-vibe/)                  | ✓ (`.vibe/config.toml`)                                                                         |
-| [OpenHands](https://docs.openhands.dev)                                | ✓ CLI (`~/.openhands/mcp.json`); web UI needs a paste                                           |
-| [Antigravity](https://antigravity.google/)                             | ✓ (`~/.gemini/antigravity/` + `~/.gemini/config/`)                                              |
-| [Antigravity CLI](https://antigravity.google/cli/)                     | ✓ (`.agents/mcp_config.json` + `~/.gemini/antigravity-cli/`)                                    |
-| [Pi](https://pi.dev)                                                   | n/a — Pi ships no MCP client; searches run through the bundled CLI, which every install carries |
-| [Oh My Pi](https://omp.sh)                                             | ✓ (`.omp/mcp.json`)                                                                             |
-| [Grok Build](https://docs.x.ai/build/overview)                         | ✓ (`.grok/config.toml`)                                                                         |
-| [Hermes](https://hermes-agent.nousresearch.com/docs/)                  | ✓ (`~/.hermes/config.yaml`)                                                                     |
-| [Cline](https://docs.cline.bot)                                        | ✓ (`~/.cline/data/settings/cline_mcp_settings.json`, per machine)                               |
-| [Kilo Code](https://kilo.ai/docs)                                      | ✓ (`.kilo/kilo.json`)                                                                           |
-| [OpenClaw](https://docs.openclaw.ai)                                   | ✓ (global, via`openclaw mcp add`)                                                               |
+| [<img src="assets/tools/claude-code.svg" alt="" width="18" height="18" align="texttop" /> Claude Code](https://claude.com/claude-code) | ✓ (`.mcp.json`)                                                                                 |
+| [<img src="assets/tools/cursor.svg" alt="" width="18" height="18" align="texttop" /> Cursor](https://cursor.com) | ✓ (`.cursor/mcp.json`)                                                                          |
+| [<img src="assets/tools/gemini-cli.svg" alt="" width="18" height="18" align="texttop" /> Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✓ (`.gemini/settings.json`)                                                                     |
+| [<picture><source media="(prefers-color-scheme: dark)" srcset="assets/tools/copilot-cli-dark.svg"><img src="assets/tools/copilot-cli.svg" alt="" width="18" height="18" align="texttop" /></picture> Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/) | ✓ (`~/.copilot/mcp-config.json`)                                                                |
+| [<picture><source media="(prefers-color-scheme: dark)" srcset="assets/tools/codex-cli-dark.svg"><img src="assets/tools/codex-cli.svg" alt="" width="18" height="18" align="texttop" /></picture> Codex CLI](https://github.com/openai/codex) | ✓ (`~/.codex/config.toml`)                                                                      |
+| [<img src="assets/tools/qwen-code.svg" alt="" width="18" height="18" align="texttop" /> Qwen Code](https://github.com/QwenLM/qwen-code) | ✓ (`.qwen/settings.json`)                                                                       |
+| [<img src="assets/tools/opencode.svg" alt="" width="18" height="18" align="texttop" /> OpenCode](https://opencode.ai) | ✓ (`.opencode/opencode.json`)                                                                   |
+| [<img src="assets/tools/junie.svg" alt="" width="18" height="18" align="texttop" /> Junie](https://www.jetbrains.com/junie/) | ✓ (`.junie/mcp/mcp.json`)                                                                       |
+| [<img src="assets/tools/kiro.svg" alt="" width="18" height="18" align="texttop" /> Kiro](https://kiro.dev) | ✓ (`.kiro/settings/mcp.json`)                                                                   |
+| [<img src="assets/tools/kimi-code.svg" alt="" width="18" height="18" align="texttop" /> Kimi Code](https://moonshotai.github.io/kimi-cli/) | ✓ (`~/.kimi/mcp.json`)                                                                          |
+| [<picture><source media="(prefers-color-scheme: dark)" srcset="assets/tools/mistral-vibe-dark.svg"><img src="assets/tools/mistral-vibe.svg" alt="" width="18" height="18" align="texttop" /></picture> Mistral Vibe](https://docs.mistral.ai/mistral-vibe/) | ✓ (`.vibe/config.toml`)                                                                         |
+| [<img src="assets/tools/openhands.svg" alt="" width="18" height="18" align="texttop" /> OpenHands](https://docs.openhands.dev) | ✓ CLI (`~/.openhands/mcp.json`); web UI needs a paste                                           |
+| [<img src="assets/tools/antigravity.svg" alt="" width="18" height="18" align="texttop" /> Antigravity](https://antigravity.google/) | ✓ (`~/.gemini/antigravity/` + `~/.gemini/config/`)                                              |
+| [<img src="assets/tools/antigravity.svg" alt="" width="18" height="18" align="texttop" /> Antigravity CLI](https://antigravity.google/cli/) | ✓ (`.agents/mcp_config.json` + `~/.gemini/antigravity-cli/`)                                    |
+| [<picture><source media="(prefers-color-scheme: dark)" srcset="assets/tools/pi-dark.svg"><img src="assets/tools/pi.svg" alt="" width="18" height="18" align="texttop" /></picture> Pi](https://pi.dev) | n/a — Pi ships no MCP client; searches run through the bundled CLI, which every install carries |
+| [<img src="assets/tools/oh-my-pi.svg" alt="" width="18" height="18" align="texttop" /> Oh My Pi](https://omp.sh) | ✓ (`.omp/mcp.json`)                                                                             |
+| [<img src="assets/tools/grok-build.svg" alt="" width="18" height="18" align="texttop" /> Grok Build](https://docs.x.ai/build/overview) | ✓ (`.grok/config.toml`)                                                                         |
+| [<img src="assets/tools/hermes.svg" alt="" width="18" height="18" align="texttop" /> Hermes](https://hermes-agent.nousresearch.com/docs/) | ✓ (`~/.hermes/config.yaml`)                                                                     |
+| [<img src="assets/tools/cline.svg" alt="" width="18" height="18" align="texttop" /> Cline](https://docs.cline.bot) | ✓ (`~/.cline/data/settings/cline_mcp_settings.json`, per machine)                               |
+| [<img src="assets/tools/kilo-code.svg" alt="" width="18" height="18" align="texttop" /> Kilo Code](https://kilo.ai/docs) | ✓ (`.kilo/kilo.json`)                                                                           |
+| [<img src="assets/tools/openclaw.svg" alt="" width="18" height="18" align="texttop" /> OpenClaw](https://docs.openclaw.ai) | ✓ (global, via`openclaw mcp add`)                                                               |
 
 Two notes, because they change what you get. The Q&A step (`/5-osp-qa`) normally runs the Answer
 Generator as a separate subagent with its own context. On **Mistral Vibe**, **OpenHands**, **Pi** and
