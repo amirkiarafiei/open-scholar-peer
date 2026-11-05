@@ -411,6 +411,32 @@ def check_phase_blocks() -> list[str]:
     return issues
 
 
+def check_shared_agents_folder() -> list[str]:
+    """Every tool that installs into the shared ./.agents/ must ship the same bytes.
+
+    Antigravity, Antigravity CLI, Codex and OpenClaw all write skills/ and
+    defaults/ into one folder. If their copies differ — the Q&A command is
+    written per tool — the last install silently replaces the others', and a
+    tool can end up told to use a subagent it does not have. Written out by
+    hand, like TOOLS, so a tool moved into .agents/ has to be added here.
+    """
+    writers = [".agent", ".agents", ".codex", ".openclaw"]
+    base = REPO_ROOT / "extensions" / writers[1]
+    issues = []
+    for w in writers:
+        if w == writers[1]:
+            continue
+        for sub in ("skills", "defaults"):
+            a, b = base / sub, REPO_ROOT / "extensions" / w / sub
+            fa = {x.relative_to(a): x.read_bytes() for x in a.rglob("*") if x.is_file()}
+            fb = {x.relative_to(b): x.read_bytes() for x in b.rglob("*") if x.is_file()}
+            for rel in sorted(set(fa) | set(fb)):
+                if fa.get(rel) != fb.get(rel):
+                    issues.append(f"shared .agents/: extensions/{w}/{sub}/{rel} differs from "
+                                  f"extensions/.agents/{sub}/{rel} — the last install would win")
+    return issues
+
+
 def main() -> int:
     if not SHARED.exists():
         print(f"ERROR: {SHARED} does not exist.", file=sys.stderr)
@@ -433,6 +459,12 @@ def main() -> int:
             all_issues.extend(issues)
         else:
             print(f"  ✓ {tool.name}: parity OK")
+
+    shared_issues = check_shared_agents_folder()
+    if shared_issues:
+        all_issues.extend(shared_issues)
+    else:
+        print("  \u2713 the four tools that share .agents/ ship identical skills and defaults")
 
     block_issues = check_phase_blocks()
     if block_issues:

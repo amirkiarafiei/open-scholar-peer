@@ -14,17 +14,17 @@ else
   echo -e "  ${YELLOW}⚠️  Codex CLI not found. Install per https://github.com/openai/codex${NC}"
 fi
 
-# 1. Copy adapter (wipe stale OSP-managed files first; user content preserved)
+# 1. Codex reads project skills only from .agents/skills/ and has no project
+#    commands at all, so all sixteen skills — the eight commands included — go
+#    there, with the defaults they point at. ./.codex/ only holds what an older
+#    OSP wrote, which is swept. User content is preserved.
 SRC="$ROOT_DIR/extensions/.codex"
-DEST="./.codex"
-mkdir -p "$DEST"
-bash "$SCRIPTS_DIR/clean_adapter.sh" "$DEST" "codex"
-# Copy everything except AGENTS.md (merged at the project root below) and skills/.
-# Codex reads project skills only from .agents/skills/ and has no project
-# commands at all, so all sixteen skills — the eight commands included — go there.
-find "$SRC" -mindepth 1 -maxdepth 1 -not -name 'AGENTS.md' -not -name 'skills' -exec cp -r {} "$DEST/" \;
+bash "$SCRIPTS_DIR/clean_adapter.sh" "./.codex" "codex"
+rmdir ./.codex 2>/dev/null || true
 bash "$SCRIPTS_DIR/mirror_skills.sh" "$SRC/skills" "./.agents/skills" all
-echo -e "  ${GREEN}✅ Adapter copied → ./.codex/, skills → ./.agents/skills/${NC}"
+mkdir -p "./.agents/defaults"
+cp -r "$SRC/defaults/." "./.agents/defaults/"
+echo -e "  ${GREEN}✅ Skills and defaults → ./.agents/${NC}"
 
 # 2. AGENTS.md — merge into project root (preserves user content)
 if [[ -f "$SRC/AGENTS.md" ]]; then

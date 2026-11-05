@@ -28,7 +28,7 @@ Read `N = session.json.qa_pairs_per_criterion` (default 2).
 
 For each criterion in `session.json.qa_criteria[]`:
 
-1. Open or initialize `.brain/raw/05_qa_<criterion_slug>.md` from the template at `.codex/defaults/qa_pair_template.md`.
+1. Open or initialize `.brain/raw/05_qa_<criterion_slug>.md` from the template at `.agents/defaults/qa_pair_template.md`.
 2. Generate **exactly N Q&A pairs** for this criterion.
 3. For each question:
    a. **Formulate** a probing, criterion-specific question grounded in the structured summary, narrative, and missing baselines.
@@ -83,7 +83,7 @@ This is a **known weaker substitute** for true subagent isolation — see `KNOWN
 
 ## Output format
 
-`.brain/raw/05_qa_<slug>.md` follows `.codex/defaults/qa_pair_template.md` exactly:
+`.brain/raw/05_qa_<slug>.md` follows `.agents/defaults/qa_pair_template.md` exactly:
 - `# Q&A — <criterion label>`
 - `## Method` (mode used, pair count, context bundle, tools)
 - `## Output` containing `### Q1` … `### A<N>` (exactly N numbered pairs)

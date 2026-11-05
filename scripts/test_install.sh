@@ -83,21 +83,31 @@ run_install_smoke() {
 
   # `+path` plants a file an older OSP wrote, before installing, so the upgrade
   # sweep is exercised and not just a fresh install. `!path` must be gone after.
+  # `=path` plants a file the USER wrote; it must still be there after.
   local rel
   for rel in "${expected_files[@]}"; do
-    if [[ "$rel" == +* ]]; then
-      mkdir -p "$(dirname "$sandbox/${rel#+}")"
-      echo "stale" > "$sandbox/${rel#+}"
-    fi
+    case "$rel" in
+      +*|=*)
+        mkdir -p "$(dirname "$sandbox/${rel:1}")"
+        echo "planted" > "$sandbox/${rel:1}" ;;
+    esac
   done
 
   # Run installer from sandbox (the installer's CWD becomes the user's project)
   pushd "$sandbox" >/dev/null
   # Unset the vars that would steer an installer out of the fake $HOME and
   # into the developer's real config.
-  if ! env -u CLINE_DIR -u CLINE_DATA_DIR -u CLINE_MCP_SETTINGS_PATH \
-         -u OPENCLAW_WORKSPACE_DIR -u OSP_MCP_PYTHON -u OSP_MCP_SERVER \
-         HOME="$fake_home" bash "$repo_copy/scripts/$installer" </dev/null > /tmp/osp_install_${tool_name}.log 2>&1; then
+  # `installer` may be a comma-separated list, run in order into ONE project,
+  # to catch two tools that share a folder overwriting each other.
+  local one ok=1
+  : > /tmp/osp_install_${tool_name}.log
+  for one in ${installer//,/ }; do
+    env -u CLINE_DIR -u CLINE_DATA_DIR -u CLINE_MCP_SETTINGS_PATH \
+        -u OPENCLAW_WORKSPACE_DIR -u OSP_MCP_PYTHON -u OSP_MCP_SERVER \
+        HOME="$fake_home" bash "$repo_copy/scripts/$one" </dev/null >> /tmp/osp_install_${tool_name}.log 2>&1 \
+      || { ok=0; break; }
+  done
+  if [[ $ok -eq 0 ]]; then
     echo -e "  ${RED}✗ installer exited non-zero. Tail of log:${NC}"
     tail -15 /tmp/osp_install_${tool_name}.log
     FAIL=1
@@ -112,6 +122,11 @@ run_install_smoke() {
   for rel in "${expected_files[@]}"; do
     case "$rel" in
       +*) continue ;;
+      =*)
+        if [[ ! -e "$sandbox/${rel:1}" ]]; then
+          echo -e "  ${RED}✗ the install deleted a user's file: ${rel:1}${NC}"
+          missing=$((missing+1))
+        fi ;;
       !*)
         if [[ -e "$sandbox/${rel#!}" ]]; then
           echo -e "  ${RED}✗ stale file survived the upgrade: ${rel#!}${NC}"
@@ -173,11 +188,22 @@ run_install_smoke "gemini" "install_gemini.sh" \
 run_install_smoke "antigravity" "install_antigravity.sh" \
   "${COMMON[@]}" \
   "+.agent/workflows/0-osp-onboarding.md" \
+  "+.agents/workflows/0-osp-onboarding.md" \
+  "+.agent/skills/osp-historian-agent/SKILL.md" \
+  "+.agent/rules/osp-rules.md" \
+  "+.agent/defaults/qa_pair_template.md" \
   "!.agent/workflows/0-osp-onboarding.md" \
+  "!.agents/workflows/0-osp-onboarding.md" \
+  "!.agent/skills/osp-historian-agent/SKILL.md" \
+  "!.agent/rules/osp-rules.md" \
+  "!.agent" \
+  "=.agents/skills/my-skill/SKILL.md" \
+  "=.agents/defaults/my-notes.md" \
   ".agents/skills/0-osp-onboarding/SKILL.md" \
-  ".agent/skills/open-scholar-peer/SKILL.md" \
-  ".agent/skills/osp-historian-agent/SKILL.md" \
-  ".agent/rules/osp-rules.md"
+  ".agents/skills/open-scholar-peer/SKILL.md" \
+  ".agents/skills/osp-historian-agent/SKILL.md" \
+  ".agents/rules/osp-rules.md" \
+  ".agents/defaults/qa_pair_template.md"
 
 run_install_smoke "copilot" "install_copilot.sh" \
   "${COMMON[@]}" \
@@ -209,11 +235,14 @@ run_install_smoke "codex" "install_codex.sh" \
   "${COMMON[@]}" \
   "+.codex/prompts/0-osp-onboarding.md" \
   "+.codex/skills/osp-orchestrator/SKILL.md" \
+  "+.codex/defaults/qa_pair_template.md" \
   "!.codex/prompts/0-osp-onboarding.md" \
   "!.codex/skills/osp-orchestrator/SKILL.md" \
+  "!.codex" \
+  "=.agents/skills/my-skill/SKILL.md" \
   ".agents/skills/0-osp-onboarding/SKILL.md" \
   ".agents/skills/osp-orchestrator/SKILL.md" \
-  ".codex/defaults/qa_pair_template.md" \
+  ".agents/defaults/qa_pair_template.md" \
   "AGENTS.md" \
   ".open-scholar-peer/codex_mcp_snippet.toml"
 
@@ -313,6 +342,29 @@ run_install_smoke "openclaw" "install_openclaw.sh" \
   ".agents/skills/0-osp-onboarding/SKILL.md" \
   ".agents/skills/osp-orchestrator/SKILL.md" \
   "AGENTS.md"
+
+# Two tools into one project. Each pair shares a folder; neither may break the other.
+run_install_smoke "antigravity+cli" "install_antigravity.sh,install_antigravity_cli.sh" \
+  ".agents/skills/5-osp-qa/SKILL.md" \
+  ".agents/rules/osp-rules.md" \
+  ".agents/defaults/qa_pair_template.md" \
+  "AGENTS.md"
+
+run_install_smoke "cli+antigravity" "install_antigravity_cli.sh,install_antigravity.sh" \
+  ".agents/skills/5-osp-qa/SKILL.md" \
+  ".agents/rules/osp-rules.md" \
+  "AGENTS.md"
+
+run_install_smoke "codex+vibe" "install_codex.sh,install_vibe.sh" \
+  ".agents/skills/5-osp-qa/SKILL.md" \
+  ".agents/skills/osp-orchestrator/SKILL.md" \
+  ".vibe/skills/5-osp-qa/SKILL.md" \
+  ".agents/defaults/qa_pair_template.md"
+
+run_install_smoke "vibe+codex" "install_vibe.sh,install_codex.sh" \
+  ".agents/skills/5-osp-qa/SKILL.md" \
+  ".vibe/skills/5-osp-qa/SKILL.md" \
+  ".agents/defaults/qa_pair_template.md"
 
 run_install_smoke "antigravity-cli" "install_antigravity_cli.sh" \
   "${COMMON[@]}" \

@@ -107,7 +107,12 @@ TOOLS: dict[str, ToolCaps] = {
     ),
     "antigravity": ToolCaps(
         name="antigravity",
-        install_dir=".agent",
+                # Writes into the shared ./.agents/ (as do Antigravity, Antigravity CLI and
+        # OpenClaw), so its skills must be byte-identical to theirs or the last
+        # install wins: same `.agents/defaults` paths, and the Q&A wording that
+        # tries a subagent and falls back, which is right on every tool. test_parity
+        # checks the four trees agree.
+        install_dir=".agents",
         root=REPO_ROOT / "extensions" / ".agent",
         # Antigravity 2.0 ships an asynchronous subagent framework
         # (invoke_subagent, custom subagents under .agents/agents/<name>.md).
@@ -138,7 +143,12 @@ TOOLS: dict[str, ToolCaps] = {
         commands_as_skills=True,
         root=REPO_ROOT / "extensions" / ".agents",
         supports_subagent=True,
-        qa_mode="subagent",
+                # Writes into the shared ./.agents/ (as do Antigravity, Antigravity CLI and
+        # OpenClaw), so its skills must be byte-identical to theirs or the last
+        # install wins: same `.agents/defaults` paths, and the Q&A wording that
+        # tries a subagent and falls back, which is right on every tool. test_parity
+        # checks the four trees agree.
+        qa_mode="prefer-subagent",
         command_dir="workflows",
         command_ext="md",
         skill_dir="skills",
@@ -193,10 +203,15 @@ TOOLS: dict[str, ToolCaps] = {
     ),
     "codex": ToolCaps(
         name="codex",
-        install_dir=".codex",
+                # Writes into the shared ./.agents/ (as do Antigravity, Antigravity CLI and
+        # OpenClaw), so its skills must be byte-identical to theirs or the last
+        # install wins: same `.agents/defaults` paths, and the Q&A wording that
+        # tries a subagent and falls back, which is right on every tool. test_parity
+        # checks the four trees agree.
+        install_dir=".agents",
         root=REPO_ROOT / "extensions" / ".codex",
         supports_subagent=True,
-        qa_mode="subagent",
+        qa_mode="prefer-subagent",
         # Custom prompts are deprecated and load only from ~/.codex/prompts, never
         # a project folder; skills load only from .agents/skills (learn.chatgpt.com/docs/
         # build-skills). install_codex.sh puts this adapter's skills/ there.

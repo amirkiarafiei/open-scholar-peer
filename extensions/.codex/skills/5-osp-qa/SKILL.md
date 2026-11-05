@@ -2,7 +2,11 @@
 name: 5-osp-qa
 description: "OSP Phase 5: Multi-Aspect Q&A — configurable pairs per criterion (default 2)"
 ---
-> **Tool capability:** This tool supports subagents. The Query Agent MUST delegate each question to `osp-answer-generator-agent` as a subagent with a fresh, minimal context bundle. Do NOT use self-reflection.
+> **Tool capability:** This tool documents a subagent framework, and subagent isolation is preferred here. Try it first: delegate each question to `osp-answer-generator-agent` as a subagent with a fresh, minimal context bundle.
+>
+> If delegation is unavailable in your session — the persona is not reachable as a subagent, the call errors, or the capability is simply absent — fall back to self-reflection with strict turn markers (`=== Query Agent === ... === END === === Answer Generator === ...`) in the main context window, and carry on. Do not stop the phase over it.
+>
+> Either way, record which one you used in the `## Method` section of each `05_qa_<slug>.md` (`Mode: subagent` or `Mode: self-reflection`), so the artifact says how the answers were actually produced.
 
 
 # /5-osp-qa — Multi-Aspect Q&A Engine
@@ -22,7 +26,7 @@ Invoke the `osp-query-agent` skill (main thread). The Query Agent will spawn `os
   what exists, name each gap in the artifact's Provenance, and let the answers say "could not be
   verified" rather than guessing.
 - `qa_criteria[]` in `session.json`. If it is empty, onboarding never ran — use the generic criteria from
-  `.codex/defaults/generic_review_guidelines.md` and record that you did.
+  `.agents/defaults/generic_review_guidelines.md` and record that you did.
 
 **Record any skip before you start.** The orchestrator is not in the loop when the user runs this
 command directly, so it falls to you: for every earlier phase still `pending`, set
@@ -66,7 +70,7 @@ Whichever you end up using, record it as `Mode:` in each file's `## Method` sect
 
 ## Opening block (print before step 1)
 
-Render the **opening block** exactly as `.codex/defaults/phase_block_template.md` defines it — that
+Render the **opening block** exactly as `.agents/defaults/phase_block_template.md` defines it — that
 file holds the rail, the rules and the widths, and it is the only place they are written down.
 This is phase **6 of 7** (`qa`); read the rail's state from `session.json`. Values:
 
@@ -80,7 +84,7 @@ This is phase **6 of 7** (`qa`); read the rail's state from `session.json`. Valu
 1. Read all input artifacts listed in the frontmatter.
 2. Activate the `osp-query-agent` skill.
 3. For each criterion in `qa_criteria[]`:
-   - Open or initialize `.brain/raw/05_qa_<criterion_slug>.md` from `.codex/defaults/qa_pair_template.md`.
+   - Open or initialize `.brain/raw/05_qa_<criterion_slug>.md` from `.agents/defaults/qa_pair_template.md`.
    - Generate exactly `qa_pairs_per_criterion` Q&A pairs:
      - For each, the Query Agent formulates a probing question grounded in the structured summary, narrative, and missing baselines.
      - The Query Agent delegates to the Answer Generator (subagent or self-reflection per mode).
@@ -94,7 +98,7 @@ This is phase **6 of 7** (`qa`); read the rail's state from `session.json`. Valu
 
 ## Closing block (print when the phase ends)
 
-Render the **closing block** from `.codex/defaults/phase_block_template.md`. **Build the rail from
+Render the **closing block** from `.agents/defaults/phase_block_template.md`. **Build the rail from
 `session.json`** — `●` only where `status == "completed"`, `○` for `pending` *and* `skipped`. A
 phase the user skipped must not show as done.
 Drop `BLOCKED` and `NOTE` when there is nothing to put on them. Values:

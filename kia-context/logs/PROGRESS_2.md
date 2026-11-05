@@ -1199,8 +1199,17 @@ newer build can, after `hermes skills trust` — an upgrade on the user's side, 
 installer runs `openclaw mcp remove`, which its docs page does not list; not installed here, so
 unverified. OpenHands' CLI docs call it "no longer actively maintained" while its repo is active.
 
-**Verified.** `sync_adapters.py --check` in sync; `test_parity.py` 21/21; `test_install.sh` 21/21,
-including the upgrade sweeps. Still untested by hand: the new layouts inside each real tool.
+**Review (Sonnet, PR #34): 0 HIGH, 3 MEDIUM, 3 LOW — all fixed.** Four tools that share `./.agents/`
+shipped different Q&A texts, so install order decided the result; they now ship identical trees and
+`test_parity.py` checks it. The IDE no longer writes the legacy `.agent/` copy (it read both, so
+commands showed twice). `clean_adapter.sh` deleted any file in `./.agents/defaults/`, a user's too;
+it now deletes only OSP's file names there, and removes folders an upgrade emptied. A docs sentence
+was false and is rewritten. `test_install.sh` gained `=path` (a user's file must survive) and runs
+four two-tool installs into one project.
+
+**Verified.** `sync_adapters.py --check` in sync; `test_parity.py` 21/21 plus the shared-folder
+check, shown to fail on an injected difference; `test_install.sh` 21 tools + 4 pairs, including the
+upgrade sweeps. Still untested by hand: the new layouts inside each real tool.
 
 ---
 

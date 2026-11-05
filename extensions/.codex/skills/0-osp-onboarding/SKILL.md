@@ -14,7 +14,7 @@ Invoke the `osp-orchestrator` skill (no domain persona needed for this step).
 
 ## Opening block (print before step 1)
 
-Render the **opening block** exactly as `.codex/defaults/phase_block_template.md` defines it — that
+Render the **opening block** exactly as `.agents/defaults/phase_block_template.md` defines it — that
 file holds the rail, the rules and the widths, and it is the only place they are written down.
 This is phase **1 of 7** (`onboarding`); read the rail's state from `session.json`. Values:
 
@@ -112,7 +112,7 @@ Try in order, stop at the first that succeeds:
 
 1. **Web search** for the venue's official review form / reviewer instructions / scoring rubric. Use queries like `"<venue> <year> reviewer guidelines"`, `"<venue> review form"`, `"<venue> reviewer checklist"`.
 2. **Ask the user** to paste guidelines if web search came up empty or returned irrelevant content.
-3. **Generic fallback:** copy `.codex/defaults/generic_review_guidelines.md` into `.brain/raw/00_review_guidelines.md`.
+3. **Generic fallback:** copy `.agents/defaults/generic_review_guidelines.md` into `.brain/raw/00_review_guidelines.md`.
 
 Set `venue.criteria_source` in `session.json` to `"web"`, `"user"`, or `"generic"` accordingly. Set `venue.source_url` if web-sourced.
 
@@ -140,7 +140,7 @@ If the venue uses 7 criteria, you produce 7 entries. If 3, you produce 3. The nu
 
 ### 7. Pre-scaffold empty Q&A files
 
-For each criterion in `qa_criteria[]`, create `.brain/raw/05_qa_<slug>.md` from the template at `.codex/defaults/qa_pair_template.md` (or the synced equivalent). Pre-fill:
+For each criterion in `qa_criteria[]`, create `.brain/raw/05_qa_<slug>.md` from the template at `.agents/defaults/qa_pair_template.md` (or the synced equivalent). Pre-fill:
 - The criterion label and definition in the header
 - Empty `### Q1` … `### Q<N>` placeholders where N = `qa_pairs_per_criterion` (from session.json, default 2)
 
@@ -156,7 +156,7 @@ This is a **structural nudge**: when the Query Agent runs in Phase 5, the empty 
 
 ## Closing block (print when the phase ends)
 
-Render the **closing block** from `.codex/defaults/phase_block_template.md`. **Build the rail from
+Render the **closing block** from `.agents/defaults/phase_block_template.md`. **Build the rail from
 `session.json`** — `●` only where `status == "completed"`, `○` for `pending` *and* `skipped`. A
 phase the user skipped must not show as done.
 Drop `BLOCKED` and `NOTE` when there is nothing to put on them. Values:

@@ -160,11 +160,34 @@ case "$TOOL" in
     rm -f "$DEST/rules/osp-rules.md" ;;
   antigravity-cli)
     rm -f "$DEST/AGENTS.md"
-    rm -f "$DEST/rules/osp-rules.md" ;;
+    # An older OSP wrote this with no `trigger`, so Antigravity discarded it.
+    # The IDE now writes a valid one to the same path; only the dead one goes.
+    if [[ -f "$DEST/rules/osp-rules.md" ]] && ! grep -q '^trigger:' "$DEST/rules/osp-rules.md"; then
+      rm -f "$DEST/rules/osp-rules.md"
+    fi ;;
   *)
     echo "clean_adapter.sh: no rules rule for '$TOOL'" >&2
     exit 1 ;;
 esac
 
-# Defaults (entirely OSP-managed in every tool)
-rm -rf "$DEST/defaults"
+# Defaults. Only the files OSP ships, by name: ./.agents/ is shared with the
+# user and other tools, so a defaults/ folder there is not necessarily all ours.
+SHARED_DEFAULTS="$(cd "$(dirname "${BASH_SOURCE[0]}")/../extensions/_shared/defaults" 2>/dev/null && pwd)"
+case "$(basename "$DEST")" in
+  .agents|.agent)
+    if [[ -d "$DEST/defaults" && -n "$SHARED_DEFAULTS" ]]; then
+      for f in "$SHARED_DEFAULTS"/*; do
+        rm -f "$DEST/defaults/$(basename "$f")"
+      done
+    fi ;;
+  *)
+    # A tool's own folder: defaults/ is entirely ours, including any file a
+    # past version shipped under a name it no longer uses.
+    rm -rf "$DEST/defaults" ;;
+esac
+
+# Folders an upgrade emptied. rmdir refuses a non-empty one, so nothing of the
+# user's can go here.
+for d in defaults rules instructions skills agents "$legacy_cmd_subdir" "$legacy_skill_subdir"; do
+  [[ -n "$d" ]] && rmdir "$DEST/$d" 2>/dev/null || true
+done

@@ -8,21 +8,18 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
 echo -e "\n${CYAN}Open ScholarPeer → Antigravity${NC}\n"
 
-# Antigravity references both `.agents/` (legacy default) and `.agent/` (newer).
-# Sync script generates both — copy whichever exists, prefer .agents/ since that's
-# what most current Antigravity versions still discover.
-
-# 1. Copy adapter to project. Wipe stale OSP-managed files in BOTH .agents/
-#    (legacy discovery) and .agent/ (newer) before re-copy; user content preserved.
+# 1. Copy adapter to ./.agents/, where Antigravity reads workspace skills and
+#    rules (antigravity.google/docs/rules, /docs/skills). An older OSP also wrote
+#    the legacy ./.agent/; it is swept, not rewritten, because the IDE reads both
+#    and every command would otherwise appear twice. User content is preserved.
 SRC="$ROOT_DIR/extensions/.agent"
-DEST_PRIMARY="./.agents"
-DEST_FUTURE="./.agent"
-mkdir -p "$DEST_PRIMARY" "$DEST_FUTURE"
-bash "$SCRIPTS_DIR/clean_adapter.sh" "$DEST_PRIMARY" "antigravity"
-bash "$SCRIPTS_DIR/clean_adapter.sh" "$DEST_FUTURE" "antigravity"
-cp -r "$SRC/." "$DEST_PRIMARY/"
-cp -r "$SRC/." "$DEST_FUTURE/"
-echo -e "  ${GREEN}✅ Adapter copied → ./.agents/ and ./.agent/${NC}"
+DEST="./.agents"
+mkdir -p "$DEST"
+bash "$SCRIPTS_DIR/clean_adapter.sh" "$DEST" "antigravity"
+bash "$SCRIPTS_DIR/clean_adapter.sh" "./.agent" "antigravity"
+rmdir ./.agent 2>/dev/null || true
+cp -r "$SRC/." "$DEST/"
+echo -e "  ${GREEN}✅ Adapter copied → ./.agents/${NC}"
 
 # 2. Brain
 "$SCRIPTS_DIR/init_brain.sh"

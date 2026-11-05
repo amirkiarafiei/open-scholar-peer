@@ -245,6 +245,9 @@ refuse to start — taking your chat channels and scheduled jobs with it. MCP is
 **Workaround:** If sandboxing is enabled, check that `workspaceAccess` is `"rw"`; otherwise the agent
 writes into a sandbox copy under `~/.openclaw/sandboxes` and `.brain/` never appears in your folder.
 
-**If you also installed for Antigravity CLI**, the two agree exactly: both read `./.agents/skills/`,
-and both need the eight commands expressed as skills, so they write the same sixteen directories.
-Nothing is duplicated, nothing is overwritten, and installing in either order gives the same result.
+**If you also installed for Antigravity, Antigravity CLI or Codex**, they agree exactly: all four
+read `./.agents/skills/` and write the same sixteen skill directories and the same `defaults/`, byte
+for byte (`scripts/test_parity.py` checks it). The Q&A command in that folder tries a subagent and
+falls back to one context window, which is right on every one of them. Installing in any order gives
+the same result. Kimi Code, Mistral Vibe and OpenHands also read that folder; they get only the
+persona skills there, and keep their own commands in their own folder.
