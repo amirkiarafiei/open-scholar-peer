@@ -39,9 +39,14 @@ If commands still don't appear, verify the adapter directory is in the right loc
 ls .claude/commands/      # Claude
 ls .cursor/commands/      # Cursor
 ls .gemini/commands/      # Gemini (TOML)
-ls .agent/workflows/      # Antigravity
-ls .agents/skills/        # Antigravity CLI (commands are skills here)
-ls .github/prompts/       # Copilot CLI
+ls .agents/skills/        # Antigravity, Antigravity CLI, Codex (commands are skills)
+ls .github/skills/        # Copilot CLI (commands are skills)
+ls .kiro/skills/          # Kiro      (commands are skills)
+ls .kimi/skills/          # Kimi Code (skills; run them as /skill:<name>)
+ls .vibe/skills/          # Mistral Vibe (skills are the commands)
+ls .openhands/skills/     # OpenHands (type the name; no slash commands)
+ls .qwen/commands/        # Qwen Code
+ls .opencode/commands/    # OpenCode
 ls .pi/prompts/           # Pi
 ls .omp/commands/         # Oh My Pi
 ls .grok/commands/        # Grok Build
@@ -105,7 +110,7 @@ First find out which interface it should be using. Run the search layer yourself
   venv is incomplete: re-run the installer.
 - **It prints nothing at all** → the file or the interpreter is missing. Re-run the installer.
 
-On **Pi** this is expected and not a fault: Pi ships no MCP client, so the program is the only path.
+On **Pi** this is expected and not a fault: OSP always searches through the program there.
 The instructions are in the OSP block of your `AGENTS.md`, which Pi loads whether or not the project
 is trusted.
 

@@ -41,14 +41,26 @@ skill_subdir="skills"
 agent_subdir=""          # only tools with separate subagent definitions
 commands_are_skills=0    # the 8 commands live in skill_subdir as directories
 legacy_cmd_subdir=""     # a command layout a previous OSP wrote and we no longer use
+legacy_skill_subdir=""   # a skill folder a previous OSP wrote and the tool never read
 
 case "$TOOL" in
-  claude|cursor|kimi|vibe|openhands)
+  claude|cursor)
     : ;;
+  kimi|vibe|openhands|kiro|copilot|codex)
+    # Commands are skills on these since 2.1.0: each tool stopped reading, or
+    # never read, the command folder an older OSP wrote. Sweep it on upgrade.
+    commands_are_skills=1
+    case "$TOOL" in
+      kimi|vibe|openhands) legacy_cmd_subdir="commands" ;;
+      kiro)                legacy_cmd_subdir="hooks" ;;
+      copilot|codex)       legacy_cmd_subdir="prompts" ;;
+    esac ;;
   gemini)
     cmd_ext="toml" ;;
   antigravity)
-    cmd_subdir="workflows" ;;
+    # Workflows stopped working on 2026-10-19; commands are skills now.
+    commands_are_skills=1
+    legacy_cmd_subdir="workflows" ;;
   antigravity-cli)
     # Commands are skills here now. `legacy_cmd_subdir` still sweeps the
     # workflows an older OSP wrote: the tool stopped reading them, so leaving
@@ -56,18 +68,12 @@ case "$TOOL" in
     # remove.
     commands_are_skills=1
     legacy_cmd_subdir="workflows" ;;
-  copilot)
-    cmd_subdir="prompts" ;;
   junie)
     : ;;
-  kiro)
-    cmd_subdir="hooks" ;;
-  codex)
-    cmd_subdir="prompts" ;;
-  qwen)
-    skill_subdir="agents" ;;
-  opencode)
-    skill_subdir="agents" ;;
+  qwen|opencode)
+    # Skills load from skills/; an older OSP put them in agents/, which holds
+    # flat subagent files on both tools and so never loaded them.
+    legacy_skill_subdir="agents" ;;
   pi)
     cmd_subdir="prompts" ;;
   ohmypi)
@@ -111,6 +117,11 @@ if [[ -d "$DEST/$skill_subdir" ]]; then
   fi
 fi
 
+if [[ -n "$legacy_skill_subdir" && -d "$DEST/$legacy_skill_subdir" ]]; then
+  find "$DEST/$legacy_skill_subdir" -maxdepth 1 -type d -name 'osp-*' \
+    -exec rm -rf {} + 2>/dev/null || true
+fi
+
 # Subagent definitions — flat markdown files, one per persona
 if [[ -n "$agent_subdir" && -d "$DEST/$agent_subdir" ]]; then
   find "$DEST/$agent_subdir" -maxdepth 1 -type f -name 'osp-*.md' \
@@ -126,7 +137,10 @@ case "$TOOL" in
   gemini)
     rm -f "$DEST/GEMINI.md" ;;
   copilot)
-    rm -f "$DEST/instructions/osp-rules.md" ;;
+    # Not written since 2.1.0: AGENTS.md carries the rules, and this name was
+    # never read by Copilot anyway (it reads only *.instructions.md).
+    rm -f "$DEST/instructions/osp-rules.md"
+    rmdir "$DEST/instructions" 2>/dev/null || true ;;
   junie)
     rm -f "$DEST/guidelines.md" ;;
   kiro)

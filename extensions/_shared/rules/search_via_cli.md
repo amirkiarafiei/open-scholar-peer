@@ -1,4 +1,4 @@
-## This tool has no MCP client
+## On this tool, search runs as a program
 
 The search tools are not tool calls here. They are a program you run through
 `bash`. The interface is always `cli` — do not probe for MCP, and never report

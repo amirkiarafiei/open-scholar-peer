@@ -19,9 +19,12 @@ SRC="$ROOT_DIR/extensions/.codex"
 DEST="./.codex"
 mkdir -p "$DEST"
 bash "$SCRIPTS_DIR/clean_adapter.sh" "$DEST" "codex"
-# Copy everything except AGENTS.md (it goes to project root, merged separately)
-find "$SRC" -mindepth 1 -maxdepth 1 -not -name 'AGENTS.md' -exec cp -r {} "$DEST/" \;
-echo -e "  ${GREEN}✅ Adapter copied → ./.codex/${NC}"
+# Copy everything except AGENTS.md (merged at the project root below) and skills/.
+# Codex reads project skills only from .agents/skills/ and has no project
+# commands at all, so all sixteen skills — the eight commands included — go there.
+find "$SRC" -mindepth 1 -maxdepth 1 -not -name 'AGENTS.md' -not -name 'skills' -exec cp -r {} "$DEST/" \;
+bash "$SCRIPTS_DIR/mirror_skills.sh" "$SRC/skills" "./.agents/skills" all
+echo -e "  ${GREEN}✅ Adapter copied → ./.codex/, skills → ./.agents/skills/${NC}"
 
 # 2. AGENTS.md — merge into project root (preserves user content)
 if [[ -f "$SRC/AGENTS.md" ]]; then
@@ -74,4 +77,5 @@ fi
 
 # Closing message — shared wording lives in _post_install.sh
 . "$SCRIPTS_DIR/_post_install.sh"
-osp_post_install "Codex CLI"
+osp_post_install "Codex CLI" \
+  "In Codex, OSP commands are skills: type \$open-scholar-peer (and \$1-osp-summary, ...), or pick one from /skills"

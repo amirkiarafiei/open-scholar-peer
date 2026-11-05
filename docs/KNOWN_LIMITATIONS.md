@@ -209,9 +209,10 @@ outbound network from the shell by default. All three have working MCP, so the f
 exactly where it is not needed — but if their MCP breaks, there is nothing behind it. Onboarding
 checks for this and records `none` rather than letting a blocked shell look like an empty corpus.
 
-**Pi is the one tool where the shell is the only path.** It ships no MCP client and no web access,
-both deliberately — the author's words are *"No MCP. Build CLI tools with READMEs (see Skills)"*. It
-also has no sandbox, so the fallback works exactly where it is the only option.
+**Pi is the one tool where OSP always uses the shell.** Pi now has an MCP client, but it reads a
+project's `.pi/mcp.json` only after you trust the project; the program needs no trust, because its
+instructions arrive in `AGENTS.md`, which Pi always loads. Pi ships no web access, and no sandbox, so
+the shell path works exactly where it is needed.
 
 **Also: project trust.** Pi ignores everything under `.pi/` — prompts, skills, settings — until you
 accept the trust prompt for the folder, and `/trust` does not reload the running session. If the OSP

@@ -115,6 +115,9 @@ TOOLS: dict[str, ToolCaps] = {
         # Q&A banner asks it to try and degrade rather than insist. O11.
         supports_subagent=True,
         qa_mode="prefer-subagent",
+        # Workflows stopped working on 2026-10-19 (antigravity.google/docs/migration/
+        # workflows-to-skills); skills are now the slash commands.
+        commands_as_skills=True,
         command_dir="workflows",  # antigravity calls them workflows
         command_ext="md",
         skill_dir="skills",
@@ -139,7 +142,9 @@ TOOLS: dict[str, ToolCaps] = {
         command_dir="workflows",
         command_ext="md",
         skill_dir="skills",
-        rule_dir="rules",
+        # Rules reach this tool through AGENTS.md at the project root. A rules/
+        # file as well would load the same always-on text twice.
+        rule_dir=None,
         extra_files=[("AGENTS.md", "rules")],
     ),
     "copilot": ToolCaps(
@@ -148,10 +153,15 @@ TOOLS: dict[str, ToolCaps] = {
         root=REPO_ROOT / "extensions" / ".github",
         supports_subagent=True,
         qa_mode="subagent",
+        # Copilot CLI documents skills (invoked as `/<name>`) and no prompt files;
+        # `.github/prompts/` is VS Code's, and only for `*.prompt.md`.
+        commands_as_skills=True,
         command_dir="prompts",
         command_ext="md",
         skill_dir="skills",
-        rule_dir="instructions",
+        # Rules reach this tool through AGENTS.md at the project root. A rules/
+        # file as well would load the same always-on text twice.
+        rule_dir=None,
         extra_files=[("AGENTS.md", "rules")],
     ),
     "junie": ToolCaps(
@@ -172,6 +182,9 @@ TOOLS: dict[str, ToolCaps] = {
         root=REPO_ROOT / "extensions" / ".kiro",
         supports_subagent=True,
         qa_mode="subagent",
+        # `.kiro/hooks/` takes JSON hooks, not commands. A skill in .kiro/skills/ whose
+        # name matches its folder is offered as `/<name>` (kiro.dev/docs/skills).
+        commands_as_skills=True,
         command_dir="hooks",
         command_ext="md",
         skill_dir="skills",
@@ -184,6 +197,10 @@ TOOLS: dict[str, ToolCaps] = {
         root=REPO_ROOT / "extensions" / ".codex",
         supports_subagent=True,
         qa_mode="subagent",
+        # Custom prompts are deprecated and load only from ~/.codex/prompts, never
+        # a project folder; skills load only from .agents/skills (learn.chatgpt.com/docs/
+        # build-skills). install_codex.sh puts this adapter's skills/ there.
+        commands_as_skills=True,
         command_dir="prompts",
         command_ext="md",
         skill_dir="skills",
@@ -196,6 +213,9 @@ TOOLS: dict[str, ToolCaps] = {
         root=REPO_ROOT / "extensions" / ".kimi",
         supports_subagent=True,
         qa_mode="subagent",
+        # No file-based commands. Skills are invoked as `/skill:<name>`
+        # (moonshotai.github.io/kimi-cli/en/customization/skills).
+        commands_as_skills=True,
         command_dir="commands",
         command_ext="md",
         skill_dir="skills",
@@ -210,7 +230,7 @@ TOOLS: dict[str, ToolCaps] = {
         qa_mode="subagent",
         command_dir="commands",
         command_ext="md",
-        skill_dir="agents",
+        skill_dir="skills",  # skills load from <dir>/skills/, never agents/ (agents/ is flat subagent files)
         rule_dir=None,
         extra_files=[("QWEN.md", "rules")],
     ),
@@ -220,6 +240,9 @@ TOOLS: dict[str, ToolCaps] = {
         root=REPO_ROOT / "extensions" / ".vibe",
         supports_subagent=False,
         qa_mode="self-reflection",
+        # "Skills are the recommended way to add your own slash commands";
+        # `user-invocable` defaults to true (docs.mistral.ai/vibe/code/cli/skills).
+        commands_as_skills=True,
         command_dir="commands",
         command_ext="md",
         skill_dir="skills",
@@ -234,7 +257,7 @@ TOOLS: dict[str, ToolCaps] = {
         qa_mode="subagent",
         command_dir="commands",
         command_ext="md",
-        skill_dir="agents",
+        skill_dir="skills",  # skills load from <dir>/skills/, never agents/ (agents/ is flat subagent files)
         rule_dir=None,
         extra_files=[("AGENTS.md", "rules")],
     ),
@@ -244,6 +267,9 @@ TOOLS: dict[str, ToolCaps] = {
         root=REPO_ROOT / "extensions" / ".openhands",
         supports_subagent=False,
         qa_mode="self-reflection",
+        # No slash commands. A skill fires when one of its `triggers` keywords
+        # appears in a message, so each command skill triggers on its own name.
+        commands_as_skills=True,
         command_dir="commands",
         command_ext="md",
         skill_dir="skills",
@@ -515,7 +541,8 @@ def write_skill(dest_dir: Path, name: str, content: str) -> None:
     target.write_text(content, encoding="utf-8")
 
 
-def write_command_as_skill(dest_dir: Path, name: str, fields: dict[str, str], body: str) -> None:
+def write_command_as_skill(dest_dir: Path, name: str, fields: dict[str, str], body: str,
+                           tool_name: str = "") -> None:
     """Write a command as a skill directory, for tools where skills *are* the
     slash commands (Hermes, OpenClaw) or where the command mechanism was
     retired in favour of them (Cline).
@@ -527,7 +554,13 @@ def write_command_as_skill(dest_dir: Path, name: str, fields: dict[str, str], bo
     vendor documents.
     """
     desc = " ".join(fields.get("description", "").split()).strip().strip('"')
-    content = f'---\nname: {name}\ndescription: "{desc}"\n---\n{body}'
+    extra = ""
+    if tool_name == "openhands":
+        # OpenHands has no slash commands; a skill is injected when one of its
+        # `triggers` appears in the message. Plain words only are documented, so
+        # the bare name — which `/open-scholar-peer` also contains.
+        extra = f"triggers:\n- {name}\n"
+    content = f'---\nname: {name}\ndescription: "{desc}"\n{extra}---\n{body}'
     target = dest_dir / name / "SKILL.md"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
@@ -558,14 +591,23 @@ def write_agent_definition(dest_dir: Path, tool_name: str, name: str, content: s
     target.write_text(content, encoding="utf-8")
 
 
-def write_rule(dest_path: Path, content: str, *, mdc: bool = False) -> None:
-    """Write a rules file. If mdc=True, write as Cursor .mdc with applies-everywhere frontmatter."""
+# A rules file's name and frontmatter, where the tool insists on its own. A tool
+# not listed keeps `osp-rules.md` and our frontmatter as written.
+#   cursor:      .mdc with `alwaysApply`, or the rule is never attached.
+#   antigravity: every file in rules/ needs a valid `trigger`, or Antigravity
+#                "silently discards the rule" (antigravity.google/docs/rules).
+RULE_SHAPE: dict[str, tuple[str, str]] = {
+    "cursor": ("osp-rules.mdc", "alwaysApply: true"),
+    "antigravity": ("osp-rules.md", "trigger: always_on"),
+}
+
+
+def write_rule(dest_path: Path, content: str, *, frontmatter: str | None = None) -> None:
+    """Write a rules file. With `frontmatter`, our own frontmatter is replaced by it."""
     dest_path.parent.mkdir(parents=True, exist_ok=True)
-    if mdc:
-        # Strip our frontmatter (if any) and prepend Cursor's mdc frontmatter
+    if frontmatter is not None:
         _, body = split_frontmatter(content)
-        mdc_fm = "---\nalwaysApply: true\n---\n"
-        dest_path.write_text(mdc_fm + body, encoding="utf-8")
+        dest_path.write_text(f"---\n{frontmatter}\n---\n" + body, encoding="utf-8")
     else:
         dest_path.write_text(content, encoding="utf-8")
 
@@ -607,7 +649,7 @@ def sync_tool(tool: ToolCaps) -> list[str]:
 
         if tool.commands_as_skills:
             target_dir = tool.root / tool.skill_dir
-            write_command_as_skill(target_dir, cmd_path.stem, fields, body)
+            write_command_as_skill(target_dir, cmd_path.stem, fields, body, tool.name)
             written.append(str((target_dir / cmd_path.stem / "SKILL.md").relative_to(tool.root)))
             continue
 
@@ -658,9 +700,9 @@ def sync_tool(tool: ToolCaps) -> list[str]:
         rules_content = resolve_defaults_refs(rules_content, tool)
 
         if tool.rule_dir is not None:
-            ext = "mdc" if tool.name == "cursor" else "md"
-            target = tool.root / tool.rule_dir / f"osp-rules.{ext}"
-            write_rule(target, rules_content, mdc=(tool.name == "cursor"))
+            filename, frontmatter = RULE_SHAPE.get(tool.name, ("osp-rules.md", None))
+            target = tool.root / tool.rule_dir / filename
+            write_rule(target, rules_content, frontmatter=frontmatter)
             written.append(str(target.relative_to(tool.root)))
 
         # Tools that bundle rules elsewhere (Gemini -> GEMINI.md, Copilot -> AGENTS.md)

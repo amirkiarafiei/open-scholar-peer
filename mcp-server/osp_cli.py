@@ -4,10 +4,11 @@ osp_cli.py — the Open ScholarPeer search tools, as a command-line program.
 
 Why this exists
 ---------------
-Not every agent speaks MCP. Pi ships no MCP client and says so deliberately
-("No MCP. Build CLI tools with READMEs"), yet it does have `bash`. Without a
-path like this one, such a tool could run the review protocol but could not
-retrieve a single paper — and a review with no literature is not a review.
+Not every agent can reach MCP. Pi shipped without an MCP client for a long
+time, and its current one reads a project's config only after the project is
+trusted — yet it always has `bash`. Without a path like this one, such a tool
+could run the review protocol but could not retrieve a single paper, and a
+review with no literature is not a review.
 
 So this is a bridge, not a second implementation. Every tool it exposes is
 the *same function object* the MCP server registers, reached through the same

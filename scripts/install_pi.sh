@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Open ScholarPeer — Pi installer
 #
-# Pi is the one supported tool with no MCP client. That is a stated design
-# choice by its author, not a gap: "No MCP. Build CLI tools with READMEs (see
-# Skills)." Pi also ships no web search and no URL fetch — its built-in tools
-# are read, bash, edit, write, grep, find, ls — so without a path of our own
-# the review protocol would run with nothing to retrieve.
+# Pi is the one supported tool where OSP's search runs as a program, not MCP.
+# Pi did gain an MCP client (pi.dev/docs/latest/mcp.md), but it reads the
+# project's `.pi/mcp.json` only after the user trusts the project, while the
+# AGENTS.md block that tells the agent about the program loads either way. Pi
+# also ships no web search and no URL fetch — its built-in tools are read,
+# bash, edit, write, grep, find, ls — so without a path of our own the review
+# protocol would run with nothing to retrieve.
 #
 # So OSP follows Pi's own convention: the same 22 search tools are exposed as a
 # command-line program, and the always-on rules tell the agent how to call it.
@@ -48,7 +50,7 @@ fi
 #    osp_cli.py can run, not so an MCP server can be launched.
 . "$SCRIPTS_DIR/init_mcp.sh"
 echo -e "  ${GREEN}✅ Search tools available as a program → ${OSP_SEARCH_CLI#./}${NC}"
-echo -e "     ${CYAN}Pi has no MCP client, so the agent calls it through bash.${NC}"
+echo -e "     ${CYAN}On Pi the agent calls it through bash; no project trust needed.${NC}"
 
 
 # Closing message — shared wording lives in _post_install.sh
